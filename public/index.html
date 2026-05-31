@@ -102,9 +102,41 @@
   }
   .voice-select.show { display: inline-block; }
   .voice-select:focus { outline: none; border-color: var(--ball); }
-  /* Opgeruimd beeld in volledig scherm */
+  /* Opgeruimd beeld in volledig scherm: alleen de score */
   body.fs { cursor: none; }
   body.fs .tester { display: none !important; }
+  body.fs .board-top { display: none !important; }
+  body.fs .board { padding-top: 4vh; }
+  /* Nagebootst volledig scherm voor iPhone (geen echte Fullscreen API) */
+  body.emulated-fs { position: fixed; inset: 0; width: 100vw; height: 100dvh; overflow: hidden; }
+  body.emulated-fs .board { height: 100dvh; }
+  #fsExit {
+    display: none; position: fixed; top: max(12px, env(safe-area-inset-top)); right: 14px; z-index: 60;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--court-line);
+    background: rgba(7,59,46,.7); color: var(--ink); font-size: 1.2rem; cursor: pointer;
+    align-items: center; justify-content: center;
+  }
+  body.fs #fsExit { display: flex; }
+
+  /* ---- Namen-overlay ---- */
+  .overlay {
+    display: none; position: fixed; inset: 0; z-index: 80;
+    background: rgba(3,18,14,.86); align-items: center; justify-content: center; padding: 5vw;
+  }
+  .overlay.show { display: flex; }
+  .overlay-card {
+    background: var(--panel); border: 1px solid var(--court-line); border-radius: 18px;
+    padding: 1.6rem; width: min(420px, 92vw); max-height: 90vh; overflow: auto;
+  }
+  .overlay-card h2 { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 1rem; }
+  .overlay-card label { display: block; color: var(--muted); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; margin: .8rem 0 .3rem; }
+  .overlay-card input {
+    width: 100%; padding: .7rem .9rem; border-radius: 10px; border: 1px solid var(--court-line);
+    background: #052017; color: var(--ink); font-family: 'Outfit', sans-serif; font-size: 1.05rem;
+  }
+  .overlay-card input:focus { outline: none; border-color: var(--ball); }
+  .overlay-actions { display: flex; gap: .8rem; margin-top: 1.4rem; }
+  .overlay-actions .btn { flex: 1; padding: .7rem; font-size: 1.05rem; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--them); animation: pulse 1.4s infinite; }
 
   .teams { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
@@ -282,6 +314,7 @@
     <button class="btn" id="connectBtn" disabled>Verbinden</button>
     <div class="err" id="err"></div>
     <div class="hint">De pincode vind je in de PadelSmash-app op je Garmin.</div>
+    <button class="icon-btn" id="namesBtn2" style="margin-top:1.2rem">✎ Namen instellen</button>
   </div>
 
   <!-- SCOREBORD -->
@@ -289,6 +322,7 @@
     <div class="board-top">
       <div class="board-title">Padel<span>Smash</span></div>
       <div class="top-right">
+        <button class="icon-btn" id="namesBtn" title="Spelersnamen bewerken">✎ Namen</button>
         <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
         <select class="voice-select" id="voiceSelect" title="Kies een stem"></select>
         <button class="icon-btn" id="fsBtn" title="Volledig scherm">⛶ Fullscreen</button>
@@ -328,6 +362,7 @@
     </div>
 
     <div class="tb-badge" id="tbBadge">TIEBREAK</div>
+    <div class="tb-badge" id="deuceBadge">DEUCE</div>
     <div class="switch-toast" id="switchToast">Wissel van kant</div>
 
     <div class="games-sets">
@@ -353,6 +388,26 @@
     <div class="sub" id="winnerScore">winnen de wedstrijd</div>
     <div class="winner-sets" id="winnerSets"></div>
     <div class="winner-stats" id="winnerStats"></div>
+  </div>
+
+  <!-- Sluit-knop voor volledig scherm (zichtbaar in fullscreen) -->
+  <button id="fsExit" title="Sluit volledig scherm">✕</button>
+
+  <!-- NAMEN bewerken -->
+  <div class="overlay" id="namesOverlay">
+    <div class="overlay-card">
+      <h2>Namen</h2>
+      <label>Team wij</label><input id="nmUs" maxlength="14" placeholder="You">
+      <label>Tegenstander</label><input id="nmThem" maxlength="14" placeholder="Opponent">
+      <label>Speler 1 (wij)</label><input id="nmP1" maxlength="12" placeholder="A">
+      <label>Speler 2 (wij)</label><input id="nmP2" maxlength="12" placeholder="B">
+      <label>Speler 3 (zij)</label><input id="nmP3" maxlength="12" placeholder="C">
+      <label>Speler 4 (zij)</label><input id="nmP4" maxlength="12" placeholder="D">
+      <div class="overlay-actions">
+        <button class="btn" id="namesSave">Opslaan</button>
+        <button class="icon-btn" id="namesCancel">Annuleren</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -394,7 +449,21 @@ let connectedPin = null;
 let lastPoints = ["0","0"];
 let teamUs = "Wij";
 let teamThem = "Zij";
-let namesEditedLocally = false; // als jij namen op het bord typt, winnen die
+let localPlayers = null;            // [p1,p2,p3,p4] als jij ze zelf instelt
+let namesEditedLocally = false;     // als jij namen op het bord typt, winnen die
+
+// Eerder opgeslagen namen laden
+(function loadNames() {
+  try {
+    const t = JSON.parse(localStorage.getItem('padelNames') || 'null');
+    if (t) {
+      if (t.us) { teamUs = t.us; }
+      if (t.them) { teamThem = t.them; }
+      if (Array.isArray(t.players) && t.players.length === 4) { localPlayers = t.players; }
+      namesEditedLocally = true;
+    }
+  } catch (e) {}
+})();
 
 // Pas de namen op het bord toe
 function applyNames() {
@@ -412,10 +481,46 @@ function makeNameEditable(selector, which) {
     if (nieuw && nieuw.trim()) {
       if (which === 'us') teamUs = nieuw.trim(); else teamThem = nieuw.trim();
       namesEditedLocally = true;
+      persistNames();
       applyNames();
     }
   });
 }
+
+// ---- Namen-overlay (team + 4 spelers), opgeslagen in de browser ----
+const namesOverlay = document.getElementById('namesOverlay');
+function persistNames() {
+  localStorage.setItem('padelNames', JSON.stringify({ us: teamUs, them: teamThem, players: localPlayers }));
+}
+function openNames() {
+  document.getElementById('nmUs').value   = (teamUs && teamUs !== 'Wij') ? teamUs : '';
+  document.getElementById('nmThem').value = (teamThem && teamThem !== 'Zij') ? teamThem : '';
+  const pl = localPlayers || [];
+  document.getElementById('nmP1').value = pl[0] || '';
+  document.getElementById('nmP2').value = pl[1] || '';
+  document.getElementById('nmP3').value = pl[2] || '';
+  document.getElementById('nmP4').value = pl[3] || '';
+  namesOverlay.classList.add('show');
+}
+function closeNames() { namesOverlay.classList.remove('show'); }
+function saveNames() {
+  const us = document.getElementById('nmUs').value.trim();
+  const them = document.getElementById('nmThem').value.trim();
+  const pl = ['nmP1','nmP2','nmP3','nmP4'].map(id => document.getElementById(id).value.trim());
+  if (us) { teamUs = us; }
+  if (them) { teamThem = them; }
+  const defaults = ['A','B','C','D'];
+  localPlayers = pl.some(x => x.length > 0) ? pl.map((x,i) => x || defaults[i]) : null;
+  namesEditedLocally = true;
+  persistNames();
+  applyNames();
+  closeNames();
+}
+document.getElementById('namesBtn').addEventListener('click', openNames);
+document.getElementById('namesBtn2').addEventListener('click', openNames);
+document.getElementById('namesSave').addEventListener('click', saveNames);
+document.getElementById('namesCancel').addEventListener('click', closeNames);
+namesOverlay.addEventListener('click', (e) => { if (e.target === namesOverlay) { closeNames(); } });
 
 // PIN-invoer
 const boxes = [...document.querySelectorAll('.pin-box')];
@@ -564,7 +669,17 @@ function render(m) {
   updateSetHistory(m);
   updateServePlayers(m);
   updateTiebreak(m);
+  updateDeuce(m);
   updateSwitchToast(m);
+}
+
+// 40-40 zonder gouden punt = deuce
+function updateDeuce(m) {
+  const b = document.getElementById('deuceBadge');
+  if (!b) { return; }
+  const deuce = !m.golden && !m.tiebreak && !m.over
+    && m.points[0] >= 3 && m.points[1] >= 3 && m.points[0] === m.points[1];
+  b.classList.toggle('show', deuce);
 }
 
 // Momentum-balk: verhouding van gewonnen punten (langste reeks als proxy + games)
@@ -593,7 +708,7 @@ function updateServePlayers(m) {
   const you = document.getElementById('serveYou');
   const them = document.getElementById('serveThem');
   if (!you || !them) return;
-  const players = Array.isArray(m.players) ? m.players : ['A','B','C','D'];
+  const players = localPlayers || (Array.isArray(m.players) ? m.players : ['A','B','C','D']);
   const sp = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
@@ -653,27 +768,45 @@ function setPoint(id, val, idx) {
 const fsBtn = document.getElementById('fsBtn');
 let boardLive = false;
 
+// Echte Fullscreen API beschikbaar? (iPhone Safari heeft die niet voor divs)
+function fsApiSupported() {
+  const el = document.documentElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+function realFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement;
+}
 function isFullscreen() {
-  return document.fullscreenElement || document.webkitFullscreenElement || null;
+  return !!realFullscreen() || document.body.classList.contains('emulated-fs');
 }
 function enterFullscreen() {
-  const el = document.documentElement;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (req) { try { Promise.resolve(req.call(el)).catch(()=>{}); } catch (e) {} }
+  if (fsApiSupported()) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { Promise.resolve(req.call(el)).catch(()=>{}); } catch (e) {}
+  } else {
+    // iPhone: bootst volledig scherm na — alleen het bord
+    document.body.classList.add('emulated-fs');
+  }
+  acquireWakeLock();
+  syncFsBtn();
 }
 function leaveFullscreen() {
-  const ex = document.exitFullscreen || document.webkitExitFullscreen;
-  if (ex) { try { Promise.resolve(ex.call(document)).catch(()=>{}); } catch (e) {} }
+  if (realFullscreen()) {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { try { Promise.resolve(ex.call(document)).catch(()=>{}); } catch (e) {} }
+  }
+  document.body.classList.remove('emulated-fs');
+  syncFsBtn();
 }
-fsBtn.addEventListener('click', () => {
-  if (!isFullscreen()) { enterFullscreen(); } else { leaveFullscreen(); }
-});
 function syncFsBtn() {
-  const on = !!isFullscreen();
+  const on = isFullscreen();
+  document.body.classList.toggle('fs', on);
   fsBtn.textContent = on ? '⛶ Verlaten' : '⛶ Fullscreen';
   fsBtn.classList.toggle('active', on);
-  document.body.classList.toggle('fs', on);
 }
+fsBtn.addEventListener('click', () => { if (!isFullscreen()) { enterFullscreen(); } else { leaveFullscreen(); } });
+document.getElementById('fsExit').addEventListener('click', leaveFullscreen);
 document.addEventListener('fullscreenchange', syncFsBtn);
 document.addEventListener('webkitfullscreenchange', syncFsBtn);
 
@@ -810,7 +943,7 @@ function announce(prev, m) {
 function spokenScore(us, them) {
   if (us === 'Adv') return 'Voordeel ' + teamUs + '.';
   if (them === 'Adv') return 'Voordeel ' + teamThem + '.';
-  if (us === '40' && them === '40') return 'Veertig gelijk.';
+  if (us === '40' && them === '40') return 'Deuce.';
   if (us === them) return us + ' gelijk.';
   return us + ' - ' + them;
 }
