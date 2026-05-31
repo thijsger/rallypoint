@@ -94,6 +94,17 @@
   }
   .icon-btn:hover { border-color: var(--ball); transform: translateY(-1px); }
   .icon-btn.active { background: var(--ball); color: #052017; border-color: var(--ball); }
+  .voice-select {
+    display: none; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--court-line); border-radius: 100px;
+    font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 500;
+    padding: .5rem .9rem; cursor: pointer; max-width: 170px;
+  }
+  .voice-select.show { display: inline-block; }
+  .voice-select:focus { outline: none; border-color: var(--ball); }
+  /* Opgeruimd beeld in volledig scherm */
+  body.fs { cursor: none; }
+  body.fs .tester { display: none !important; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--them); animation: pulse 1.4s infinite; }
 
   .teams { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
@@ -279,6 +290,7 @@
       <div class="board-title">Padel<span>Smash</span></div>
       <div class="top-right">
         <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
+        <select class="voice-select" id="voiceSelect" title="Kies een stem"></select>
         <button class="icon-btn" id="fsBtn" title="Volledig scherm">⛶ Fullscreen</button>
         <span class="live-dot"><span class="dot"></span> Live · PIN <span id="boardPin"></span></span>
       </div>
@@ -460,6 +472,8 @@ connectBtn.addEventListener('click', async () => {
   document.getElementById('connectScreen').style.display = 'none';
   document.getElementById('board').classList.add('live');
   document.getElementById('boardPin').textContent = pin;
+  boardLive = true;
+  acquireWakeLock();
   makeNameEditable('.team.us .team-name', 'us');
   makeNameEditable('.team.them .team-name', 'them');
   render(match);
@@ -637,15 +651,47 @@ function setPoint(id, val, idx) {
    FULLSCREEN
    ============================================================ */
 const fsBtn = document.getElementById('fsBtn');
+let boardLive = false;
+
+function isFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+function enterFullscreen() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (req) { try { Promise.resolve(req.call(el)).catch(()=>{}); } catch (e) {} }
+}
+function leaveFullscreen() {
+  const ex = document.exitFullscreen || document.webkitExitFullscreen;
+  if (ex) { try { Promise.resolve(ex.call(document)).catch(()=>{}); } catch (e) {} }
+}
 fsBtn.addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(()=>{});
-  } else {
-    document.exitFullscreen();
-  }
+  if (!isFullscreen()) { enterFullscreen(); } else { leaveFullscreen(); }
 });
-document.addEventListener('fullscreenchange', () => {
-  fsBtn.textContent = document.fullscreenElement ? '⛶ Verlaten' : '⛶ Fullscreen';
+function syncFsBtn() {
+  const on = !!isFullscreen();
+  fsBtn.textContent = on ? '⛶ Verlaten' : '⛶ Fullscreen';
+  fsBtn.classList.toggle('active', on);
+  document.body.classList.toggle('fs', on);
+}
+document.addEventListener('fullscreenchange', syncFsBtn);
+document.addEventListener('webkitfullscreenchange', syncFsBtn);
+
+/* Scherm wakker houden tijdens een wedstrijd (Wake Lock API) */
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) { /* niet ondersteund of geweigerd */ }
+}
+function releaseWakeLock() {
+  if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+}
+// De browser geeft de lock vrij bij tab-wissel: opnieuw aanvragen bij terugkeer
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && boardLive && !wakeLock) { acquireWakeLock(); }
 });
 
 /* ============================================================
@@ -653,40 +699,86 @@ document.addEventListener('fullscreenchange', () => {
    ============================================================ */
 let voiceOn = false;
 let nlVoice = null;
+const speechRate = 1.0;
 const voiceBtn = document.getElementById('voiceBtn');
+const voiceSelect = document.getElementById('voiceSelect');
+const hasSpeech = 'speechSynthesis' in window;
 
-function pickDutchVoice() {
-  const voices = speechSynthesis.getVoices();
-  nlVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('nl')) || null;
+// Geef Nederlandse, lokale en hoogwaardige stemmen voorrang
+function voiceScore(v) {
+  let s = 0;
+  const lang = (v.lang || '').toLowerCase();
+  if (lang === 'nl-nl') { s += 4; } else if (lang.startsWith('nl')) { s += 2; }
+  const n = (v.name || '').toLowerCase();
+  if (n.indexOf('google') >= 0) { s += 3; }
+  if (/(microsoft|natural|enhanced|premium|neural)/.test(n)) { s += 3; }
+  if (v.localService) { s += 1; }
+  return s;
 }
-if ('speechSynthesis' in window) {
-  pickDutchVoice();
-  speechSynthesis.onvoiceschanged = pickDutchVoice;
+function bestDutch(voices) {
+  const nl = voices.filter(v => (v.lang || '').toLowerCase().startsWith('nl'));
+  if (!nl.length) { return null; }
+  return nl.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0];
+}
+function populateVoices() {
+  if (!hasSpeech) { return; }
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) { return; }
+  const nl = voices.filter(v => (v.lang || '').toLowerCase().startsWith('nl'));
+  const rest = voices.filter(v => !(v.lang || '').toLowerCase().startsWith('nl'));
+  const ordered = nl.concat(rest);
+  const keep = nlVoice ? nlVoice.name : null;
+  voiceSelect.innerHTML = '';
+  ordered.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = v.name + ' · ' + v.lang;
+    voiceSelect.appendChild(opt);
+  });
+  nlVoice = (keep && voices.find(v => v.name === keep)) || bestDutch(voices) || ordered[0] || null;
+  if (nlVoice) { voiceSelect.value = nlVoice.name; }
+}
+if (hasSpeech) {
+  populateVoices();
+  speechSynthesis.onvoiceschanged = populateVoices;
 } else {
   voiceBtn.style.display = 'none';
+  voiceSelect.style.display = 'none';
 }
+
+voiceSelect.addEventListener('change', () => {
+  const voices = speechSynthesis.getVoices();
+  nlVoice = voices.find(v => v.name === voiceSelect.value) || nlVoice;
+  if (voiceOn) { speak('Stem ingesteld.'); }
+});
 
 voiceBtn.addEventListener('click', () => {
   voiceOn = !voiceOn;
   voiceBtn.classList.toggle('active', voiceOn);
   voiceBtn.textContent = voiceOn ? '🔊 Voorlezen aan' : '🔊 Voorlezen';
+  voiceSelect.classList.toggle('show', voiceOn);
   if (voiceOn) {
-    // Eerste klik "ontgrendelt" spraak in de browser
-    speak('Voorlezen staat aan.');
+    speak('Voorlezen staat aan.'); // eerste klik ontgrendelt spraak in de browser
   } else {
     speechSynthesis.cancel();
   }
 });
 
 function speak(text) {
-  if (!voiceOn || !('speechSynthesis' in window)) return;
+  if (!voiceOn || !hasSpeech) { return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'nl-NL';
-  if (nlVoice) u.voice = nlVoice;
-  u.rate = 1.0;
+  if (nlVoice) { u.voice = nlVoice; u.lang = nlVoice.lang; }
+  else { u.lang = 'nl-NL'; }
+  u.rate = speechRate;
+  u.pitch = 1.0;
   speechSynthesis.speak(u);
 }
+
+// Sommige browsers (Chrome) pauzeren de spraak na verloop van tijd; weer hervatten
+setInterval(() => {
+  if (voiceOn && hasSpeech && speechSynthesis.paused) { speechSynthesis.resume(); }
+}, 5000);
 
 // Bepaal wat er veranderd is en lees het passend voor
 function announce(prev, m) {
