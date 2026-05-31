@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelSmash Scorebord</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap');
+
+  :root {
+    --court: #0a4d3c;
+    --court-line: #2a8c6f;
+    --ball: #d4ff00;
+    --us: #d4ff00;
+    --them: #ff5a3c;
+    --ink: #f4fff9;
+    --muted: #7fae9f;
+    --panel: #073b2e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background:
+      radial-gradient(ellipse at top, #0d5c47 0%, #062821 70%),
+      #062821;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ---- Verbind-scherm ---- */
+  .connect {
+    text-align: center;
+    animation: rise .6s ease both;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: .95;
+  }
+  .logo span { color: var(--ball); }
+  .tagline { color: var(--muted); margin: .6rem 0 2.4rem; font-size: 1.1rem; letter-spacing: .12em; text-transform: uppercase; }
+
+  .pin-label { color: var(--muted); font-size: .85rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 1rem; }
+  .pin-boxes { display: flex; gap: .8rem; justify-content: center; margin-bottom: 2rem; }
+  .pin-box {
+    width: 64px; height: 84px;
+    background: var(--panel);
+    border: 2px solid var(--court-line);
+    border-radius: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 3rem; font-weight: 700;
+    text-align: center; color: var(--ink);
+    transition: border-color .2s, transform .1s;
+  }
+  .pin-box:focus { outline: none; border-color: var(--ball); transform: translateY(-3px); }
+
+  .btn {
+    background: var(--ball); color: #052017;
+    border: none; border-radius: 100px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: 1.3rem;
+    letter-spacing: .08em; text-transform: uppercase;
+    padding: .9rem 3rem; cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212,255,0,.25); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .hint { color: var(--muted); margin-top: 1.6rem; font-size: .9rem; }
+  .err { color: var(--them); margin-top: 1rem; font-size: .95rem; min-height: 1.2em; }
+
+  /* ---- Scorebord ---- */
+  .board { display: none; width: 100%; height: 100vh; flex-direction: column; padding: 2.5vh 3vw; }
+  .board.live { display: flex; animation: rise .5s ease both; }
+
+  .board-top { display: flex; justify-content: space-between; align-items: center; }
+  .board-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: 1.6rem; }
+  .board-title span { color: var(--ball); }
+  .live-dot { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .85rem; letter-spacing: .15em; text-transform: uppercase; }
+  .top-right { display: flex; align-items: center; gap: 1rem; }
+  .icon-btn {
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--court-line); border-radius: 100px;
+    font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 500;
+    padding: .5rem 1rem; cursor: pointer; transition: border-color .2s, transform .1s;
+  }
+  .icon-btn:hover { border-color: var(--ball); transform: translateY(-1px); }
+  .icon-btn.active { background: var(--ball); color: #052017; border-color: var(--ball); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--them); animation: pulse 1.4s infinite; }
+
+  .teams { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+
+  .team { text-align: center; }
+  .team-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; text-transform: uppercase;
+    font-size: clamp(1.8rem, 4vw, 3.5rem);
+    letter-spacing: .03em; margin-bottom: 1vh;
+  }
+  .team.us .team-name { color: var(--us); }
+  .team.them .team-name { color: var(--them); }
+
+  .points {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: clamp(5rem, 22vw, 18rem);
+    line-height: .85;
+    transition: transform .2s;
+  }
+  .points.bump { animation: bump .35s ease; }
+
+  .vs { font-family: 'Barlow Condensed', sans-serif; color: var(--muted); font-size: clamp(1.5rem,3vw,2.5rem); }
+
+  /* ---- Mini-veld van bovenaf ---- */
+  .court-wrap { display: flex; flex-direction: column; align-items: center; gap: .8vh; }
+  .court {
+    position: relative;
+    width: clamp(110px, 13vw, 190px);
+    aspect-ratio: 2 / 3;
+    background: linear-gradient(160deg, #0d5c47, #0a4d3c);
+    border: 2px solid rgba(255,255,255,.85);
+    border-radius: 4px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4), inset 0 0 20px rgba(0,0,0,.25);
+  }
+  .court-half { position: absolute; left: 0; width: 100%; height: 50%; }
+  .court-half.top { top: 0; background: rgba(255,90,60,.07); }
+  .court-half.bottom { bottom: 0; background: rgba(212,255,0,.07); }
+  .net {
+    position: absolute; top: 50%; left: -2px; right: -2px; height: 0;
+    border-top: 2px dashed rgba(255,255,255,.9); transform: translateY(-1px);
+  }
+  .service-line { position: absolute; left: 0; width: 100%; height: 0; border-top: 1px solid rgba(255,255,255,.55); }
+  .service-line.top { top: 22%; }
+  .service-line.bottom { bottom: 22%; }
+  .center-line {
+    position: absolute; left: 50%; top: 22%; bottom: 22%; width: 0;
+    border-left: 1px solid rgba(255,255,255,.55); transform: translateX(-.5px);
+  }
+  .serve-ball {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f4ff7a, var(--ball));
+    box-shadow: 0 0 10px var(--ball), 0 0 4px #fff;
+    transform: translate(-50%, -50%);
+    transition: left .45s cubic-bezier(.5,1.5,.5,1), top .45s cubic-bezier(.5,1.5,.5,1);
+    left: 75%; top: 88%;
+  }
+  .serve-ball::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.6);
+  }
+  .serve-label {
+    font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase;
+    letter-spacing: .12em; font-size: .8rem; color: var(--muted);
+  }
+  .serve-label b { color: var(--ink); }
+
+  /* ---- Momentum-balk ---- */
+  .momentum { width: 100%; height: 8px; border-radius: 5px; overflow: hidden; background: var(--them); margin-bottom: 1.2vh; }
+  .momentum-fill { height: 100%; width: 50%; background: var(--us); transition: width .5s ease; }
+
+  /* ---- Setgeschiedenis ---- */
+  .set-history { display: flex; gap: .6rem; justify-content: center; margin-bottom: 1vh; min-height: 1.6rem; }
+  .set-chip {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
+    background: var(--panel); border: 1px solid var(--court-line);
+    border-radius: 8px; padding: .15rem .7rem; font-size: 1.1rem; letter-spacing: .04em;
+  }
+  .set-chip .wn { color: var(--ball); }
+
+  /* ---- Serveerspeler ---- */
+  .serve-player { font-family: 'Barlow Condensed', sans-serif; color: var(--muted); font-size: 1rem; letter-spacing: .08em; text-transform: uppercase; min-height: 1.2rem; }
+  .serve-player.active { color: var(--ball); }
+
+  /* ---- Tiebreak-badge ---- */
+  .tb-badge {
+    display: none; text-align: center; align-self: center;
+    background: var(--ball); color: #052017; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; letter-spacing: .2em; padding: .2rem 1.2rem; border-radius: 100px;
+    margin: 0 auto .5vh; width: fit-content; animation: pulse 1.4s infinite;
+  }
+  .tb-badge.show { display: block; }
+
+  /* ---- Wissel-toast ---- */
+  .switch-toast {
+    position: fixed; top: 12%; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: var(--ball); color: #052017; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    padding: .6rem 1.6rem; border-radius: 100px; font-size: 1.3rem;
+    opacity: 0; transition: opacity .3s, transform .3s; z-index: 30; pointer-events: none;
+  }
+  .switch-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---- Winnaar-extra ---- */
+  .winner-sets { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(1.5rem,4vw,2.5rem); color: var(--ink); margin-top: 1.5rem; letter-spacing: .05em; }
+  .winner-stats { color: var(--muted); margin-top: 1rem; font-size: 1rem; line-height: 1.6; }
+
+  .games-sets { display: flex; justify-content: center; gap: 3vw; padding: 2vh 0; }
+  .gs { text-align: center; }
+  .gs-label { color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: .4rem; }
+  .gs-val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: clamp(1.5rem,4vw,2.8rem); }
+  .gs-val .u { color: var(--us); }
+  .gs-val .t { color: var(--them); }
+  .gs-val .sep { color: var(--muted); margin: 0 .4rem; }
+
+  /* ---- Geschiedenis ---- */
+  .history { border-top: 1px solid var(--court-line); padding-top: 1.5vh; max-height: 22vh; overflow-y: auto; }
+  .history-title { color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: .8rem; }
+  .hist-row { display: flex; justify-content: space-between; padding: .4rem 0; font-size: 1rem; border-bottom: 1px solid rgba(42,140,111,.2); }
+  .hist-row .who { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .05em; }
+  .hist-row .who.us { color: var(--us); }
+  .hist-row .who.them { color: var(--them); }
+  .hist-row .score { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hist-empty { color: var(--muted); font-size: .9rem; font-style: italic; }
+
+  .winner-banner {
+    position: fixed; inset: 0; background: rgba(6,40,33,.96);
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 10; animation: rise .5s ease both;
+  }
+  .winner-banner.show { display: flex; }
+  .winner-banner h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(3rem,12vw,9rem); text-transform: uppercase; }
+  .winner-banner .sub { color: var(--muted); letter-spacing: .2em; text-transform: uppercase; margin-top: 1rem; }
+
+  /* ---- Tester (nep-horloge) ---- */
+  .tester {
+    position: fixed; bottom: 16px; right: 16px;
+    background: rgba(7,59,46,.95); border: 1px solid var(--court-line);
+    border-radius: 16px; padding: 14px; width: 220px; z-index: 20;
+    backdrop-filter: blur(8px); font-size: .85rem;
+  }
+  .tester h4 { font-family: 'Barlow Condensed', sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+  .tester .sub { color: var(--muted); font-size: .72rem; margin-bottom: 10px; }
+  .tester .pin-show { font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; color: var(--ball); letter-spacing: .3em; text-align: center; margin-bottom: 10px; }
+  .tester button {
+    width: 100%; margin: 3px 0; padding: 8px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--court-line); background: var(--panel); color: var(--ink);
+    font-family: inherit; font-size: .82rem;
+  }
+  .tester button:hover { border-color: var(--ball); }
+  .tester button.us { color: var(--us); }
+  .tester button.them { color: var(--them); }
+  .tester .mini { display: flex; gap: 5px; }
+  .tester .mini button { flex: 1; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes bump { 0%,100% { transform: scale(1); } 40% { transform: scale(1.18); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+</style>
+</head>
+<body>
+
+  <!-- VERBIND-SCHERM -->
+  <div class="connect" id="connectScreen">
+    <div class="logo">Padel<span>Smash</span></div>
+    <div class="tagline">Live Scorebord</div>
+    <div class="pin-label">Voer de pincode van je horloge in</div>
+    <div class="pin-boxes" id="pinBoxes">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="0">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="1">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="2">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="3">
+    </div>
+    <button class="btn" id="connectBtn" disabled>Verbinden</button>
+    <div class="err" id="err"></div>
+    <div class="hint">De pincode vind je in de PadelSmash-app op je Garmin.</div>
+  </div>
+
+  <!-- SCOREBORD -->
+  <div class="board" id="board">
+    <div class="board-top">
+      <div class="board-title">Padel<span>Smash</span></div>
+      <div class="top-right">
+        <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
+        <button class="icon-btn" id="fsBtn" title="Volledig scherm">⛶ Fullscreen</button>
+        <span class="live-dot"><span class="dot"></span> Live · PIN <span id="boardPin"></span></span>
+      </div>
+    </div>
+
+    <div class="momentum"><div class="momentum-fill" id="momentumFill"></div></div>
+
+    <div class="set-history" id="setHistory"></div>
+
+    <div class="teams">
+      <div class="team us">
+        <div class="team-name">You</div>
+        <div class="points" id="ptUs">0</div>
+        <div class="serve-player" id="serveYou"></div>
+      </div>
+
+      <div class="court-wrap">
+        <div class="court" id="court">
+          <div class="court-half top"></div>
+          <div class="court-half bottom"></div>
+          <div class="net"></div>
+          <div class="service-line top"></div>
+          <div class="service-line bottom"></div>
+          <div class="center-line"></div>
+          <div class="serve-ball" id="serveBall"></div>
+        </div>
+        <div class="serve-label" id="serveLabel">Serve</div>
+      </div>
+
+      <div class="team them">
+        <div class="team-name">Opponent</div>
+        <div class="points" id="ptThem">0</div>
+        <div class="serve-player" id="serveThem"></div>
+      </div>
+    </div>
+
+    <div class="tb-badge" id="tbBadge">TIEBREAK</div>
+    <div class="switch-toast" id="switchToast">Wissel van kant</div>
+
+    <div class="games-sets">
+      <div class="gs">
+        <div class="gs-label">Games</div>
+        <div class="gs-val"><span class="u" id="gUs">0</span><span class="sep">–</span><span class="t" id="gThem">0</span></div>
+      </div>
+      <div class="gs">
+        <div class="gs-label">Sets</div>
+        <div class="gs-val"><span class="u" id="sUs">0</span><span class="sep">–</span><span class="t" id="sThem">0</span></div>
+      </div>
+    </div>
+
+    <div class="history">
+      <div class="history-title">Verloop</div>
+      <div id="histList"><div class="hist-empty">Nog geen punten gespeeld.</div></div>
+    </div>
+  </div>
+
+  <!-- WINNAAR -->
+  <div class="winner-banner" id="winnerBanner">
+    <h1 id="winnerName">You</h1>
+    <div class="sub" id="winnerScore">winnen de wedstrijd</div>
+    <div class="winner-sets" id="winnerSets"></div>
+    <div class="winner-stats" id="winnerStats"></div>
+  </div>
+
+<script>
+/* ============================================================
+   SERVER-INSTELLING
+   - Open je het bord VIA de server (bv. https://jouw-app.onrender.com)?
+     Laat SERVER_URL dan leeg ('').
+   - Open je het bord als LOS bestand (bv. op je iPhone)?
+     Zet hier dan je volledige Render-URL, bijvoorbeeld:
+     const SERVER_URL = 'https://padelsmash-abcd.onrender.com';
+   ============================================================ */
+const SERVER_URL = '';
+
+async function fetchMatch(pin) {
+  const res = await fetch(`${SERVER_URL}/match/${pin}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('serverfout');
+  return res.json();
+}
+
+/* ---- Weergave-helpers ---- */
+function pointLabel(m, p) {
+  const o = p === 0 ? 1 : 0;
+  if (!m.golden && m.points[p] >= 3 && m.points[o] >= 3) {
+    if (m.points[p] === m.points[o]) return "40";
+    if (m.points[p] > m.points[o]) return "Adv";
+    return "40";
+  }
+  return ["0","15","30","40","40"][Math.min(m.points[p],4)];
+}
+function gamesLabel(m) {
+  return `${m.sets[0]}-${m.sets[1]} sets · ${m.games[0]}-${m.games[1]} games`;
+}
+
+/* ============================================================
+   FRONTEND
+   ============================================================ */
+let connectedPin = null;
+let lastPoints = ["0","0"];
+let teamUs = "Wij";
+let teamThem = "Zij";
+let namesEditedLocally = false; // als jij namen op het bord typt, winnen die
+
+// Pas de namen op het bord toe
+function applyNames() {
+  document.querySelector('.team.us .team-name').textContent = teamUs;
+  document.querySelector('.team.them .team-name').textContent = teamThem;
+}
+
+// Dubbelklik (of dubbeltik) op een naam om hem te wijzigen op het bord
+function makeNameEditable(selector, which) {
+  const el = document.querySelector(selector);
+  el.title = "Dubbelklik om de naam te wijzigen";
+  el.addEventListener('dblclick', () => {
+    const huidig = which === 'us' ? teamUs : teamThem;
+    const nieuw = prompt("Teamnaam:", huidig);
+    if (nieuw && nieuw.trim()) {
+      if (which === 'us') teamUs = nieuw.trim(); else teamThem = nieuw.trim();
+      namesEditedLocally = true;
+      applyNames();
+    }
+  });
+}
+
+// PIN-invoer
+const boxes = [...document.querySelectorAll('.pin-box')];
+const connectBtn = document.getElementById('connectBtn');
+boxes.forEach((box, i) => {
+  box.addEventListener('input', () => {
+    box.value = box.value.replace(/\D/g,'');
+    if (box.value && i < 3) boxes[i+1].focus();
+    connectBtn.disabled = boxes.some(b => !b.value);
+  });
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !box.value && i > 0) boxes[i-1].focus();
+  });
+});
+boxes[0].focus();
+
+connectBtn.addEventListener('click', async () => {
+  const pin = boxes.map(b => b.value).join('');
+  connectBtn.disabled = true;
+  const errEl = document.getElementById('err');
+  errEl.textContent = '';
+
+  // De gratis server kan in slaap zijn; eerste antwoord kan ~30-60s duren.
+  // We proberen daarom maximaal ~60s geduldig opnieuw.
+  const started = Date.now();
+  let match = null;
+  let lastErr = null;
+  connectBtn.textContent = 'Verbinden...';
+
+  while (Date.now() - started < 60000) {
+    try {
+      match = await fetchMatch(pin);
+      if (match) break;            // gevonden
+      lastErr = 'pin';             // server bereikbaar maar geen wedstrijd
+      break;
+    } catch (e) {
+      lastErr = 'net';             // server nog aan het opstarten
+      errEl.textContent = 'Server wordt wakker... even geduld.';
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+
+  connectBtn.textContent = 'Verbinden';
+
+  if (!match) {
+    errEl.textContent = lastErr === 'pin'
+      ? 'Geen wedstrijd gevonden met deze pincode.'
+      : 'Kan de server niet bereiken. Probeer opnieuw.';
+    connectBtn.disabled = false;
+    return;
+  }
+
+  connectedPin = pin;
+  document.getElementById('connectScreen').style.display = 'none';
+  document.getElementById('board').classList.add('live');
+  document.getElementById('boardPin').textContent = pin;
+  makeNameEditable('.team.us .team-name', 'us');
+  makeNameEditable('.team.them .team-name', 'them');
+  render(match);
+  prevState = snapshot(match);
+  startPolling();
+});
+
+// Live verbinding: elke 1,5s de stand ophalen van de server
+let prevState = null;
+let pollTimer = null;
+function snapshot(m) {
+  return { points:[m.points[0],m.points[1]], games:[m.games[0],m.games[1]],
+           sets:[m.sets[0],m.sets[1]], over:m.over, winner:m.winner, golden:m.golden };
+}
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (!connectedPin) return;
+    try {
+      const m = await fetchMatch(connectedPin);
+      if (!m) return;
+      if (prevState) announce(prevState, m);
+      render(m);
+      prevState = snapshot(m);
+      setLiveStatus(true);
+    } catch (e) {
+      setLiveStatus(false);
+    }
+  }, 1500);
+}
+function setLiveStatus(ok) {
+  const dot = document.querySelector('.live-dot .dot');
+  if (dot) dot.style.background = ok ? 'var(--them)' : '#666';
+}
+
+function render(m) {
+  // Teamnamen uit de stand (van het horloge), tenzij jij ze lokaal hebt aangepast
+  if (!namesEditedLocally) {
+    if (m.teamUs) teamUs = m.teamUs;
+    if (m.teamThem) teamThem = m.teamThem;
+    applyNames();
+  }
+
+  const us = pointLabel(m,0), them = pointLabel(m,1);
+  setPoint('ptUs', us, 0);
+  setPoint('ptThem', them, 1);
+  document.getElementById('gUs').textContent = m.games[0];
+  document.getElementById('gThem').textContent = m.games[1];
+  document.getElementById('sUs').textContent = m.sets[0];
+  document.getElementById('sThem').textContent = m.sets[1];
+
+  const hist = document.getElementById('histList');
+  if (!m.history || m.history.length === 0) {
+    hist.innerHTML = '<div class="hist-empty">Nog geen punten gespeeld.</div>';
+  } else {
+    hist.innerHTML = m.history.map(h =>
+      `<div class="hist-row"><span class="who ${h.who===0?'us':'them'}">Punt ${h.who===0?teamUs:teamThem}</span><span class="score">${h.score}</span></div>`
+    ).join('');
+  }
+
+  const banner = document.getElementById('winnerBanner');
+  if (m.over) {
+    document.getElementById('winnerName').textContent = m.winner===0 ? teamUs : teamThem;
+    document.getElementById('winnerName').style.color = m.winner===0 ? 'var(--us)' : 'var(--them)';
+    document.getElementById('winnerScore').textContent = 'wint de wedstrijd';
+    // Setuitslagen
+    const ws = document.getElementById('winnerSets');
+    if (m.setHistory && m.setHistory.length) {
+      ws.textContent = m.setHistory.map(s => `${s[0]}–${s[1]}`).join('   ');
+    } else { ws.textContent = ''; }
+    // Stats
+    const stats = document.getElementById('winnerStats');
+    const dur = (typeof m.durationMin === 'number') ? m.durationMin : null;
+    const tp = (typeof m.totalPoints === 'number') ? m.totalPoints : null;
+    const ls = Array.isArray(m.longestStreak) ? m.longestStreak : null;
+    let lines = [];
+    if (dur !== null) lines.push(`${dur} minuten`);
+    if (tp !== null) lines.push(`${tp} punten gespeeld`);
+    if (ls) lines.push(`langste reeks — ${teamUs}: ${ls[0]}, ${teamThem}: ${ls[1]}`);
+    stats.innerHTML = lines.join('<br>');
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+
+  updateServeBall(m);
+  updateMomentum(m);
+  updateSetHistory(m);
+  updateServePlayers(m);
+  updateTiebreak(m);
+  updateSwitchToast(m);
+}
+
+// Momentum-balk: verhouding van gewonnen punten (langste reeks als proxy + games)
+function updateMomentum(m) {
+  const fill = document.getElementById('momentumFill');
+  if (!fill) return;
+  // Gewicht: sets zwaar, games middel, punten licht
+  const score = a => (m.sets ? m.sets[a]*100 : 0) + (m.games ? m.games[a]*10 : 0) + (m.points ? m.points[a] : 0);
+  const a = score(0), b = score(1);
+  const total = a + b;
+  const pct = total === 0 ? 50 : Math.round((a / total) * 100);
+  fill.style.width = pct + '%';
+}
+
+function updateSetHistory(m) {
+  const el = document.getElementById('setHistory');
+  if (!el) return;
+  if (!m.setHistory || m.setHistory.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = m.setHistory.map(s => {
+    const youWon = s[0] > s[1];
+    return `<span class="set-chip"><span class="${youWon?'wn':''}">${s[0]}</span>–<span class="${!youWon?'wn':''}">${s[1]}</span></span>`;
+  }).join('');
+}
+
+function updateServePlayers(m) {
+  const you = document.getElementById('serveYou');
+  const them = document.getElementById('serveThem');
+  if (!you || !them) return;
+  const players = Array.isArray(m.players) ? m.players : ['A','B','C','D'];
+  const sp = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
+  you.textContent = ''; them.textContent = '';
+  you.classList.remove('active'); them.classList.remove('active');
+  if (sp === 0 || sp === 1) { you.textContent = '🎾 ' + (players[sp]||''); you.classList.add('active'); }
+  else if (sp === 2 || sp === 3) { them.textContent = '🎾 ' + (players[sp]||''); them.classList.add('active'); }
+}
+
+function updateTiebreak(m) {
+  const b = document.getElementById('tbBadge');
+  if (b) b.classList.toggle('show', !!m.tiebreak);
+}
+
+let _switchShownFor = null;
+function updateSwitchToast(m) {
+  const t = document.getElementById('switchToast');
+  if (!t) return;
+  // Toon kort als switchSides waar is, maar niet steeds opnieuw
+  const key = (m.sets?m.sets.join():'') + '|' + (m.games?m.games.join():'');
+  if (m.switchSides && _switchShownFor !== key) {
+    _switchShownFor = key;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+}
+
+// Zet het balletje in de juiste hoek van het veld
+function updateServeBall(m) {
+  const ball = document.getElementById('serveBall');
+  const label = document.getElementById('serveLabel');
+  if (!ball) return;
+  // serveTeam: 0 = You (onder), 1 = Opponent (boven). serveSide: 0 = rechts, 1 = links
+  const team = (typeof m.serveTeam === 'number') ? m.serveTeam : 0;
+  const side = (typeof m.serveSide === 'number') ? m.serveSide : 0;
+  const left = side === 0 ? '75%' : '25%';
+  const top = team === 0 ? '88%' : '12%';
+  ball.style.left = left;
+  ball.style.top = top;
+  const naam = team === 0 ? teamUs : teamThem;
+  const kant = side === 0 ? 'rechts' : 'links';
+  label.innerHTML = `Serve: <b>${naam}</b> · ${kant}`;
+}
+
+function setPoint(id, val, idx) {
+  const el = document.getElementById(id);
+  if (el.textContent !== String(val)) {
+    el.textContent = val;
+    if (val !== "0" || lastPoints[idx] !== "0") {
+      el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+    }
+    lastPoints[idx] = String(val);
+  }
+}
+
+/* ============================================================
+   FULLSCREEN
+   ============================================================ */
+const fsBtn = document.getElementById('fsBtn');
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen();
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  fsBtn.textContent = document.fullscreenElement ? '⛶ Verlaten' : '⛶ Fullscreen';
+});
+
+/* ============================================================
+   SPRAAK — stand hardop voorlezen (Nederlands)
+   ============================================================ */
+let voiceOn = false;
+let nlVoice = null;
+const voiceBtn = document.getElementById('voiceBtn');
+
+function pickDutchVoice() {
+  const voices = speechSynthesis.getVoices();
+  nlVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('nl')) || null;
+}
+if ('speechSynthesis' in window) {
+  pickDutchVoice();
+  speechSynthesis.onvoiceschanged = pickDutchVoice;
+} else {
+  voiceBtn.style.display = 'none';
+}
+
+voiceBtn.addEventListener('click', () => {
+  voiceOn = !voiceOn;
+  voiceBtn.classList.toggle('active', voiceOn);
+  voiceBtn.textContent = voiceOn ? '🔊 Voorlezen aan' : '🔊 Voorlezen';
+  if (voiceOn) {
+    // Eerste klik "ontgrendelt" spraak in de browser
+    speak('Voorlezen staat aan.');
+  } else {
+    speechSynthesis.cancel();
+  }
+});
+
+function speak(text) {
+  if (!voiceOn || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'nl-NL';
+  if (nlVoice) u.voice = nlVoice;
+  u.rate = 1.0;
+  speechSynthesis.speak(u);
+}
+
+// Bepaal wat er veranderd is en lees het passend voor
+function announce(prev, m) {
+  if (!voiceOn) return;
+
+  // Wedstrijd voorbij
+  if (m.over && !prev.over) {
+    speak((m.winner===0 ? teamUs + ' wint' : teamThem + ' wint') + ' de wedstrijd, ' + m.sets[0] + ' tegen ' + m.sets[1] + ' in sets.');
+    return;
+  }
+  // Set gewonnen
+  if (m.sets[0] !== prev.sets[0] || m.sets[1] !== prev.sets[1]) {
+    speak('Set gewonnen. Sets ' + m.sets[0] + ' tegen ' + m.sets[1] + '.');
+    return;
+  }
+  // Game gewonnen
+  if (m.games[0] !== prev.games[0] || m.games[1] !== prev.games[1]) {
+    speak('Game. Games ' + m.games[0] + ' tegen ' + m.games[1] + '.');
+    return;
+  }
+  // Gewoon punt
+  const us = pointLabel(m,0), them = pointLabel(m,1);
+  if (us !== pointLabel(prev,0) || them !== pointLabel(prev,1)) {
+    speak(spokenScore(us, them));
+  }
+}
+
+// Maak de puntenstand natuurlijk uitspreekbaar
+function spokenScore(us, them) {
+  if (us === 'Adv') return 'Voordeel ' + teamUs + '.';
+  if (them === 'Adv') return 'Voordeel ' + teamThem + '.';
+  if (us === '40' && them === '40') return 'Veertig gelijk.';
+  if (us === them) return us + ' gelijk.';
+  return us + ' - ' + them;
+}
+</script>
+</body>
+</html>
