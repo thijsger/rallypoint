@@ -143,6 +143,12 @@
   .overlay-card input:focus { outline: none; border-color: var(--ball); }
   .overlay-actions { display: flex; gap: .8rem; margin-top: 1.4rem; }
   .overlay-actions .btn { flex: 1; padding: .7rem; font-size: 1.05rem; }
+  .match-row { padding: .6rem .2rem; border-bottom: 1px solid rgba(42,140,111,.25); }
+  .match-row .mr-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .match-row .mr-sport { color: var(--ball); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; }
+  .match-row .mr-date { color: var(--muted); font-size: .75rem; }
+  .match-row .mr-result { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; margin-top: .2rem; }
+  .match-empty { color: var(--muted); font-style: italic; padding: .6rem 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--them); animation: pulse 1.4s infinite; }
 
   .teams { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
@@ -174,7 +180,7 @@
     position: relative;
     width: clamp(110px, 13vw, 190px);
     aspect-ratio: 2 / 3;
-    background: linear-gradient(160deg, #0d5c47, #0a4d3c);
+    background: linear-gradient(160deg, #356a9c, #2e5c8a);
     border: 2px solid rgba(255,255,255,.85);
     border-radius: 4px;
     box-shadow: 0 8px 30px rgba(0,0,0,.4), inset 0 0 20px rgba(0,0,0,.25);
@@ -198,6 +204,11 @@
   .court.sport-3 { background: linear-gradient(160deg, #1a5fb4, #14467a); }
   .court.sport-3 .service-line { display: none; }
   .court.sport-3 .center-line { top: 0; bottom: 0; }
+  /* Badminton: groene baan */
+  .court.sport-4 { background: linear-gradient(160deg, #2f8a5a, #2e7d4f); }
+  /* Squash: licht hout met rode lijnen */
+  .court.sport-5 { background: linear-gradient(160deg, #c8a86b, #b6925a); border-color: rgba(224,58,42,.9); }
+  .court.sport-5 .service-line, .court.sport-5 .center-line { border-color: rgba(224,58,42,.9) !important; }
   /* Pickleball: servicelijnen dicht bij het net (non-volley zone) */
   .court.sport-2 .service-line.top { top: 38%; }
   .court.sport-2 .service-line.bottom { bottom: 38%; }
@@ -286,7 +297,7 @@
     display: flex; align-items: center; gap: .7rem;
     padding: .45rem .7rem; margin-bottom: .35rem; font-size: 1rem;
     border-radius: 8px; background: rgba(255,255,255,.03);
-    border-left: 3px solid transparent; animation: rise .25s ease both;
+    border-left: 3px solid transparent;
   }
   .hist-row.us { border-left-color: var(--us); }
   .hist-row.them { border-left-color: var(--them); }
@@ -348,7 +359,10 @@
     <button class="btn" id="connectBtn" disabled>Verbinden</button>
     <div class="err" id="err"></div>
     <div class="hint">De pincode vind je in de RallyPoint-app op je Garmin.</div>
-    <button class="icon-btn" id="namesBtn2" style="margin-top:1.2rem">✎ Namen instellen</button>
+    <div style="margin-top:1.2rem; display:flex; gap:.6rem; justify-content:center;">
+      <button class="icon-btn" id="namesBtn2">✎ Namen</button>
+      <button class="icon-btn" id="histBtn">🏆 Geschiedenis</button>
+    </div>
   </div>
 
   <!-- SCOREBORD -->
@@ -440,6 +454,18 @@
     </div>
   </div>
 
+  <!-- MATCH-GESCHIEDENIS -->
+  <div class="overlay" id="histOverlay">
+    <div class="overlay-card">
+      <h2>Match-geschiedenis</h2>
+      <div id="histMatches"></div>
+      <div class="overlay-actions">
+        <button class="icon-btn" id="histClear">Wissen</button>
+        <button class="btn" id="histClose">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /* ============================================================
    SERVER-INSTELLING
@@ -480,6 +506,8 @@ function gamesLabel(m) {
    ============================================================ */
 let connectedPin = null;
 let lastPoints = ["0","0"];
+let lastHistKey = '';
+let lastOver = false;        // voor het opslaan van een afgeronde wedstrijd
 let teamUs = "Wij";
 let teamThem = "Zij";
 let namesEditedLocally = false;     // als jij teamnamen op het bord typt, winnen die
@@ -604,6 +632,7 @@ connectBtn.addEventListener('click', async () => {
   acquireWakeLock();
   makeNameEditable('.team.us .team-name', 'us');
   makeNameEditable('.team.them .team-name', 'them');
+  lastOver = !!match.over;   // een al-afgeronde wedstrijd niet opnieuw opslaan
   render(match);
   prevState = snapshot(match);
   startPolling();
@@ -647,6 +676,10 @@ function render(m) {
 
   applyCourtSport(m);
 
+  // Afgeronde wedstrijd bewaren in de geschiedenis (per code)
+  if (m.over && !lastOver && connectedPin) { saveMatchToHistory(m); }
+  lastOver = m.over;
+
   const us = pointLabel(m,0), them = pointLabel(m,1);
   setPoint('ptUs', us, 0);
   setPoint('ptThem', them, 1);
@@ -668,20 +701,25 @@ function render(m) {
 
   const hist = document.getElementById('histList');
   const title = document.getElementById('historyTitle');
-  if (!m.history || m.history.length === 0) {
-    hist.innerHTML = '<div class="hist-empty">Nog geen punten gespeeld.</div>';
-    if (title) { title.textContent = 'Verloop'; }
-  } else {
-    const total = (typeof m.totalPoints === 'number') ? m.totalPoints : m.history.length;
-    if (title) { title.textContent = 'Verloop · ' + total + ' punten'; }
-    hist.innerHTML = m.history.map((h, i) => {
-      const cls = h.who === 0 ? 'us' : 'them';
-      const team = h.who === 0 ? teamUs : teamThem;
-      const num = total - i;     // nieuwste bovenaan
-      return `<div class="hist-row ${cls}"><span class="hist-num">${num}.</span>`
-           + `<span class="who ${cls}">${team}</span>`
-           + `<span class="score">${h.score}</span></div>`;
-    }).join('');
+  // Alleen opnieuw opbouwen als er echt iets veranderd is (anders flikkert het bij elke poll)
+  const histKey = JSON.stringify(m.history || []) + '|' + teamUs + '|' + teamThem;
+  if (histKey !== lastHistKey) {
+    lastHistKey = histKey;
+    if (!m.history || m.history.length === 0) {
+      hist.innerHTML = '<div class="hist-empty">Nog geen punten gespeeld.</div>';
+      if (title) { title.textContent = 'Verloop'; }
+    } else {
+      const total = (typeof m.totalPoints === 'number') ? m.totalPoints : m.history.length;
+      if (title) { title.textContent = 'Verloop · ' + total + ' punten'; }
+      hist.innerHTML = m.history.map((h, i) => {
+        const cls = h.who === 0 ? 'us' : 'them';
+        const team = h.who === 0 ? teamUs : teamThem;
+        const num = total - i;
+        return `<div class="hist-row ${cls}"><span class="hist-num">${num}.</span>`
+             + `<span class="who ${cls}">${team}</span>`
+             + `<span class="score">${h.score}</span></div>`;
+      }).join('');
+    }
   }
 
   const banner = document.getElementById('winnerBanner');
@@ -717,6 +755,53 @@ function render(m) {
   updateDeuce(m);
   updateSwitchToast(m);
 }
+
+// ---- Match-geschiedenis (per code, in de browser) ----
+const histOverlay = document.getElementById('histOverlay');
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('padelHistory') || '[]'); } catch (e) { return []; }
+}
+function saveMatchToHistory(m) {
+  const list = loadHistory();
+  const winnerName = (m.winner === 0) ? teamUs : teamThem;
+  let score = '';
+  if (Array.isArray(m.setHistory) && m.setHistory.length) {
+    score = m.setHistory.map(s => s[0] + '-' + s[1]).join('  ');
+  } else if (Array.isArray(m.sets)) {
+    score = m.sets[0] + '-' + m.sets[1];
+  }
+  list.unshift({
+    pin: connectedPin,
+    date: Date.now(),
+    sport: sportName(m),
+    us: teamUs, them: teamThem,
+    winner: winnerName, score: score
+  });
+  localStorage.setItem('padelHistory', JSON.stringify(list.slice(0, 30)));
+}
+function openHistory() {
+  const list = loadHistory();
+  const el = document.getElementById('histMatches');
+  if (!list.length) {
+    el.innerHTML = '<div class="match-empty">Nog geen afgeronde wedstrijden.</div>';
+  } else {
+    el.innerHTML = list.map(x => {
+      const d = new Date(x.date);
+      const ds = d.toLocaleDateString('nl-NL', {day:'numeric', month:'short'}) + ' ' +
+                 d.toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+      return `<div class="match-row"><div class="mr-top"><span class="mr-sport">${x.sport} · code ${x.pin}</span>`
+           + `<span class="mr-date">${ds}</span></div>`
+           + `<div class="mr-result">🏆 ${x.winner} <span style="color:var(--muted)">${x.score}</span></div></div>`;
+    }).join('');
+  }
+  histOverlay.classList.add('show');
+}
+document.getElementById('histBtn').addEventListener('click', openHistory);
+document.getElementById('histClose').addEventListener('click', () => histOverlay.classList.remove('show'));
+document.getElementById('histClear').addEventListener('click', () => {
+  if (confirm('Hele geschiedenis wissen?')) { localStorage.removeItem('padelHistory'); openHistory(); }
+});
+histOverlay.addEventListener('click', (e) => { if (e.target === histOverlay) histOverlay.classList.remove('show'); });
 
 const SPORT_NAMES = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
 function sportName(m) {
@@ -777,11 +862,13 @@ function updateServePlayers(m) {
   const you = document.getElementById('serveYou');
   const them = document.getElementById('serveThem');
   if (!you || !them) return;
-  const sp = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
+  const team = (typeof m.serveTeam === 'number') ? m.serveTeam : -1;
+  const no = (typeof m.serveNo === 'number') ? m.serveNo : null;
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
-  if (sp === 0 || sp === 1) { you.textContent = '🎾 Serve ' + (sp + 1); you.classList.add('active'); }
-  else if (sp === 2 || sp === 3) { them.textContent = '🎾 Serve ' + (sp + 1); them.classList.add('active'); }
+  if (no === null || team < 0) { return; }
+  if (team === 0) { you.textContent = '🎾 Serve ' + no; you.classList.add('active'); }
+  else { them.textContent = '🎾 Serve ' + no; them.classList.add('active'); }
 }
 
 function updateTiebreak(m) {
@@ -928,7 +1015,7 @@ function populateVoices() {
   const nl = voices.filter(v => (v.lang || '').toLowerCase().startsWith('nl'));
   const rest = voices.filter(v => !(v.lang || '').toLowerCase().startsWith('nl'));
   const ordered = nl.concat(rest);
-  const keep = nlVoice ? nlVoice.name : null;
+  const keep = (nlVoice ? nlVoice.name : null) || localStorage.getItem('padelVoice');
   voiceSelect.innerHTML = '';
   ordered.forEach(v => {
     const opt = document.createElement('option');
@@ -950,6 +1037,8 @@ if (hasSpeech) {
 voiceSelect.addEventListener('change', () => {
   const voices = speechSynthesis.getVoices();
   nlVoice = voices.find(v => v.name === voiceSelect.value) || nlVoice;
+  if (nlVoice) { localStorage.setItem('padelVoice', nlVoice.name); }
+  speechSynthesis.cancel();
   if (voiceOn) { speak('Stem ingesteld.'); }
 });
 
