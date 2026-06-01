@@ -193,6 +193,14 @@
     position: absolute; left: 50%; top: 22%; bottom: 22%; width: 0;
     border-left: 1px solid rgba(255,255,255,.55); transform: translateX(-.5px);
   }
+  /* Verticale zijlijnen (enkelspel/tramlijnen) — standaard verborgen */
+  .side-line { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid rgba(255,255,255,.55); display: none; }
+  .side-line.left { left: 14%; }
+  .side-line.right { right: 14%; }
+  .court.sport-1 .side-line { display: block; }                 /* tennis */
+  .court.sport-4 .side-line { display: block; }                 /* badminton */
+  .court.sport-4 .side-line.left { left: 12%; }
+  .court.sport-4 .side-line.right { right: 12%; }
   /* ---- Sport-varianten van het mini-veld ---- */
   /* Tafeltennis: blauwe tafel, geen servicelijnen, middenlijn over de volle lengte */
   .court.sport-3 { background: linear-gradient(160deg, #1a5fb4, #14467a); }
@@ -385,6 +393,8 @@
           <div class="court-half top"></div>
           <div class="court-half bottom"></div>
           <div class="net"></div>
+          <div class="side-line left"></div>
+          <div class="side-line right"></div>
           <div class="service-line top"></div>
           <div class="service-line bottom"></div>
           <div class="center-line"></div>
