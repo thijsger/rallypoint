@@ -16,6 +16,15 @@ const PORT = process.env.PORT || 3000;
 const TTL_MS = 1000 * 60 * 60 * 6; // stand vervalt na 6 uur inactiviteit
 
 const matches = {}; // pin -> { state, updated }
+const clients = {}; // pin -> [res, ...]  (live SSE-verbindingen)
+
+// Stuur een nieuwe stand naar alle live luisteraars van een pincode
+function broadcast(pin, state) {
+  const list = clients[pin];
+  if (!list || !list.length) { return; }
+  const data = `data: ${JSON.stringify(state)}\n\n`;
+  for (const res of list) { try { res.write(data); } catch (e) {} }
+}
 
 function freshMatch() {
   return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1 };
@@ -60,9 +69,32 @@ const server = http.createServer((req, res) => {
     const pin = parts[1];
     if (!validPin(pin)) { return sendJSON(res, 400, { error: 'Pincode moet 4 cijfers zijn.' }); }
 
+    // Live updates (Server-Sent Events): bord blijft verbonden en krijgt elke wijziging push
+    if (parts[2] === 'events' && req.method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.write('retry: 3000\n\n');
+      const m = matches[pin];
+      res.write(`data: ${JSON.stringify(m ? m.state : freshMatch())}\n\n`);
+      if (!clients[pin]) { clients[pin] = []; }
+      clients[pin].push(res);
+      const hb = setInterval(() => { try { res.write(': hb\n\n'); } catch (e) {} }, 25000);
+      req.on('close', () => {
+        clearInterval(hb);
+        clients[pin] = (clients[pin] || []).filter(r => r !== res);
+      });
+      return;
+    }
+
     // Reset
     if (parts[2] === 'reset' && req.method === 'POST') {
-      matches[pin] = { state: freshMatch(), updated: Date.now() };
+      const state = freshMatch();
+      matches[pin] = { state, updated: Date.now() };
+      broadcast(pin, state);
       return sendJSON(res, 200, { ok: true });
     }
 
@@ -74,6 +106,7 @@ const server = http.createServer((req, res) => {
         try {
           const state = JSON.parse(body || '{}');
           matches[pin] = { state, updated: Date.now() };
+          broadcast(pin, state);
           sendJSON(res, 200, { ok: true });
         } catch (e) {
           sendJSON(res, 400, { error: 'Ongeldige JSON.' });

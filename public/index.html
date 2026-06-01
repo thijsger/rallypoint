@@ -623,15 +623,36 @@ connectBtn.addEventListener('click', async () => {
   makeNameEditable('.team.them .team-name', 'them');
   render(match);
   prevState = snapshot(match);
-  startPolling();
+  startLive();
 });
 
 // Live verbinding: elke 1,5s de stand ophalen van de server
 let prevState = null;
 let pollTimer = null;
+let evtSource = null;
 function snapshot(m) {
   return { points:[m.points[0],m.points[1]], games:[m.games[0],m.games[1]],
            sets:[m.sets[0],m.sets[1]], over:m.over, winner:m.winner, golden:m.golden };
+}
+// Verwerk een nieuwe stand (zowel via live updates als polling)
+function applyState(m) {
+  if (!m) return;
+  if (prevState) announce(prevState, m);
+  render(m);
+  prevState = snapshot(m);
+  setLiveStatus(true);
+}
+// Live updates via Server-Sent Events; valt terug op pollen als dat niet werkt
+function startLive() {
+  if (!window.EventSource || !connectedPin) { startPolling(); return; }
+  let gotData = false;
+  try {
+    evtSource = new EventSource(`${SERVER_URL}/match/${connectedPin}/events`);
+    evtSource.onmessage = (e) => { gotData = true; try { applyState(JSON.parse(e.data)); } catch (_) {} };
+    evtSource.onerror = () => { setLiveStatus(false); };  // EventSource verbindt zelf opnieuw
+  } catch (e) { startPolling(); return; }
+  // Geen live data binnen 6s? Schakel over op pollen.
+  setTimeout(() => { if (!gotData) { try { evtSource.close(); } catch (_) {} startPolling(); } }, 6000);
 }
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
@@ -639,11 +660,7 @@ function startPolling() {
     if (!connectedPin) return;
     try {
       const m = await fetchMatch(connectedPin);
-      if (!m) return;
-      if (prevState) announce(prevState, m);
-      render(m);
-      prevState = snapshot(m);
-      setLiveStatus(true);
+      applyState(m);
     } catch (e) {
       setLiveStatus(false);
     }
