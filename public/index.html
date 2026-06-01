@@ -84,6 +84,11 @@
   .board-top { display: flex; justify-content: space-between; align-items: center; }
   .board-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: 1.6rem; }
   .board-title span { color: var(--ball); }
+  .board-sport {
+    color: var(--muted) !important; font-weight: 500; font-size: .7em;
+    letter-spacing: .15em; margin-left: .7rem; padding-left: .7rem;
+    border-left: 1px solid var(--court-line);
+  }
   .live-dot { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .85rem; letter-spacing: .15em; text-transform: uppercase; }
   .top-right { display: flex; align-items: center; gap: 1rem; }
   .icon-btn {
@@ -349,7 +354,7 @@
   <!-- SCOREBORD -->
   <div class="board" id="board">
     <div class="board-top">
-      <div class="board-title">Rally<span>Point</span></div>
+      <div class="board-title">Rally<span>Point</span><span class="board-sport" id="boardSport"></span></div>
       <div class="top-right">
         <button class="icon-btn" id="namesBtn" title="Spelersnamen bewerken">✎ Namen</button>
         <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
@@ -713,12 +718,19 @@ function render(m) {
   updateSwitchToast(m);
 }
 
-// Zet de juiste sport-klasse op het mini-veld
+const SPORT_NAMES = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+function sportName(m) {
+  const s = (typeof m.sport === 'number') ? m.sport : 0;
+  return SPORT_NAMES[s] || 'Padel';
+}
+
+// Zet de juiste sport-klasse op het mini-veld en toon de sportnaam
 function applyCourtSport(m) {
   const court = document.getElementById('court');
-  if (!court) { return; }
   const s = (typeof m.sport === 'number') ? m.sport : 0;
-  court.className = 'court sport-' + s;
+  if (court) { court.className = 'court sport-' + s; }
+  const lbl = document.getElementById('boardSport');
+  if (lbl) { lbl.textContent = sportName(m).toUpperCase(); }
 }
 
 // Puntdoel per game voor rally-sporten

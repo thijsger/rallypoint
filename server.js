@@ -82,10 +82,12 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // Bord haalt stand op
+    // Bord haalt stand op. Bestaat er nog geen wedstrijd? Geef een lege stand
+    // terug (200) zodat het bord altijd kan verbinden met een geldige code en
+    // gewoon wacht tot het horloge data stuurt — geen 404-foutmelding meer.
     if (req.method === 'GET') {
       const m = matches[pin];
-      if (!m) { return sendJSON(res, 404, { error: 'Geen wedstrijd met deze pincode.' }); }
+      if (!m) { return sendJSON(res, 200, freshMatch()); }
       return sendJSON(res, 200, m.state);
     }
   }
