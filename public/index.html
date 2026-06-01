@@ -892,15 +892,16 @@ function updateServeBall(m) {
   const ball = document.getElementById('serveBall');
   const label = document.getElementById('serveLabel');
   if (!ball) return;
-  // serveTeam: 0 = You (onder), 1 = Opponent (boven). serveSide: 0 = rechts, 1 = links
+  // serveTeam: 0 = wij (onder), 1 = tegenstander (boven). serveSide: 0 = rechts, 1 = links
   const team = (typeof m.serveTeam === 'number') ? m.serveTeam : 0;
-  const side = (typeof m.serveSide === 'number') ? m.serveSide : 0;
+  let side = (typeof m.serveSide === 'number') ? m.serveSide : 0;
+  if (team === 1) { side = 1 - side; }   // bovenste helft is gespiegeld
   const left = side === 0 ? '75%' : '25%';
   const top = team === 0 ? '88%' : '12%';
   ball.style.left = left;
   ball.style.top = top;
   const naam = team === 0 ? teamUs : teamThem;
-  const kant = side === 0 ? 'rechts' : 'links';
+  const kant = (m.serveSide === 0) ? 'rechts' : 'links';
   label.innerHTML = `Serve: <b>${naam}</b> · ${kant}`;
 }
 
