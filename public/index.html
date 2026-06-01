@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PadelSmash Scorebord</title>
+<title>RallyPoint Scorebord</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap');
 
@@ -277,11 +277,19 @@
   /* ---- Geschiedenis ---- */
   .history { border-top: 1px solid var(--court-line); padding-top: 1.5vh; max-height: 22vh; overflow-y: auto; }
   .history-title { color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: .8rem; }
-  .hist-row { display: flex; justify-content: space-between; padding: .4rem 0; font-size: 1rem; border-bottom: 1px solid rgba(42,140,111,.2); }
-  .hist-row .who { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .05em; }
+  .hist-row {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .45rem .7rem; margin-bottom: .35rem; font-size: 1rem;
+    border-radius: 8px; background: rgba(255,255,255,.03);
+    border-left: 3px solid transparent; animation: rise .25s ease both;
+  }
+  .hist-row.us { border-left-color: var(--us); }
+  .hist-row.them { border-left-color: var(--them); }
+  .hist-num { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.8rem; font-size: .8rem; opacity: .6; }
+  .hist-row .who { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .05em; flex: 1; text-transform: uppercase; }
   .hist-row .who.us { color: var(--us); }
   .hist-row .who.them { color: var(--them); }
-  .hist-row .score { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hist-row .score { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; }
   .hist-empty { color: var(--muted); font-size: .9rem; font-style: italic; }
 
   .winner-banner {
@@ -323,7 +331,7 @@
 
   <!-- VERBIND-SCHERM -->
   <div class="connect" id="connectScreen">
-    <div class="logo">Padel<span>Smash</span></div>
+    <div class="logo">Rally<span>Point</span></div>
     <div class="tagline">Live Scorebord</div>
     <div class="pin-label">Voer de pincode van je horloge in</div>
     <div class="pin-boxes" id="pinBoxes">
@@ -334,14 +342,14 @@
     </div>
     <button class="btn" id="connectBtn" disabled>Verbinden</button>
     <div class="err" id="err"></div>
-    <div class="hint">De pincode vind je in de PadelSmash-app op je Garmin.</div>
+    <div class="hint">De pincode vind je in de RallyPoint-app op je Garmin.</div>
     <button class="icon-btn" id="namesBtn2" style="margin-top:1.2rem">✎ Namen instellen</button>
   </div>
 
   <!-- SCOREBORD -->
   <div class="board" id="board">
     <div class="board-top">
-      <div class="board-title">Padel<span>Smash</span></div>
+      <div class="board-title">Rally<span>Point</span></div>
       <div class="top-right">
         <button class="icon-btn" id="namesBtn" title="Spelersnamen bewerken">✎ Namen</button>
         <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
@@ -398,7 +406,7 @@
     </div>
 
     <div class="history">
-      <div class="history-title">Verloop</div>
+      <div class="history-title" id="historyTitle">Verloop</div>
       <div id="histList"><div class="hist-empty">Nog geen punten gespeeld.</div></div>
     </div>
   </div>
@@ -420,10 +428,6 @@
       <h2>Namen</h2>
       <label>Team wij</label><input id="nmUs" maxlength="14" placeholder="You">
       <label>Tegenstander</label><input id="nmThem" maxlength="14" placeholder="Opponent">
-      <label>Speler 1 (wij)</label><input id="nmP1" maxlength="12" placeholder="A">
-      <label>Speler 2 (wij)</label><input id="nmP2" maxlength="12" placeholder="B">
-      <label>Speler 3 (zij)</label><input id="nmP3" maxlength="12" placeholder="C">
-      <label>Speler 4 (zij)</label><input id="nmP4" maxlength="12" placeholder="D">
       <div class="overlay-actions">
         <button class="btn" id="namesSave">Opslaan</button>
         <button class="icon-btn" id="namesCancel">Annuleren</button>
@@ -473,17 +477,15 @@ let connectedPin = null;
 let lastPoints = ["0","0"];
 let teamUs = "Wij";
 let teamThem = "Zij";
-let localPlayers = null;            // [p1,p2,p3,p4] als jij ze zelf instelt
-let namesEditedLocally = false;     // als jij namen op het bord typt, winnen die
+let namesEditedLocally = false;     // als jij teamnamen op het bord typt, winnen die
 
-// Eerder opgeslagen namen laden
+// Eerder opgeslagen teamnamen laden
 (function loadNames() {
   try {
     const t = JSON.parse(localStorage.getItem('padelNames') || 'null');
     if (t) {
       if (t.us) { teamUs = t.us; }
       if (t.them) { teamThem = t.them; }
-      if (Array.isArray(t.players) && t.players.length === 4) { localPlayers = t.players; }
       namesEditedLocally = true;
     }
   } catch (e) {}
@@ -511,30 +513,22 @@ function makeNameEditable(selector, which) {
   });
 }
 
-// ---- Namen-overlay (team + 4 spelers), opgeslagen in de browser ----
+// ---- Namen-overlay (teamnamen), opgeslagen in de browser ----
 const namesOverlay = document.getElementById('namesOverlay');
 function persistNames() {
-  localStorage.setItem('padelNames', JSON.stringify({ us: teamUs, them: teamThem, players: localPlayers }));
+  localStorage.setItem('padelNames', JSON.stringify({ us: teamUs, them: teamThem }));
 }
 function openNames() {
   document.getElementById('nmUs').value   = (teamUs && teamUs !== 'Wij') ? teamUs : '';
   document.getElementById('nmThem').value = (teamThem && teamThem !== 'Zij') ? teamThem : '';
-  const pl = localPlayers || [];
-  document.getElementById('nmP1').value = pl[0] || '';
-  document.getElementById('nmP2').value = pl[1] || '';
-  document.getElementById('nmP3').value = pl[2] || '';
-  document.getElementById('nmP4').value = pl[3] || '';
   namesOverlay.classList.add('show');
 }
 function closeNames() { namesOverlay.classList.remove('show'); }
 function saveNames() {
   const us = document.getElementById('nmUs').value.trim();
   const them = document.getElementById('nmThem').value.trim();
-  const pl = ['nmP1','nmP2','nmP3','nmP4'].map(id => document.getElementById(id).value.trim());
   if (us) { teamUs = us; }
   if (them) { teamThem = them; }
-  const defaults = ['A','B','C','D'];
-  localPlayers = pl.some(x => x.length > 0) ? pl.map((x,i) => x || defaults[i]) : null;
   namesEditedLocally = true;
   persistNames();
   applyNames();
@@ -668,12 +662,21 @@ function render(m) {
   }
 
   const hist = document.getElementById('histList');
+  const title = document.getElementById('historyTitle');
   if (!m.history || m.history.length === 0) {
     hist.innerHTML = '<div class="hist-empty">Nog geen punten gespeeld.</div>';
+    if (title) { title.textContent = 'Verloop'; }
   } else {
-    hist.innerHTML = m.history.map(h =>
-      `<div class="hist-row"><span class="who ${h.who===0?'us':'them'}">Punt ${h.who===0?teamUs:teamThem}</span><span class="score">${h.score}</span></div>`
-    ).join('');
+    const total = (typeof m.totalPoints === 'number') ? m.totalPoints : m.history.length;
+    if (title) { title.textContent = 'Verloop · ' + total + ' punten'; }
+    hist.innerHTML = m.history.map((h, i) => {
+      const cls = h.who === 0 ? 'us' : 'them';
+      const team = h.who === 0 ? teamUs : teamThem;
+      const num = total - i;     // nieuwste bovenaan
+      return `<div class="hist-row ${cls}"><span class="hist-num">${num}.</span>`
+           + `<span class="who ${cls}">${team}</span>`
+           + `<span class="score">${h.score}</span></div>`;
+    }).join('');
   }
 
   const banner = document.getElementById('winnerBanner');
@@ -762,12 +765,11 @@ function updateServePlayers(m) {
   const you = document.getElementById('serveYou');
   const them = document.getElementById('serveThem');
   if (!you || !them) return;
-  const players = localPlayers || (Array.isArray(m.players) ? m.players : ['A','B','C','D']);
   const sp = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
-  if (sp === 0 || sp === 1) { you.textContent = '🎾 ' + (players[sp]||''); you.classList.add('active'); }
-  else if (sp === 2 || sp === 3) { them.textContent = '🎾 ' + (players[sp]||''); them.classList.add('active'); }
+  if (sp === 0 || sp === 1) { you.textContent = '🎾 Serve ' + (sp + 1); you.classList.add('active'); }
+  else if (sp === 2 || sp === 3) { them.textContent = '🎾 Serve ' + (sp + 1); them.classList.add('active'); }
 }
 
 function updateTiebreak(m) {
