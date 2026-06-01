@@ -143,12 +143,6 @@
   .overlay-card input:focus { outline: none; border-color: var(--ball); }
   .overlay-actions { display: flex; gap: .8rem; margin-top: 1.4rem; }
   .overlay-actions .btn { flex: 1; padding: .7rem; font-size: 1.05rem; }
-  .match-row { padding: .6rem .2rem; border-bottom: 1px solid rgba(42,140,111,.25); }
-  .match-row .mr-top { display: flex; justify-content: space-between; align-items: baseline; }
-  .match-row .mr-sport { color: var(--ball); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; }
-  .match-row .mr-date { color: var(--muted); font-size: .75rem; }
-  .match-row .mr-result { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; margin-top: .2rem; }
-  .match-empty { color: var(--muted); font-style: italic; padding: .6rem 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--them); animation: pulse 1.4s infinite; }
 
   .teams { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
@@ -368,7 +362,6 @@
       <div class="board-title">Rally<span>Point</span><span class="board-sport" id="boardSport"></span></div>
       <div class="top-right">
         <button class="icon-btn" id="namesBtn" title="Teamnamen bewerken">✎ Namen</button>
-        <button class="icon-btn" id="histBtn" title="Match-geschiedenis">🏆 Geschiedenis</button>
         <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
         <select class="voice-select" id="voiceSelect" title="Kies een stem"></select>
         <button class="icon-btn" id="fsBtn" title="Volledig scherm">⛶ Fullscreen</button>
@@ -452,17 +445,6 @@
     </div>
   </div>
 
-  <!-- MATCH-GESCHIEDENIS -->
-  <div class="overlay" id="histOverlay">
-    <div class="overlay-card">
-      <h2>Match-geschiedenis</h2>
-      <div id="histMatches"></div>
-      <div class="overlay-actions">
-        <button class="icon-btn" id="histClear">Wissen</button>
-        <button class="btn" id="histClose">Sluiten</button>
-      </div>
-    </div>
-  </div>
 
 <script>
 /* ============================================================
@@ -505,7 +487,6 @@ function gamesLabel(m) {
 let connectedPin = null;
 let lastPoints = ["0","0"];
 let lastHistKey = '';
-let lastOver = false;        // voor het opslaan van een afgeronde wedstrijd
 let teamUs = "Wij";
 let teamThem = "Zij";
 let namesEditedLocally = false;     // als jij teamnamen op het bord typt, winnen die
@@ -630,7 +611,6 @@ connectBtn.addEventListener('click', async () => {
   acquireWakeLock();
   makeNameEditable('.team.us .team-name', 'us');
   makeNameEditable('.team.them .team-name', 'them');
-  lastOver = !!match.over;   // een al-afgeronde wedstrijd niet opnieuw opslaan
   render(match);
   prevState = snapshot(match);
   startPolling();
@@ -673,10 +653,6 @@ function render(m) {
   }
 
   applyCourtSport(m);
-
-  // Afgeronde wedstrijd bewaren in de geschiedenis (per code)
-  if (m.over && !lastOver && connectedPin) { saveMatchToHistory(m); }
-  lastOver = m.over;
 
   const us = pointLabel(m,0), them = pointLabel(m,1);
   setPoint('ptUs', us, 0);
@@ -753,53 +729,6 @@ function render(m) {
   updateDeuce(m);
   updateSwitchToast(m);
 }
-
-// ---- Match-geschiedenis (per code, in de browser) ----
-const histOverlay = document.getElementById('histOverlay');
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem('padelHistory') || '[]'); } catch (e) { return []; }
-}
-function saveMatchToHistory(m) {
-  const list = loadHistory();
-  const winnerName = (m.winner === 0) ? teamUs : teamThem;
-  let score = '';
-  if (Array.isArray(m.setHistory) && m.setHistory.length) {
-    score = m.setHistory.map(s => s[0] + '-' + s[1]).join('  ');
-  } else if (Array.isArray(m.sets)) {
-    score = m.sets[0] + '-' + m.sets[1];
-  }
-  list.unshift({
-    pin: connectedPin,
-    date: Date.now(),
-    sport: sportName(m),
-    us: teamUs, them: teamThem,
-    winner: winnerName, score: score
-  });
-  localStorage.setItem('padelHistory', JSON.stringify(list.slice(0, 30)));
-}
-function openHistory() {
-  const list = loadHistory();
-  const el = document.getElementById('histMatches');
-  if (!list.length) {
-    el.innerHTML = '<div class="match-empty">Nog geen afgeronde wedstrijden.</div>';
-  } else {
-    el.innerHTML = list.map(x => {
-      const d = new Date(x.date);
-      const ds = d.toLocaleDateString('nl-NL', {day:'numeric', month:'short'}) + ' ' +
-                 d.toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
-      return `<div class="match-row"><div class="mr-top"><span class="mr-sport">${x.sport} · code ${x.pin}</span>`
-           + `<span class="mr-date">${ds}</span></div>`
-           + `<div class="mr-result">🏆 ${x.winner} <span style="color:var(--muted)">${x.score}</span></div></div>`;
-    }).join('');
-  }
-  histOverlay.classList.add('show');
-}
-document.getElementById('histBtn').addEventListener('click', openHistory);
-document.getElementById('histClose').addEventListener('click', () => histOverlay.classList.remove('show'));
-document.getElementById('histClear').addEventListener('click', () => {
-  if (confirm('Hele geschiedenis wissen?')) { localStorage.removeItem('padelHistory'); openHistory(); }
-});
-histOverlay.addEventListener('click', (e) => { if (e.target === histOverlay) histOverlay.classList.remove('show'); });
 
 const SPORT_NAMES = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
 function sportName(m) {
