@@ -188,6 +188,26 @@
     position: absolute; left: 50%; top: 22%; bottom: 22%; width: 0;
     border-left: 1px solid rgba(255,255,255,.55); transform: translateX(-.5px);
   }
+  /* ---- Sport-varianten van het mini-veld ---- */
+  /* Tafeltennis: blauwe tafel, geen servicelijnen, middenlijn over de volle lengte */
+  .court.sport-3 { background: linear-gradient(160deg, #1a5fb4, #14467a); }
+  .court.sport-3 .service-line { display: none; }
+  .court.sport-3 .center-line { top: 0; bottom: 0; }
+  /* Pickleball: servicelijnen dicht bij het net (non-volley zone) */
+  .court.sport-2 .service-line.top { top: 38%; }
+  .court.sport-2 .service-line.bottom { bottom: 38%; }
+  /* Badminton: servicelijnen iets verder van het net */
+  .court.sport-4 .service-line.top { top: 40%; }
+  .court.sport-4 .service-line.bottom { bottom: 40%; }
+  /* Squash: geen net, short line in het midden */
+  .court.sport-5 .net { display: none; }
+  .court.sport-5 .service-line.bottom { display: none; }
+  .court.sport-5 .service-line.top { top: 45%; }
+  .court.sport-5 .center-line { top: 45%; bottom: 0; }
+  /* Tennis: servicelijnen iets ruimer */
+  .court.sport-1 .service-line.top { top: 28%; }
+  .court.sport-1 .service-line.bottom { bottom: 28%; }
+
   .serve-ball {
     position: absolute; width: 12px; height: 12px; border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #f4ff7a, var(--ball));
@@ -367,11 +387,11 @@
     <div class="switch-toast" id="switchToast">Wissel van kant</div>
 
     <div class="games-sets">
-      <div class="gs">
-        <div class="gs-label">Games</div>
+      <div class="gs" id="gsGames">
+        <div class="gs-label" id="gsGamesLabel">Games</div>
         <div class="gs-val"><span class="u" id="gUs">0</span><span class="sep">–</span><span class="t" id="gThem">0</span></div>
       </div>
-      <div class="gs">
+      <div class="gs" id="gsSets">
         <div class="gs-label">Sets</div>
         <div class="gs-val"><span class="u" id="sUs">0</span><span class="sep">–</span><span class="t" id="sThem">0</span></div>
       </div>
@@ -430,7 +450,10 @@ async function fetchMatch(pin) {
 }
 
 /* ---- Weergave-helpers ---- */
+function isRally(m) { return (typeof m.sport === 'number' && m.sport >= 2) || m.rally === true; }
+
 function pointLabel(m, p) {
+  if (isRally(m) || m.tiebreak) return String(m.points[p]);   // rally/tiebreak: gewoon tellen
   const o = p === 0 ? 1 : 0;
   if (!m.golden && m.points[p] >= 3 && m.points[o] >= 3) {
     if (m.points[p] === m.points[o]) return "40";
@@ -623,13 +646,26 @@ function render(m) {
     applyNames();
   }
 
+  applyCourtSport(m);
+
   const us = pointLabel(m,0), them = pointLabel(m,1);
   setPoint('ptUs', us, 0);
   setPoint('ptThem', them, 1);
-  document.getElementById('gUs').textContent = m.games[0];
-  document.getElementById('gThem').textContent = m.games[1];
-  document.getElementById('sUs').textContent = m.sets[0];
-  document.getElementById('sThem').textContent = m.sets[1];
+
+  if (isRally(m)) {
+    // Rally: 'games gewonnen' staat in sets[]; toon alleen die, verberg het Sets-vak
+    document.getElementById('gsGamesLabel').textContent = 'Games';
+    document.getElementById('gUs').textContent = m.sets[0];
+    document.getElementById('gThem').textContent = m.sets[1];
+    document.getElementById('gsSets').style.display = 'none';
+  } else {
+    document.getElementById('gsGamesLabel').textContent = 'Games';
+    document.getElementById('gsSets').style.display = '';
+    document.getElementById('gUs').textContent = m.games[0];
+    document.getElementById('gThem').textContent = m.games[1];
+    document.getElementById('sUs').textContent = m.sets[0];
+    document.getElementById('sThem').textContent = m.sets[1];
+  }
 
   const hist = document.getElementById('histList');
   if (!m.history || m.history.length === 0) {
@@ -674,12 +710,29 @@ function render(m) {
   updateSwitchToast(m);
 }
 
-// 40-40 zonder gouden punt = deuce
+// Zet de juiste sport-klasse op het mini-veld
+function applyCourtSport(m) {
+  const court = document.getElementById('court');
+  if (!court) { return; }
+  const s = (typeof m.sport === 'number') ? m.sport : 0;
+  court.className = 'court sport-' + s;
+}
+
+// Puntdoel per game voor rally-sporten
+function rallyTarget(m) { return (m.sport === 4) ? 21 : 11; }
+
+// Gelijke stand met win-by-2 in zicht = deuce
 function updateDeuce(m) {
   const b = document.getElementById('deuceBadge');
   if (!b) { return; }
-  const deuce = !m.golden && !m.tiebreak && !m.over
-    && m.points[0] >= 3 && m.points[1] >= 3 && m.points[0] === m.points[1];
+  let deuce;
+  if (isRally(m)) {
+    const t = rallyTarget(m);
+    deuce = !m.over && m.points[0] >= t - 1 && m.points[1] >= t - 1 && m.points[0] === m.points[1];
+  } else {
+    deuce = !m.golden && !m.tiebreak && !m.over
+      && m.points[0] >= 3 && m.points[1] >= 3 && m.points[0] === m.points[1];
+  }
   b.classList.toggle('show', deuce);
 }
 
