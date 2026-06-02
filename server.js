@@ -27,7 +27,7 @@ function broadcast(pin, state) {
 }
 
 function freshMatch() {
-  return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1 };
+  return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1, lang:'en' };
 }
 
 // Ruim oude wedstrijden periodiek op

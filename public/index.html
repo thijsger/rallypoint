@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RallyPoint Scorebord</title>
+<title data-i18n="pageTitle">RallyPoint Scoreboard</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap');
 
@@ -214,9 +214,19 @@
   /* Pickleball: servicelijnen dicht bij het net (non-volley zone) */
   .court.sport-2 .service-line.top { top: 38%; }
   .court.sport-2 .service-line.bottom { bottom: 38%; }
+  /* Pickleball: middenlijn loopt NIET door de kitchen — twee aparte segmenten */
+  .court.sport-2 .center-line { display: none; }
+  .court.sport-2::before,
+  .court.sport-2::after {
+    content: ''; position: absolute; left: 50%; width: 0;
+    border-left: 1px solid rgba(255,255,255,.55); transform: translateX(-.5px);
+  }
+  .court.sport-2::before { top: 0; height: 38%; }
+  .court.sport-2::after  { bottom: 0; height: 38%; }
   /* Badminton: servicelijnen iets verder van het net */
   .court.sport-4 .service-line.top { top: 40%; }
   .court.sport-4 .service-line.bottom { bottom: 40%; }
+  .court.sport-4 .center-line { top: 40%; bottom: 40%; }
   /* Squash: geen net, short line in het midden */
   .court.sport-5 .net { display: none; }
   .court.sport-5 .service-line.bottom { display: none; }
@@ -225,6 +235,7 @@
   /* Tennis: servicelijnen iets ruimer */
   .court.sport-1 .service-line.top { top: 28%; }
   .court.sport-1 .service-line.bottom { bottom: 28%; }
+  .court.sport-1 .center-line { top: 28%; bottom: 28%; }
 
   .serve-ball {
     position: absolute; width: 12px; height: 12px; border-radius: 50%;
@@ -350,18 +361,17 @@
   <!-- VERBIND-SCHERM -->
   <div class="connect" id="connectScreen">
     <div class="logo">Rally<span>Point</span></div>
-    <div class="tagline">Live Scorebord</div>
-    <div class="pin-label">Voer de pincode van je horloge in</div>
+    <div class="tagline" data-i18n="tagline">Live Scoreboard</div>
+    <div class="pin-label" data-i18n="pinLabel">Enter the PIN from your watch</div>
     <div class="pin-boxes" id="pinBoxes">
       <input class="pin-box" maxlength="1" inputmode="numeric" data-i="0">
       <input class="pin-box" maxlength="1" inputmode="numeric" data-i="1">
       <input class="pin-box" maxlength="1" inputmode="numeric" data-i="2">
       <input class="pin-box" maxlength="1" inputmode="numeric" data-i="3">
     </div>
-    <button class="btn" id="connectBtn" disabled>Verbinden</button>
+    <button class="btn" id="connectBtn" data-i18n="connect" disabled>Connect</button>
     <div class="err" id="err"></div>
-    <div class="hint">De pincode vind je in de RallyPoint-app op je Garmin.</div>
-    <button class="icon-btn" id="namesBtn2" style="margin-top:1.2rem">✎ Namen</button>
+    <div class="hint" data-i18n="pinHint">You can find the PIN in the RallyPoint app on your Garmin.</div>
   </div>
 
   <!-- SCOREBORD -->
@@ -369,11 +379,10 @@
     <div class="board-top">
       <div class="board-title">Rally<span>Point</span><span class="board-sport" id="boardSport"></span></div>
       <div class="top-right">
-        <button class="icon-btn" id="namesBtn" title="Teamnamen bewerken">✎ Namen</button>
-        <button class="icon-btn" id="voiceBtn" title="Stand voorlezen aan/uit">🔊 Voorlezen</button>
-        <select class="voice-select" id="voiceSelect" title="Kies een stem"></select>
-        <button class="icon-btn" id="fsBtn" title="Volledig scherm">⛶ Fullscreen</button>
-        <span class="live-dot"><span class="dot"></span> Live · PIN <span id="boardPin"></span></span>
+        <button class="icon-btn" id="voiceBtn" data-i18n="voiceBtn" data-i18n-title="voiceBtnTitle" title="Read score aloud on/off">🔊 Speak</button>
+        <select class="voice-select" id="voiceSelect" data-i18n-title="voiceSelectTitle" title="Choose a voice"></select>
+        <button class="icon-btn" id="fsBtn" data-i18n="fsEnter" data-i18n-title="fsEnterTitle" title="Fullscreen">⛶ Fullscreen</button>
+        <span class="live-dot"><span class="dot"></span> <span data-i18n="livePin">Live · PIN</span> <span id="boardPin"></span></span>
       </div>
     </div>
 
@@ -383,7 +392,7 @@
 
     <div class="teams">
       <div class="team us">
-        <div class="team-name">You</div>
+        <div class="team-name" id="teamNameUs">Us</div>
         <div class="points" id="ptUs">0</div>
         <div class="serve-player" id="serveYou"></div>
       </div>
@@ -404,56 +413,43 @@
       </div>
 
       <div class="team them">
-        <div class="team-name">Opponent</div>
+        <div class="team-name" id="teamNameThem">Them</div>
         <div class="points" id="ptThem">0</div>
         <div class="serve-player" id="serveThem"></div>
       </div>
     </div>
 
-    <div class="tb-badge" id="tbBadge">TIEBREAK</div>
-    <div class="tb-badge" id="deuceBadge">DEUCE</div>
-    <div class="switch-toast" id="switchToast">Wissel van kant</div>
+    <div class="tb-badge" id="tbBadge" data-i18n="tiebreak">TIEBREAK</div>
+    <div class="tb-badge" id="deuceBadge" data-i18n="deuce">DEUCE</div>
+    <div class="switch-toast" id="switchToast" data-i18n="switchSides">Switch sides</div>
 
     <div class="games-sets">
       <div class="gs" id="gsGames">
-        <div class="gs-label" id="gsGamesLabel">Games</div>
+        <div class="gs-label" id="gsGamesLabel" data-i18n="games">Games</div>
         <div class="gs-val"><span class="u" id="gUs">0</span><span class="sep">–</span><span class="t" id="gThem">0</span></div>
       </div>
       <div class="gs" id="gsSets">
-        <div class="gs-label">Sets</div>
+        <div class="gs-label" data-i18n="sets">Sets</div>
         <div class="gs-val"><span class="u" id="sUs">0</span><span class="sep">–</span><span class="t" id="sThem">0</span></div>
       </div>
     </div>
 
     <div class="history">
-      <div class="history-title" id="historyTitle">Verloop</div>
-      <div id="histList"><div class="hist-empty">Nog geen punten gespeeld.</div></div>
+      <div class="history-title" id="historyTitle" data-i18n="history">History</div>
+      <div id="histList"><div class="hist-empty" data-i18n="histEmpty">No points played yet.</div></div>
     </div>
   </div>
 
   <!-- WINNAAR -->
   <div class="winner-banner" id="winnerBanner">
-    <h1 id="winnerName">You</h1>
-    <div class="sub" id="winnerScore">winnen de wedstrijd</div>
+    <h1 id="winnerName">Us</h1>
+    <div class="sub" id="winnerScore" data-i18n="winnerSub">wins the match</div>
     <div class="winner-sets" id="winnerSets"></div>
     <div class="winner-stats" id="winnerStats"></div>
   </div>
 
   <!-- Sluit-knop voor volledig scherm (zichtbaar in fullscreen) -->
-  <button id="fsExit" title="Sluit volledig scherm">✕</button>
-
-  <!-- NAMEN bewerken -->
-  <div class="overlay" id="namesOverlay">
-    <div class="overlay-card">
-      <h2>Namen</h2>
-      <label>Team wij</label><input id="nmUs" maxlength="14" placeholder="You">
-      <label>Tegenstander</label><input id="nmThem" maxlength="14" placeholder="Opponent">
-      <div class="overlay-actions">
-        <button class="btn" id="namesSave">Opslaan</button>
-        <button class="icon-btn" id="namesCancel">Annuleren</button>
-      </div>
-    </div>
-  </div>
+  <button id="fsExit" data-i18n-title="fsExitTitle" title="Exit fullscreen">✕</button>
 
 
 <script>
@@ -466,6 +462,95 @@
      const SERVER_URL = 'https://padelsmash-abcd.onrender.com';
    ============================================================ */
 const SERVER_URL = '';
+
+/* ============================================================
+   i18n — vertaallaag. Taal volgt het horloge (state.lang),
+   met fallback op NL. Voorleesstem volgt eveneens de taal.
+   ============================================================ */
+const WEB_STRINGS = {
+  pageTitle:        { nl:'RallyPoint Scorebord', en:'RallyPoint Scoreboard', de:'RallyPoint Anzeigetafel', es:'Marcador RallyPoint',          fr:'Tableau RallyPoint' },
+  tagline:          { nl:'Live Scorebord',        en:'Live Scoreboard',       de:'Live-Anzeigetafel',       es:'Marcador en vivo',             fr:'Tableau en direct' },
+  pinLabel:         { nl:'Voer de pincode van je horloge in', en:'Enter the PIN from your watch', de:'PIN von der Uhr eingeben', es:'Introduce el PIN del reloj', fr:'Saisis le PIN de ta montre' },
+  connect:          { nl:'Verbinden',              en:'Connect',               de:'Verbinden',               es:'Conectar',                     fr:'Connecter' },
+  connecting:       { nl:'Verbinden...',           en:'Connecting...',         de:'Verbinden...',            es:'Conectando...',                fr:'Connexion...' },
+  pinHint:          { nl:'De pincode vind je in de RallyPoint-app op je Garmin.', en:'You can find the PIN in the RallyPoint app on your Garmin.', de:'Du findest die PIN in der RallyPoint-App auf deiner Garmin.', es:'Encontrarás el PIN en la app RallyPoint de tu Garmin.', fr:'Le PIN se trouve dans l’app RallyPoint sur ta Garmin.' },
+  voiceBtn:         { nl:'🔊 Voorlezen',           en:'🔊 Speak',              de:'🔊 Vorlesen',             es:'🔊 Leer',                       fr:'🔊 Lire' },
+  voiceBtnOn:       { nl:'🔊 Voorlezen aan',       en:'🔊 Speaking on',        de:'🔊 Vorlesen ein',         es:'🔊 Lectura activa',             fr:'🔊 Lecture activée' },
+  voiceBtnTitle:    { nl:'Stand voorlezen aan/uit', en:'Read score aloud on/off', de:'Stand vorlesen ein/aus', es:'Leer marcador activado/desactivado', fr:'Lecture du score on/off' },
+  voiceSelectTitle: { nl:'Kies een stem',          en:'Choose a voice',        de:'Stimme wählen',           es:'Elige una voz',                 fr:'Choisir une voix' },
+  fsEnter:          { nl:'⛶ Fullscreen',           en:'⛶ Fullscreen',          de:'⛶ Vollbild',              es:'⛶ Pantalla completa',           fr:'⛶ Plein écran' },
+  fsExit:           { nl:'⛶ Verlaten',             en:'⛶ Exit',                de:'⛶ Verlassen',             es:'⛶ Salir',                       fr:'⛶ Quitter' },
+  fsEnterTitle:     { nl:'Volledig scherm',        en:'Fullscreen',            de:'Vollbild',                es:'Pantalla completa',             fr:'Plein écran' },
+  fsExitTitle:      { nl:'Sluit volledig scherm',  en:'Exit fullscreen',       de:'Vollbild beenden',        es:'Salir de pantalla completa',    fr:'Quitter le plein écran' },
+  livePin:          { nl:'Live · PIN',             en:'Live · PIN',            de:'Live · PIN',              es:'En vivo · PIN',                 fr:'Direct · PIN' },
+  tiebreak:         { nl:'TIEBREAK',               en:'TIEBREAK',              de:'TIEBREAK',                es:'TIEBREAK',                      fr:'TIE-BREAK' },
+  deuce:            { nl:'DEUCE',                  en:'DEUCE',                 de:'EINSTAND',                es:'DEUCE',                         fr:'ÉGALITÉ' },
+  switchSides:      { nl:'Wissel van kant',        en:'Switch sides',          de:'Seitenwechsel',           es:'Cambio de lado',                fr:'Changez de côté' },
+  games:            { nl:'Games',                  en:'Games',                 de:'Spiele',                  es:'Juegos',                        fr:'Jeux' },
+  sets:             { nl:'Sets',                   en:'Sets',                  de:'Sätze',                   es:'Sets',                          fr:'Sets' },
+  history:          { nl:'Verloop',                en:'History',               de:'Verlauf',                 es:'Historial',                     fr:'Historique' },
+  historyWithCount: { nl:'Verloop · {n} punten',   en:'History · {n} points',  de:'Verlauf · {n} Punkte',    es:'Historial · {n} puntos',        fr:'Historique · {n} points' },
+  histEmpty:        { nl:'Nog geen punten gespeeld.', en:'No points played yet.', de:'Noch keine Punkte gespielt.', es:'Aún no se han jugado puntos.', fr:'Aucun point joué pour le moment.' },
+  winnerSub:        { nl:'wint de wedstrijd',      en:'wins the match',        de:'gewinnt das Spiel',       es:'gana el partido',               fr:'remporte le match' },
+  minutes:          { nl:'minuten',                en:'minutes',               de:'Minuten',                 es:'minutos',                       fr:'minutes' },
+  pointsPlayed:     { nl:'punten gespeeld',        en:'points played',         de:'gespielte Punkte',        es:'puntos jugados',                fr:'points joués' },
+  longestRun:       { nl:'langste reeks',          en:'longest run',           de:'längste Serie',           es:'racha más larga',               fr:'plus longue série' },
+  serve:            { nl:'Serve',                  en:'Serve',                 de:'Aufschlag',               es:'Saque',                         fr:'Service' },
+  serveLine:        { nl:'Serve: <b>{name}</b> · {side}', en:'Serve: <b>{name}</b> · {side}', de:'Aufschlag: <b>{name}</b> · {side}', es:'Saque: <b>{name}</b> · {side}', fr:'Service : <b>{name}</b> · {side}' },
+  sideLeft:         { nl:'links',                  en:'left',                  de:'links',                   es:'izquierda',                     fr:'gauche' },
+  sideRight:        { nl:'rechts',                 en:'right',                 de:'rechts',                   es:'derecha',                       fr:'droite' },
+  serverWaking:     { nl:'Server wordt wakker... even geduld.', en:'Server is waking up... please wait.', de:'Server startet... bitte warten.', es:'El servidor está despertando... un momento.', fr:'Le serveur démarre... un instant.' },
+  noMatchPin:       { nl:'Geen wedstrijd gevonden met deze pincode.', en:'No match found for this PIN.', de:'Kein Spiel zu dieser PIN gefunden.', es:'No se encontró partido con este PIN.', fr:'Aucun match trouvé pour ce PIN.' },
+  noServer:         { nl:'Kan de server niet bereiken. Probeer opnieuw.', en:'Cannot reach the server. Try again.', de:'Server nicht erreichbar. Erneut versuchen.', es:'No se puede contactar al servidor. Inténtalo de nuevo.', fr:'Impossible de joindre le serveur. Réessaie.' },
+  voiceSet:         { nl:'Stem ingesteld.',        en:'Voice selected.',       de:'Stimme eingestellt.',     es:'Voz seleccionada.',             fr:'Voix sélectionnée.' },
+  voiceOn:          { nl:'Voorlezen staat aan.',   en:'Reading is on.',        de:'Vorlesen ist ein.',       es:'Lectura activada.',             fr:'Lecture activée.' },
+  spokenAdv:        { nl:'Voordeel {name}.',       en:'Advantage {name}.',     de:'Vorteil {name}.',         es:'Ventaja {name}.',               fr:'Avantage {name}.' },
+  spokenDeuce:      { nl:'Deuce.',                 en:'Deuce.',                de:'Einstand.',               es:'Iguales.',                      fr:'Égalité.' },
+  spokenEqual:      { nl:'{n} gelijk.',            en:'{n} all.',              de:'{n} beide.',              es:'{n} iguales.',                  fr:'{n} partout.' },
+  spokenSetWon:     { nl:'Set gewonnen. Sets {a} tegen {b}.', en:'Set won. Sets {a} to {b}.', de:'Satz gewonnen. Sätze {a} zu {b}.', es:'Set ganado. Sets {a} a {b}.', fr:'Set gagné. Sets {a} à {b}.' },
+  spokenGameWon:    { nl:'Game. Games {a} tegen {b}.', en:'Game. Games {a} to {b}.', de:'Spiel. Spiele {a} zu {b}.', es:'Juego. Juegos {a} a {b}.', fr:'Jeu. Jeux {a} à {b}.' },
+  spokenMatchWon:   { nl:'{name} wint de wedstrijd, {a} tegen {b} in sets.', en:'{name} wins the match, {a} to {b} in sets.', de:'{name} gewinnt das Spiel, {a} zu {b} in Sätzen.', es:'{name} gana el partido, {a} a {b} en sets.', fr:'{name} remporte le match, {a} à {b} en sets.' },
+  sportPadel:       { nl:'PADEL',                  en:'PADEL',                 de:'PADEL',                   es:'PÁDEL',                         fr:'PADEL' },
+  sportTennis:      { nl:'TENNIS',                 en:'TENNIS',                de:'TENNIS',                  es:'TENIS',                         fr:'TENNIS' },
+  sportPickleball:  { nl:'PICKLEBALL',             en:'PICKLEBALL',            de:'PICKLEBALL',              es:'PICKLEBALL',                    fr:'PICKLEBALL' },
+  sportTableTennis: { nl:'TAFELTENNIS',            en:'TABLE TENNIS',          de:'TISCHTENNIS',             es:'TENIS DE MESA',                 fr:'TENNIS DE TABLE' },
+  sportBadminton:   { nl:'BADMINTON',              en:'BADMINTON',             de:'BADMINTON',               es:'BÁDMINTON',                     fr:'BADMINTON' },
+  sportSquash:      { nl:'SQUASH',                 en:'SQUASH',                de:'SQUASH',                  es:'SQUASH',                        fr:'SQUASH' },
+  teamUs:           { nl:'Wij',                    en:'Us',                    de:'Wir',                     es:'Nosotros',                      fr:'Nous' },
+  teamThem:         { nl:'Zij',                    en:'Them',                  de:'Sie',                     es:'Ellos',                         fr:'Eux' }
+};
+
+let currentLang = 'en';
+
+function t(key, vars) {
+  const row = WEB_STRINGS[key];
+  if (!row) { return key; }
+  let s = row[currentLang] || row.en || key;
+  if (vars) {
+    for (const k in vars) { s = s.split('{' + k + '}').join(vars[k]); }
+  }
+  return s;
+}
+
+function applyLanguage(lang) {
+  if (!lang || !WEB_STRINGS.tagline[lang]) { lang = 'en'; }
+  if (lang === currentLang) { return false; }
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  // Update alle DOM-elementen met data-i18n / data-i18n-title
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    // Voorlees-knop heeft een aparte 'aan'-toestand
+    if (el.id === 'voiceBtn') { el.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn'); return; }
+    if (el.id === 'fsBtn')    { el.textContent = t(isFullscreen() ? 'fsExit' : 'fsEnter'); return; }
+    if (el.id === 'connectBtn') { el.textContent = t(el.dataset.busy ? 'connecting' : 'connect'); return; }
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
+  return true;
+}
 
 async function fetchMatch(pin) {
   const res = await fetch(`${SERVER_URL}/match/${pin}`);
@@ -497,70 +582,14 @@ function gamesLabel(m) {
 let connectedPin = null;
 let lastPoints = ["0","0"];
 let lastHistKey = '';
-let teamUs = "Wij";
-let teamThem = "Zij";
-let namesEditedLocally = false;     // als jij teamnamen op het bord typt, winnen die
+let teamUs = t('teamUs');
+let teamThem = t('teamThem');
 
-// Eerder opgeslagen teamnamen laden
-(function loadNames() {
-  try {
-    const t = JSON.parse(localStorage.getItem('padelNames') || 'null');
-    if (t) {
-      if (t.us) { teamUs = t.us; }
-      if (t.them) { teamThem = t.them; }
-      namesEditedLocally = true;
-    }
-  } catch (e) {}
-})();
-
-// Pas de namen op het bord toe
+// Teamnamen op het bord toepassen — komen van het horloge (of de vertaling)
 function applyNames() {
-  document.querySelector('.team.us .team-name').textContent = teamUs;
-  document.querySelector('.team.them .team-name').textContent = teamThem;
+  document.getElementById('teamNameUs').textContent   = teamUs;
+  document.getElementById('teamNameThem').textContent = teamThem;
 }
-
-// Dubbelklik (of dubbeltik) op een naam om hem te wijzigen op het bord
-function makeNameEditable(selector, which) {
-  const el = document.querySelector(selector);
-  el.title = "Dubbelklik om de naam te wijzigen";
-  el.addEventListener('dblclick', () => {
-    const huidig = which === 'us' ? teamUs : teamThem;
-    const nieuw = prompt("Teamnaam:", huidig);
-    if (nieuw && nieuw.trim()) {
-      if (which === 'us') teamUs = nieuw.trim(); else teamThem = nieuw.trim();
-      namesEditedLocally = true;
-      persistNames();
-      applyNames();
-    }
-  });
-}
-
-// ---- Namen-overlay (teamnamen), opgeslagen in de browser ----
-const namesOverlay = document.getElementById('namesOverlay');
-function persistNames() {
-  localStorage.setItem('padelNames', JSON.stringify({ us: teamUs, them: teamThem }));
-}
-function openNames() {
-  document.getElementById('nmUs').value   = (teamUs && teamUs !== 'Wij') ? teamUs : '';
-  document.getElementById('nmThem').value = (teamThem && teamThem !== 'Zij') ? teamThem : '';
-  namesOverlay.classList.add('show');
-}
-function closeNames() { namesOverlay.classList.remove('show'); }
-function saveNames() {
-  const us = document.getElementById('nmUs').value.trim();
-  const them = document.getElementById('nmThem').value.trim();
-  if (us) { teamUs = us; }
-  if (them) { teamThem = them; }
-  namesEditedLocally = true;
-  persistNames();
-  applyNames();
-  closeNames();
-}
-document.getElementById('namesBtn').addEventListener('click', openNames);
-document.getElementById('namesBtn2').addEventListener('click', openNames);
-document.getElementById('namesSave').addEventListener('click', saveNames);
-document.getElementById('namesCancel').addEventListener('click', closeNames);
-namesOverlay.addEventListener('click', (e) => { if (e.target === namesOverlay) { closeNames(); } });
 
 // PIN-invoer
 const boxes = [...document.querySelectorAll('.pin-box')];
@@ -588,7 +617,8 @@ connectBtn.addEventListener('click', async () => {
   const started = Date.now();
   let match = null;
   let lastErr = null;
-  connectBtn.textContent = 'Verbinden...';
+  connectBtn.dataset.busy = '1';
+  connectBtn.textContent = t('connecting');
 
   while (Date.now() - started < 60000) {
     try {
@@ -598,17 +628,16 @@ connectBtn.addEventListener('click', async () => {
       break;
     } catch (e) {
       lastErr = 'net';             // server nog aan het opstarten
-      errEl.textContent = 'Server wordt wakker... even geduld.';
+      errEl.textContent = t('serverWaking');
       await new Promise(r => setTimeout(r, 3000));
     }
   }
 
-  connectBtn.textContent = 'Verbinden';
+  delete connectBtn.dataset.busy;
+  connectBtn.textContent = t('connect');
 
   if (!match) {
-    errEl.textContent = lastErr === 'pin'
-      ? 'Geen wedstrijd gevonden met deze pincode.'
-      : 'Kan de server niet bereiken. Probeer opnieuw.';
+    errEl.textContent = lastErr === 'pin' ? t('noMatchPin') : t('noServer');
     connectBtn.disabled = false;
     return;
   }
@@ -619,10 +648,7 @@ connectBtn.addEventListener('click', async () => {
   document.getElementById('boardPin').textContent = pin;
   boardLive = true;
   acquireWakeLock();
-  makeNameEditable('.team.us .team-name', 'us');
-  makeNameEditable('.team.them .team-name', 'them');
-  render(match);
-  prevState = snapshot(match);
+  applyState(match);   // ook taal-switch + render in één keer
   startLive();
 });
 
@@ -637,6 +663,13 @@ function snapshot(m) {
 // Verwerk een nieuwe stand (zowel via live updates als polling)
 function applyState(m) {
   if (!m) return;
+  // Taal volgt het horloge — wissel zodra een nieuwe taal binnenkomt
+  if (m.lang && m.lang !== currentLang) {
+    applyLanguage(m.lang);
+    chooseVoiceForLang(m.lang);
+    // History opnieuw renderen na taalwissel
+    lastHistKey = '';
+  }
   if (prevState) announce(prevState, m);
   render(m);
   prevState = snapshot(m);
@@ -672,12 +705,10 @@ function setLiveStatus(ok) {
 }
 
 function render(m) {
-  // Teamnamen uit de stand (van het horloge), tenzij jij ze lokaal hebt aangepast
-  if (!namesEditedLocally) {
-    if (m.teamUs) teamUs = m.teamUs;
-    if (m.teamThem) teamThem = m.teamThem;
-    applyNames();
-  }
+  // Teamnamen volgen het horloge (en daarmee de taal). Geen lokale override meer.
+  teamUs   = m.teamUs   || t('teamUs');
+  teamThem = m.teamThem || t('teamThem');
+  applyNames();
 
   applyCourtSport(m);
 
@@ -687,12 +718,12 @@ function render(m) {
 
   if (isRally(m)) {
     // Rally: 'games gewonnen' staat in sets[]; toon alleen die, verberg het Sets-vak
-    document.getElementById('gsGamesLabel').textContent = 'Games';
+    document.getElementById('gsGamesLabel').textContent = t('games');
     document.getElementById('gUs').textContent = m.sets[0];
     document.getElementById('gThem').textContent = m.sets[1];
     document.getElementById('gsSets').style.display = 'none';
   } else {
-    document.getElementById('gsGamesLabel').textContent = 'Games';
+    document.getElementById('gsGamesLabel').textContent = t('games');
     document.getElementById('gsSets').style.display = '';
     document.getElementById('gUs').textContent = m.games[0];
     document.getElementById('gThem').textContent = m.games[1];
@@ -703,15 +734,15 @@ function render(m) {
   const hist = document.getElementById('histList');
   const title = document.getElementById('historyTitle');
   // Alleen opnieuw opbouwen als er echt iets veranderd is (anders flikkert het bij elke poll)
-  const histKey = JSON.stringify(m.history || []) + '|' + teamUs + '|' + teamThem;
+  const histKey = JSON.stringify(m.history || []) + '|' + teamUs + '|' + teamThem + '|' + currentLang;
   if (histKey !== lastHistKey) {
     lastHistKey = histKey;
     if (!m.history || m.history.length === 0) {
-      hist.innerHTML = '<div class="hist-empty">Nog geen punten gespeeld.</div>';
-      if (title) { title.textContent = 'Verloop'; }
+      hist.innerHTML = `<div class="hist-empty">${t('histEmpty')}</div>`;
+      if (title) { title.textContent = t('history'); }
     } else {
       const total = (typeof m.totalPoints === 'number') ? m.totalPoints : m.history.length;
-      if (title) { title.textContent = 'Verloop · ' + total + ' punten'; }
+      if (title) { title.textContent = t('historyWithCount', { n: total }); }
       hist.innerHTML = m.history.map((h, i) => {
         const cls = h.who === 0 ? 'us' : 'them';
         const team = h.who === 0 ? teamUs : teamThem;
@@ -727,7 +758,7 @@ function render(m) {
   if (m.over) {
     document.getElementById('winnerName').textContent = m.winner===0 ? teamUs : teamThem;
     document.getElementById('winnerName').style.color = m.winner===0 ? 'var(--us)' : 'var(--them)';
-    document.getElementById('winnerScore').textContent = 'wint de wedstrijd';
+    document.getElementById('winnerScore').textContent = t('winnerSub');
     // Setuitslagen
     const ws = document.getElementById('winnerSets');
     if (m.setHistory && m.setHistory.length) {
@@ -739,9 +770,9 @@ function render(m) {
     const tp = (typeof m.totalPoints === 'number') ? m.totalPoints : null;
     const ls = Array.isArray(m.longestStreak) ? m.longestStreak : null;
     let lines = [];
-    if (dur !== null) lines.push(`${dur} minuten`);
-    if (tp !== null) lines.push(`${tp} punten gespeeld`);
-    if (ls) lines.push(`langste reeks — ${teamUs}: ${ls[0]}, ${teamThem}: ${ls[1]}`);
+    if (dur !== null) lines.push(`${dur} ${t('minutes')}`);
+    if (tp !== null) lines.push(`${tp} ${t('pointsPlayed')}`);
+    if (ls) lines.push(`${t('longestRun')} — ${teamUs}: ${ls[0]}, ${teamThem}: ${ls[1]}`);
     stats.innerHTML = lines.join('<br>');
     banner.classList.add('show');
   } else {
@@ -757,10 +788,10 @@ function render(m) {
   updateSwitchToast(m);
 }
 
-const SPORT_NAMES = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+const SPORT_KEYS = ['sportPadel','sportTennis','sportPickleball','sportTableTennis','sportBadminton','sportSquash'];
 function sportName(m) {
   const s = (typeof m.sport === 'number') ? m.sport : 0;
-  return SPORT_NAMES[s] || 'Padel';
+  return t(SPORT_KEYS[s] || 'sportPadel');
 }
 
 // Zet de juiste sport-klasse op het mini-veld en toon de sportnaam
@@ -769,7 +800,7 @@ function applyCourtSport(m) {
   const s = (typeof m.sport === 'number') ? m.sport : 0;
   if (court) { court.className = 'court sport-' + s; }
   const lbl = document.getElementById('boardSport');
-  if (lbl) { lbl.textContent = sportName(m).toUpperCase(); }
+  if (lbl) { lbl.textContent = sportName(m); }
 }
 
 // Puntdoel per game voor rally-sporten
@@ -821,8 +852,9 @@ function updateServePlayers(m) {
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
   if (no === null || team < 0) { return; }
-  if (team === 0) { you.textContent = '🎾 Serve ' + no; you.classList.add('active'); }
-  else { them.textContent = '🎾 Serve ' + no; them.classList.add('active'); }
+  const label = '🎾 ' + t('serve') + ' ' + no;
+  if (team === 0) { you.textContent = label; you.classList.add('active'); }
+  else { them.textContent = label; them.classList.add('active'); }
 }
 
 function updateTiebreak(m) {
@@ -857,8 +889,8 @@ function updateServeBall(m) {
   ball.style.left = left;
   ball.style.top = top;
   const naam = team === 0 ? teamUs : teamThem;
-  const kant = (m.serveSide === 0) ? 'rechts' : 'links';
-  label.innerHTML = `Serve: <b>${naam}</b> · ${kant}`;
+  const kant = (m.serveSide === 0) ? t('sideRight') : t('sideLeft');
+  label.innerHTML = t('serveLine', { name: naam, side: kant });
 }
 
 function setPoint(id, val, idx) {
@@ -912,7 +944,7 @@ function leaveFullscreen() {
 function syncFsBtn() {
   const on = isFullscreen();
   document.body.classList.toggle('fs', on);
-  fsBtn.textContent = on ? '⛶ Verlaten' : '⛶ Fullscreen';
+  fsBtn.textContent = t(on ? 'fsExit' : 'fsEnter');
   fsBtn.classList.toggle('active', on);
 }
 fsBtn.addEventListener('click', () => { if (!isFullscreen()) { enterFullscreen(); } else { leaveFullscreen(); } });
@@ -938,39 +970,47 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ============================================================
-   SPRAAK — stand hardop voorlezen (Nederlands)
+   SPRAAK — stand hardop voorlezen, taal volgt het horloge
    ============================================================ */
 let voiceOn = false;
-let nlVoice = null;
+let currentVoice = null;
+let userPickedVoice = false;   // gebruiker handmatig gekozen? Dan niet meer auto-wisselen bij taalverandering
 const speechRate = 1.0;
 const voiceBtn = document.getElementById('voiceBtn');
 const voiceSelect = document.getElementById('voiceSelect');
 const hasSpeech = 'speechSynthesis' in window;
 
-// Geef Nederlandse, lokale en hoogwaardige stemmen voorrang
-function voiceScore(v) {
+// BCP-47 voorvoegsel per app-taal, voor het matchen van stemmen
+const LANG_VOICE_PREFIX = { nl: 'nl', en: 'en', de: 'de', es: 'es', fr: 'fr' };
+
+// Hoger = beter: prefereer juiste taal + lokale of hoogwaardige stemmen
+function voiceScore(v, prefix) {
   let s = 0;
   const lang = (v.lang || '').toLowerCase();
-  if (lang === 'nl-nl') { s += 4; } else if (lang.startsWith('nl')) { s += 2; }
+  if (lang.startsWith(prefix + '-')) { s += 4; }
+  else if (lang.startsWith(prefix)) { s += 2; }
   const n = (v.name || '').toLowerCase();
   if (n.indexOf('google') >= 0) { s += 3; }
   if (/(microsoft|natural|enhanced|premium|neural)/.test(n)) { s += 3; }
   if (v.localService) { s += 1; }
   return s;
 }
-function bestDutch(voices) {
-  const nl = voices.filter(v => (v.lang || '').toLowerCase().startsWith('nl'));
-  if (!nl.length) { return null; }
-  return nl.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0];
+function bestVoiceForLang(voices, lang) {
+  const prefix = LANG_VOICE_PREFIX[lang] || 'en';
+  const matching = voices.filter(v => (v.lang || '').toLowerCase().startsWith(prefix));
+  if (!matching.length) { return null; }
+  return matching.slice().sort((a, b) => voiceScore(b, prefix) - voiceScore(a, prefix))[0];
 }
+
 function populateVoices() {
   if (!hasSpeech) { return; }
   const voices = speechSynthesis.getVoices();
   if (!voices.length) { return; }
-  const nl = voices.filter(v => (v.lang || '').toLowerCase().startsWith('nl'));
-  const rest = voices.filter(v => !(v.lang || '').toLowerCase().startsWith('nl'));
-  const ordered = nl.concat(rest);
-  const keep = (nlVoice ? nlVoice.name : null) || localStorage.getItem('padelVoice');
+  const prefix = LANG_VOICE_PREFIX[currentLang] || 'en';
+  const preferred = voices.filter(v => (v.lang || '').toLowerCase().startsWith(prefix));
+  const rest = voices.filter(v => !(v.lang || '').toLowerCase().startsWith(prefix));
+  const ordered = preferred.concat(rest);
+  const keep = (currentVoice ? currentVoice.name : null) || localStorage.getItem('padelVoice');
   voiceSelect.innerHTML = '';
   ordered.forEach(v => {
     const opt = document.createElement('option');
@@ -978,9 +1018,23 @@ function populateVoices() {
     opt.textContent = v.name + ' · ' + v.lang;
     voiceSelect.appendChild(opt);
   });
-  nlVoice = (keep && voices.find(v => v.name === keep)) || bestDutch(voices) || ordered[0] || null;
-  if (nlVoice) { voiceSelect.value = nlVoice.name; }
+  if (!userPickedVoice) {
+    currentVoice = bestVoiceForLang(voices, currentLang) || ordered[0] || null;
+  } else if (keep) {
+    currentVoice = voices.find(v => v.name === keep) || currentVoice;
+  }
+  if (currentVoice) { voiceSelect.value = currentVoice.name; }
 }
+
+// Bij een taalwissel automatisch een nieuwe passende stem kiezen
+function chooseVoiceForLang(lang) {
+  if (!hasSpeech || userPickedVoice) { populateVoices(); return; }
+  const voices = speechSynthesis.getVoices();
+  const v = bestVoiceForLang(voices, lang);
+  if (v) { currentVoice = v; }
+  populateVoices();
+}
+
 if (hasSpeech) {
   populateVoices();
   speechSynthesis.onvoiceschanged = populateVoices;
@@ -991,30 +1045,37 @@ if (hasSpeech) {
 
 voiceSelect.addEventListener('change', () => {
   const voices = speechSynthesis.getVoices();
-  nlVoice = voices.find(v => v.name === voiceSelect.value) || nlVoice;
-  if (nlVoice) { localStorage.setItem('padelVoice', nlVoice.name); }
+  currentVoice = voices.find(v => v.name === voiceSelect.value) || currentVoice;
+  if (currentVoice) { localStorage.setItem('padelVoice', currentVoice.name); }
+  userPickedVoice = true;
   speechSynthesis.cancel();
-  if (voiceOn) { speak('Stem ingesteld.'); }
+  if (voiceOn) { speak(t('voiceSet')); }
 });
 
 voiceBtn.addEventListener('click', () => {
   voiceOn = !voiceOn;
   voiceBtn.classList.toggle('active', voiceOn);
-  voiceBtn.textContent = voiceOn ? '🔊 Voorlezen aan' : '🔊 Voorlezen';
+  voiceBtn.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn');
   voiceSelect.classList.toggle('show', voiceOn);
   if (voiceOn) {
-    speak('Voorlezen staat aan.'); // eerste klik ontgrendelt spraak in de browser
+    speak(t('voiceOn'));   // eerste klik ontgrendelt spraak in de browser
   } else {
     speechSynthesis.cancel();
   }
 });
 
+function voiceLangTag() {
+  if (currentVoice && currentVoice.lang) { return currentVoice.lang; }
+  const prefix = LANG_VOICE_PREFIX[currentLang] || 'en';
+  return prefix + '-' + prefix.toUpperCase();
+}
+
 function speak(text) {
   if (!voiceOn || !hasSpeech) { return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  if (nlVoice) { u.voice = nlVoice; u.lang = nlVoice.lang; }
-  else { u.lang = 'nl-NL'; }
+  if (currentVoice) { u.voice = currentVoice; u.lang = currentVoice.lang; }
+  else { u.lang = voiceLangTag(); }
   u.rate = speechRate;
   u.pitch = 1.0;
   speechSynthesis.speak(u);
@@ -1031,17 +1092,17 @@ function announce(prev, m) {
 
   // Wedstrijd voorbij
   if (m.over && !prev.over) {
-    speak((m.winner===0 ? teamUs + ' wint' : teamThem + ' wint') + ' de wedstrijd, ' + m.sets[0] + ' tegen ' + m.sets[1] + ' in sets.');
+    speak(t('spokenMatchWon', { name: (m.winner===0 ? teamUs : teamThem), a: m.sets[0], b: m.sets[1] }));
     return;
   }
   // Set gewonnen
   if (m.sets[0] !== prev.sets[0] || m.sets[1] !== prev.sets[1]) {
-    speak('Set gewonnen. Sets ' + m.sets[0] + ' tegen ' + m.sets[1] + '.');
+    speak(t('spokenSetWon', { a: m.sets[0], b: m.sets[1] }));
     return;
   }
   // Game gewonnen
   if (m.games[0] !== prev.games[0] || m.games[1] !== prev.games[1]) {
-    speak('Game. Games ' + m.games[0] + ' tegen ' + m.games[1] + '.');
+    speak(t('spokenGameWon', { a: m.games[0], b: m.games[1] }));
     return;
   }
   // Gewoon punt
@@ -1053,10 +1114,10 @@ function announce(prev, m) {
 
 // Maak de puntenstand natuurlijk uitspreekbaar
 function spokenScore(us, them) {
-  if (us === 'Adv') return 'Voordeel ' + teamUs + '.';
-  if (them === 'Adv') return 'Voordeel ' + teamThem + '.';
-  if (us === '40' && them === '40') return 'Deuce.';
-  if (us === them) return us + ' gelijk.';
+  if (us === 'Adv') return t('spokenAdv', { name: teamUs });
+  if (them === 'Adv') return t('spokenAdv', { name: teamThem });
+  if (us === '40' && them === '40') return t('spokenDeuce');
+  if (us === them) return t('spokenEqual', { n: us });
   return us + ' - ' + them;
 }
 </script>
