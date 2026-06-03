@@ -983,16 +983,43 @@ const hasSpeech = 'speechSynthesis' in window;
 // BCP-47 voorvoegsel per app-taal, voor het matchen van stemmen
 const LANG_VOICE_PREFIX = { nl: 'nl', en: 'en', de: 'de', es: 'es', fr: 'fr' };
 
-// Hoger = beter: prefereer juiste taal + lokale of hoogwaardige stemmen
+// Hoger = beter. Prefereert actief premium / neural voices per platform en
+// vermijdt novelty/robotic stemmen. Voice-URI is vaak betrouwbaarder dan name.
 function voiceScore(v, prefix) {
   let s = 0;
   const lang = (v.lang || '').toLowerCase();
-  if (lang.startsWith(prefix + '-')) { s += 4; }
-  else if (lang.startsWith(prefix)) { s += 2; }
-  const n = (v.name || '').toLowerCase();
-  if (n.indexOf('google') >= 0) { s += 3; }
-  if (/(microsoft|natural|enhanced|premium|neural)/.test(n)) { s += 3; }
-  if (v.localService) { s += 1; }
+  const name = (v.name || '').toLowerCase();
+  const uri  = (v.voiceURI || '').toLowerCase();
+  const both = name + ' ' + uri;
+
+  // Taal: regio-match telt zwaarder dan basis-match; verkeerde taal valt af
+  if (lang.startsWith(prefix + '-')) { s += 8; }
+  else if (lang.startsWith(prefix))  { s += 4; }
+  else { return -100; }
+
+  // Apple: Siri / premium >> enhanced >> compact >> eloquence (oude robotic)
+  if (uri.indexOf('com.apple.voice.premium') >= 0 || uri.indexOf('siri_') >= 0) { s += 25; }
+  else if (uri.indexOf('com.apple.voice.enhanced') >= 0) { s += 12; }
+  else if (uri.indexOf('com.apple.eloquence') >= 0)      { s -= 15; }
+  else if (uri.indexOf('com.apple.voice.compact') >= 0)  { s += 3; }
+
+  // Microsoft "Natural" / "Neural" (Edge desktop + Azure)
+  if (/microsoft.*(natural|neural)/.test(name)) { s += 20; }
+  else if (name.indexOf('microsoft') >= 0)      { s += 4; }
+
+  // Google (Chrome desktop + Android)
+  if (name.indexOf('google') >= 0) { s += 15; }
+
+  // Generieke kwaliteits-hints (Wavenet/Neural2/etc.)
+  if (/wavenet|neural2|neural|natural/.test(both)) { s += 6; }
+  if (/premium|enhanced/.test(both))               { s += 4; }
+
+  // Novelty / robotic — hard penaliseren
+  if (/bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|kathy|organ|princess|ralph|trinoids|whisper|zarvox|albert|bad news|bahh|fred|junior|grandma|grandpa|sandy|wobble|cellos|pipe organ/.test(name)) {
+    s -= 40;
+  }
+  if (/espeak|festival/.test(both)) { s -= 30; }
+
   return s;
 }
 function bestVoiceForLang(voices, lang) {
@@ -1108,16 +1135,18 @@ function announce(prev, m) {
   // Gewoon punt
   const us = pointLabel(m,0), them = pointLabel(m,1);
   if (us !== pointLabel(prev,0) || them !== pointLabel(prev,1)) {
-    speak(spokenScore(us, them));
+    speak(spokenScore(us, them, m.serveTeam));
   }
 }
 
-// Maak de puntenstand natuurlijk uitspreekbaar
-function spokenScore(us, them) {
+// Maak de puntenstand natuurlijk uitspreekbaar.
+// Conventie: stand van de serverende partij wordt eerst genoemd.
+function spokenScore(us, them, serveTeam) {
   if (us === 'Adv') return t('spokenAdv', { name: teamUs });
   if (them === 'Adv') return t('spokenAdv', { name: teamThem });
   if (us === '40' && them === '40') return t('spokenDeuce');
   if (us === them) return t('spokenEqual', { n: us });
+  if (serveTeam === 1) return them + ' - ' + us;
   return us + ' - ' + them;
 }
 </script>
