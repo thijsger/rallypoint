@@ -374,6 +374,11 @@
     <div class="hint" data-i18n="pinHint">You can find the PIN in the RallyPoint app on your Garmin.</div>
   </div>
 
+  <!-- Persistent audio element voor TTS — iOS Safari speelt geen dynamisch
+       gemaakte Audio() betrouwbaar af; één vast element in de DOM herbruiken
+       werkt wél, mits 'ie 1× door een user-gesture is geactiveerd. -->
+  <audio id="ttsPlayer" preload="none" playsinline style="display:none"></audio>
+
   <!-- SCOREBORD -->
   <div class="board" id="board">
     <div class="board-top">
@@ -981,10 +986,44 @@ let userPickedVoice = false;   // gebruiker handmatig gekozen? Dan niet meer aut
 const speechRate = 1.0;
 const voiceBtn = document.getElementById('voiceBtn');
 const voiceSelect = document.getElementById('voiceSelect');
+const ttsPlayer = document.getElementById('ttsPlayer');
 const hasSpeech = 'speechSynthesis' in window;
 let serverTtsAvailable = true;   // false = endpoint heeft geen key of bereik onmogelijk
-let currentTtsAudio = null;
 let audioUnlocked = false;        // browser autoplay-context vrijgegeven door user-gesture?
+
+// Zet cijfers om naar woorden in de actieve taal. Cruciaal voor ElevenLabs:
+// "0 - 15" is taalkundig ambigu en de modellen schakelen daar regelmatig naar
+// een verkeerde taal. "nul vijftien" geeft een ondubbelzinnig taal-signaal en
+// elimineert de mis-uitspraken.
+const NUM_WORDS = {
+  nl: ['nul','een','twee','drie','vier','vijf','zes','zeven','acht','negen','tien','elf','twaalf','dertien','veertien','vijftien','zestien','zeventien','achttien','negentien','twintig','eenentwintig','tweeëntwintig','drieëntwintig','vierentwintig','vijfentwintig','zesentwintig','zevenentwintig','achtentwintig','negenentwintig','dertig'],
+  en: ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty','twenty-one','twenty-two','twenty-three','twenty-four','twenty-five','twenty-six','twenty-seven','twenty-eight','twenty-nine','thirty'],
+  de: ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn','zwanzig','einundzwanzig','zweiundzwanzig','dreiundzwanzig','vierundzwanzig','fünfundzwanzig','sechsundzwanzig','siebenundzwanzig','achtundzwanzig','neunundzwanzig','dreißig'],
+  es: ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve','treinta'],
+  fr: ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf','vingt','vingt-et-un','vingt-deux','vingt-trois','vingt-quatre','vingt-cinq','vingt-six','vingt-sept','vingt-huit','vingt-neuf','trente'],
+};
+
+// Tennis-puntwaarden hebben eigen woorden ("vijftien" niet "vijftien" — die
+// matchen toevallig — maar "love" in EN ipv "zero")
+const TENNIS_POINTS_WORDS = {
+  nl: { '0':'nul',  '15':'vijftien', '30':'dertig',  '40':'veertig' },
+  en: { '0':'love', '15':'fifteen',  '30':'thirty',  '40':'forty' },
+  de: { '0':'null', '15':'fünfzehn', '30':'dreißig', '40':'vierzig' },
+  es: { '0':'cero', '15':'quince',   '30':'treinta', '40':'cuarenta' },
+  fr: { '0':'zéro', '15':'quinze',   '30':'trente',  '40':'quarante' },
+};
+
+function numWord(n) {
+  const arr = NUM_WORDS[currentLang] || NUM_WORDS.en;
+  const i = Number(n);
+  if (Number.isInteger(i) && i >= 0 && i < arr.length) return arr[i];
+  return String(n);
+}
+
+function tennisWord(p) {
+  const dict = TENNIS_POINTS_WORDS[currentLang] || TENNIS_POINTS_WORDS.en;
+  return dict[p] || numWord(p);
+}
 
 // BCP-47 voorvoegsel per app-taal, voor het matchen van stemmen
 const LANG_VOICE_PREFIX = { nl: 'nl', en: 'en', de: 'de', es: 'es', fr: 'fr' };
@@ -1095,7 +1134,7 @@ voiceBtn.addEventListener('click', () => {
   if (voiceOn) {
     speak(t('voiceOn'));   // eerste klik ontgrendelt spraak in de browser
   } else {
-    if (currentTtsAudio) { try { currentTtsAudio.pause(); } catch (_) {} }
+    try { ttsPlayer.pause(); } catch (_) {}
     if (hasSpeech) speechSynthesis.cancel();
   }
 });
@@ -1133,35 +1172,30 @@ function speak(text) {
   }
 }
 
-// Speel via /tts endpoint (ElevenLabs proxy met disk-cache). 503 = "geen
-// API-key geconfigureerd op server" → schakel proxy uit voor sessie. Andere
-// fouten (network, 429) blijven we proberen — kunnen transient zijn.
-//
-// Belangrijke nuance: we cancelen ALLEEN als de vorige audio nog niet
-// daadwerkelijk klinkt. Eenmaal aan het spelen → laten finishen ook al komt
-// er een nieuwe score binnen, anders krijg je halve-zin-stiltes bij snelle
-// puntenreeks.
-async function speakViaServer(text) {
-  try {
-    const r = await fetch(`/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}`);
-    if (!r.ok) {
-      if (r.status === 503) { serverTtsAvailable = false; }
-      throw new Error('status ' + r.status);
-    }
-    const blob = await r.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    // Annuleer alleen audio die nog niet begonnen is te spelen
-    if (currentTtsAudio && (currentTtsAudio.currentTime === 0 || currentTtsAudio.paused)) {
-      try { currentTtsAudio.pause(); } catch (_) {}
-    }
-    const audio = new Audio(blobUrl);
-    currentTtsAudio = audio;
-    audio.onended = () => URL.revokeObjectURL(blobUrl);
-    audio.onerror = () => { URL.revokeObjectURL(blobUrl); speakViaBrowser(text); };
-    const p = audio.play();
-    if (p && p.catch) { p.catch(() => speakViaBrowser(text)); }
-  } catch (e) {
+// Speel via /tts endpoint met het persistente audio element. Direct src
+// (geen blob URL) — werkt betrouwbaarder op iOS Safari omdat een gemount
+// audio-element met een vaste play()-historie de autoplay-policy beter
+// passeert dan een steeds nieuw aangemaakte Audio().
+function speakViaServer(text) {
+  if (!serverTtsAvailable) { speakViaBrowser(text); return; }
+  let fellBack = false;
+  const fallback = (reason) => {
+    if (fellBack) return;
+    fellBack = true;
     speakViaBrowser(text);
+  };
+  try {
+    ttsPlayer.onerror = () => {
+      // Server-fout (5xx) of decode-fout. We weten niet welke status het was —
+      // probeer nog een paar keer; pas na meerdere mislukkingen geven we op.
+      fallback('error');
+    };
+    ttsPlayer.oncanplay = null;
+    ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}`;
+    const p = ttsPlayer.play();
+    if (p && p.catch) { p.catch(() => fallback('playreject')); }
+  } catch (e) {
+    fallback('throw');
   }
 }
 
@@ -1187,17 +1221,17 @@ function announce(prev, m) {
 
   // Wedstrijd voorbij
   if (m.over && !prev.over) {
-    speak(t('spokenMatchWon', { name: (m.winner===0 ? teamUs : teamThem), a: m.sets[0], b: m.sets[1] }));
+    speak(t('spokenMatchWon', { name: (m.winner===0 ? teamUs : teamThem), a: numWord(m.sets[0]), b: numWord(m.sets[1]) }));
     return;
   }
   // Set gewonnen
   if (m.sets[0] !== prev.sets[0] || m.sets[1] !== prev.sets[1]) {
-    speak(t('spokenSetWon', { a: m.sets[0], b: m.sets[1] }));
+    speak(t('spokenSetWon', { a: numWord(m.sets[0]), b: numWord(m.sets[1]) }));
     return;
   }
   // Game gewonnen
   if (m.games[0] !== prev.games[0] || m.games[1] !== prev.games[1]) {
-    speak(t('spokenGameWon', { a: m.games[0], b: m.games[1] }));
+    speak(t('spokenGameWon', { a: numWord(m.games[0]), b: numWord(m.games[1]) }));
     return;
   }
   // Gewoon punt
@@ -1209,13 +1243,16 @@ function announce(prev, m) {
 
 // Maak de puntenstand natuurlijk uitspreekbaar.
 // Conventie: stand van de serverende partij wordt eerst genoemd.
+// Cijfers worden omgezet naar woorden zodat ElevenLabs de juiste taal kiest.
 function spokenScore(us, them, serveTeam) {
   if (us === 'Adv') return t('spokenAdv', { name: teamUs });
   if (them === 'Adv') return t('spokenAdv', { name: teamThem });
   if (us === '40' && them === '40') return t('spokenDeuce');
-  if (us === them) return t('spokenEqual', { n: us });
-  if (serveTeam === 1) return them + ' - ' + us;
-  return us + ' - ' + them;
+  const usW = tennisWord(us);
+  const themW = tennisWord(them);
+  if (us === them) return t('spokenEqual', { n: usW });
+  if (serveTeam === 1) return themW + ' ' + usW;
+  return usW + ' ' + themW;
 }
 </script>
 </body>
