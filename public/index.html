@@ -484,6 +484,8 @@ const WEB_STRINGS = {
   voiceBtnOn:       { nl:'🔊 Voorlezen aan',       en:'🔊 Speaking on',        de:'🔊 Vorlesen ein',         es:'🔊 Lectura activa',             fr:'🔊 Lecture activée' },
   voiceBtnTitle:    { nl:'Stand voorlezen aan/uit', en:'Read score aloud on/off', de:'Stand vorlesen ein/aus', es:'Leer marcador activado/desactivado', fr:'Lecture du score on/off' },
   voiceSelectTitle: { nl:'Kies een stem',          en:'Choose a voice',        de:'Stimme wählen',           es:'Elige una voz',                 fr:'Choisir une voix' },
+  historyBtn:       { nl:'📋 Geschiedenis',        en:'📋 History',            de:'📋 Verlauf',              es:'📋 Historial',                  fr:'📋 Historique' },
+  historyBtnTitle:  { nl:'Wedstrijdhistorie',      en:'Match history',         de:'Spielverlauf',            es:'Historial de partidos',         fr:'Historique des matchs' },
   fsEnter:          { nl:'⛶ Fullscreen',           en:'⛶ Fullscreen',          de:'⛶ Vollbild',              es:'⛶ Pantalla completa',           fr:'⛶ Plein écran' },
   fsExit:           { nl:'⛶ Verlaten',             en:'⛶ Exit',                de:'⛶ Verlassen',             es:'⛶ Salir',                       fr:'⛶ Quitter' },
   fsEnterTitle:     { nl:'Volledig scherm',        en:'Fullscreen',            de:'Vollbild',                es:'Pantalla completa',             fr:'Plein écran' },
@@ -612,6 +614,18 @@ boxes.forEach((box, i) => {
 });
 boxes[0].focus();
 
+// Pre-fill PIN op load: ?pin=1234 URL-param wint, anders localStorage.
+// Bij URL-param meteen auto-connecten — dat is het pad vanuit /history terug.
+(() => {
+  const urlPin = new URLSearchParams(location.search).get('pin') || '';
+  const memPin = localStorage.getItem('rallypointPin') || '';
+  const pin = /^\d{4}$/.test(urlPin) ? urlPin : (/^\d{4}$/.test(memPin) ? memPin : '');
+  if (!pin) return;
+  for (let i = 0; i < 4; i++) { boxes[i].value = pin[i]; }
+  connectBtn.disabled = false;
+  if (urlPin) { setTimeout(() => connectBtn.click(), 50); }   // alleen via URL → direct
+})();
+
 connectBtn.addEventListener('click', async () => {
   const pin = boxes.map(b => b.value).join('');
   connectBtn.disabled = true;
@@ -649,9 +663,11 @@ connectBtn.addEventListener('click', async () => {
   }
 
   connectedPin = pin;
+  localStorage.setItem('rallypointPin', pin);   // onthouden voor history-deeplink en pre-fill
   document.getElementById('connectScreen').style.display = 'none';
   document.getElementById('board').classList.add('live');
   document.getElementById('boardPin').textContent = pin;
+  document.getElementById('historyLink').href = '/history/' + pin;   // directe deeplink
   boardLive = true;
   acquireWakeLock();
   applyState(match);   // ook taal-switch + render in één keer
@@ -1028,99 +1044,40 @@ function tennisWord(p) {
 // BCP-47 voorvoegsel per app-taal, voor het matchen van stemmen
 const LANG_VOICE_PREFIX = { nl: 'nl', en: 'en', de: 'de', es: 'es', fr: 'fr' };
 
-// Hoger = beter. Prefereert actief premium / neural voices per platform en
-// vermijdt novelty/robotic stemmen. Voice-URI is vaak betrouwbaarder dan name.
-function voiceScore(v, prefix) {
-  let s = 0;
-  const lang = (v.lang || '').toLowerCase();
-  const name = (v.name || '').toLowerCase();
-  const uri  = (v.voiceURI || '').toLowerCase();
-  const both = name + ' ' + uri;
+// Curated ElevenLabs voice-picker. Allemaal v2 multilingual voices die
+// language_code goed volgen — gebruiker kiest enkel timbre, niet taal.
+const VOICES = [
+  { id: 'EXAVITQu4vr4xnSDxMaL', label: '👩 Sarah'     },   // vrouw, warm
+  { id: 'XB0fDUnXU5powFXDhCwa', label: '👩 Charlotte' },   // vrouw, zacht
+  { id: 'nPczCjzI2devNBz1zQrb', label: '👨 Brian'     },   // man, diep
+  { id: 'onwK4e9ZLuTAKqWW03F9', label: '👨 Daniel'    },   // man, helder
+];
 
-  // Taal: regio-match telt zwaarder dan basis-match; verkeerde taal valt af
-  if (lang.startsWith(prefix + '-')) { s += 8; }
-  else if (lang.startsWith(prefix))  { s += 4; }
-  else { return -100; }
-
-  // Apple: Siri / premium >> enhanced >> compact >> eloquence (oude robotic)
-  if (uri.indexOf('com.apple.voice.premium') >= 0 || uri.indexOf('siri_') >= 0) { s += 25; }
-  else if (uri.indexOf('com.apple.voice.enhanced') >= 0) { s += 12; }
-  else if (uri.indexOf('com.apple.eloquence') >= 0)      { s -= 15; }
-  else if (uri.indexOf('com.apple.voice.compact') >= 0)  { s += 3; }
-
-  // Microsoft "Natural" / "Neural" (Edge desktop + Azure)
-  if (/microsoft.*(natural|neural)/.test(name)) { s += 20; }
-  else if (name.indexOf('microsoft') >= 0)      { s += 4; }
-
-  // Google (Chrome desktop + Android)
-  if (name.indexOf('google') >= 0) { s += 15; }
-
-  // Generieke kwaliteits-hints (Wavenet/Neural2/etc.)
-  if (/wavenet|neural2|neural|natural/.test(both)) { s += 6; }
-  if (/premium|enhanced/.test(both))               { s += 4; }
-
-  // Novelty / robotic — hard penaliseren
-  if (/bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|kathy|organ|princess|ralph|trinoids|whisper|zarvox|albert|bad news|bahh|fred|junior|grandma|grandpa|sandy|wobble|cellos|pipe organ/.test(name)) {
-    s -= 40;
-  }
-  if (/espeak|festival/.test(both)) { s -= 30; }
-
-  return s;
-}
-function bestVoiceForLang(voices, lang) {
-  const prefix = LANG_VOICE_PREFIX[lang] || 'en';
-  const matching = voices.filter(v => (v.lang || '').toLowerCase().startsWith(prefix));
-  if (!matching.length) { return null; }
-  return matching.slice().sort((a, b) => voiceScore(b, prefix) - voiceScore(a, prefix))[0];
-}
+let selectedVoiceId = localStorage.getItem('rallypointVoiceId');
+if (!VOICES.some(v => v.id === selectedVoiceId)) { selectedVoiceId = VOICES[0].id; }
 
 function populateVoices() {
-  if (!hasSpeech) { return; }
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length) { return; }
-  const prefix = LANG_VOICE_PREFIX[currentLang] || 'en';
-  const preferred = voices.filter(v => (v.lang || '').toLowerCase().startsWith(prefix));
-  const rest = voices.filter(v => !(v.lang || '').toLowerCase().startsWith(prefix));
-  const ordered = preferred.concat(rest);
-  const keep = (currentVoice ? currentVoice.name : null) || localStorage.getItem('padelVoice');
   voiceSelect.innerHTML = '';
-  ordered.forEach(v => {
+  VOICES.forEach(v => {
     const opt = document.createElement('option');
-    opt.value = v.name;
-    opt.textContent = v.name + ' · ' + v.lang;
+    opt.value = v.id;
+    opt.textContent = v.label;
     voiceSelect.appendChild(opt);
   });
-  if (!userPickedVoice) {
-    currentVoice = bestVoiceForLang(voices, currentLang) || ordered[0] || null;
-  } else if (keep) {
-    currentVoice = voices.find(v => v.name === keep) || currentVoice;
-  }
-  if (currentVoice) { voiceSelect.value = currentVoice.name; }
+  voiceSelect.value = selectedVoiceId;
 }
+populateVoices();
 
-// Bij een taalwissel automatisch een nieuwe passende stem kiezen
-function chooseVoiceForLang(lang) {
-  if (!hasSpeech || userPickedVoice) { populateVoices(); return; }
-  const voices = speechSynthesis.getVoices();
-  const v = bestVoiceForLang(voices, lang);
-  if (v) { currentVoice = v; }
-  populateVoices();
-}
+// Multilingual stemmen passen zich aan language_code aan — geen taalmatch nodig.
+function chooseVoiceForLang(_lang) { /* nop, voor backward-compat */ }
 
-if (hasSpeech) {
-  populateVoices();
-  speechSynthesis.onvoiceschanged = populateVoices;
-} else {
-  voiceBtn.style.display = 'none';
-  voiceSelect.style.display = 'none';
+if (!hasSpeech) {
+  // Geen browser-spraak = geen fallback, maar server-TTS werkt nog wel
 }
 
 voiceSelect.addEventListener('change', () => {
-  const voices = speechSynthesis.getVoices();
-  currentVoice = voices.find(v => v.name === voiceSelect.value) || currentVoice;
-  if (currentVoice) { localStorage.setItem('padelVoice', currentVoice.name); }
-  userPickedVoice = true;
-  speechSynthesis.cancel();
+  selectedVoiceId = voiceSelect.value;
+  localStorage.setItem('rallypointVoiceId', selectedVoiceId);
   if (voiceOn) { speak(t('voiceSet')); }
 });
 
@@ -1158,7 +1115,6 @@ document.addEventListener('click', unlockOnFirstGesture, { once: true, capture: 
 document.addEventListener('touchstart', unlockOnFirstGesture, { once: true, capture: true });
 
 function voiceLangTag() {
-  if (currentVoice && currentVoice.lang) { return currentVoice.lang; }
   const prefix = LANG_VOICE_PREFIX[currentLang] || 'en';
   return prefix + '-' + prefix.toUpperCase();
 }
@@ -1191,7 +1147,7 @@ function speakViaServer(text) {
       fallback('error');
     };
     ttsPlayer.oncanplay = null;
-    ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}`;
+    ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}?voice=${encodeURIComponent(selectedVoiceId)}`;
     const p = ttsPlayer.play();
     if (p && p.catch) { p.catch(() => fallback('playreject')); }
   } catch (e) {

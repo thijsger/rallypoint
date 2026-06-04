@@ -142,7 +142,7 @@ function validPin(pin) { return /^\d{4}$/.test(pin); }
 // Eerste request voor een phrase = API-call + cache schrijven. Daarna serveert
 // de cache het MP3 instant en gratis. Onder ~200MB blijft de cache vanzelf zo
 // klein dat we niet hoeven op te ruimen; daarboven gooien we LRU weg.
-async function handleTts(req, res, lang, text) {
+async function handleTts(req, res, lang, text, voiceOverride) {
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -160,9 +160,15 @@ async function handleTts(req, res, lang, text) {
     return res.end('Bad text');
   }
 
+  // Voice override uit query — gebruikers picken uit een vaste lijst in de UI.
+  // Beperk tot ElevenLabs voice-ID formaat (~20 alfanumeriek) zodat misbruik
+  // moeilijker wordt; ongeldige strings vallen terug op de default.
+  const voiceId = (typeof voiceOverride === 'string' && /^[A-Za-z0-9]{15,30}$/.test(voiceOverride))
+    ? voiceOverride : ELEVENLABS_VOICE_ID;
+
   // cv2 = cache-versie; bump bij wijziging van API-payload (bv. language_code
   // toegevoegd) zodat oude mis-getalde audio niet meer wordt teruggegeven.
-  const cacheKey = `cv2|${lang}|${text}|${ELEVENLABS_VOICE_ID}|${ELEVENLABS_MODEL_ID}`;
+  const cacheKey = `cv2|${lang}|${text}|${voiceId}|${ELEVENLABS_MODEL_ID}`;
   const hash = crypto.createHash('sha256').update(cacheKey).digest('hex');
   const cachePath = path.join(TTS_CACHE_DIR, `${hash}.mp3`);
 
@@ -183,7 +189,7 @@ async function handleTts(req, res, lang, text) {
 
   // Cache-miss: ophalen bij ElevenLabs en wegschrijven
   try {
-    const apiUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const apiUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
     const apiRes = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -261,11 +267,12 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const parts = url.pathname.split('/').filter(Boolean);
 
-  // --- TTS proxy: /tts/:lang/:text — ElevenLabs spraak met disk-cache
+  // --- TTS proxy: /tts/:lang/:text?voice=<id> — ElevenLabs spraak + disk-cache
   if (parts[0] === 'tts' && req.method === 'GET' && parts.length >= 3) {
     const lang = parts[1];
     const text = decodeURIComponent(parts.slice(2).join('/'));
-    handleTts(req, res, lang, text);
+    const voice = url.searchParams.get('voice') || '';
+    handleTts(req, res, lang, text, voice);
     return;
   }
 

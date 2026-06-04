@@ -60,6 +60,22 @@
     border-radius: 6px;
     font-size: 13px;
   }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .back-link {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    white-space: nowrap;
+  }
+  .back-link:hover { color: var(--text); border-color: var(--text); }
   main {
     max-width: 760px;
     margin: 0 auto;
@@ -345,13 +361,16 @@
     <h1 id="title">Match history</h1>
     <div class="pin-label"><span id="pinLabel">PIN</span> <span class="pin-value" id="pinValue">—</span></div>
   </div>
-  <select class="lang-select" id="langSelect">
-    <option value="en">English</option>
-    <option value="nl">Nederlands</option>
-    <option value="de">Deutsch</option>
-    <option value="es">Español</option>
-    <option value="fr">Français</option>
-  </select>
+  <div class="header-actions">
+    <a class="back-link" id="backBtn" href="/">← Back</a>
+    <select class="lang-select" id="langSelect">
+      <option value="en">English</option>
+      <option value="nl">Nederlands</option>
+      <option value="de">Deutsch</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+    </select>
+  </div>
 </header>
 <main id="main">
   <div class="empty" id="empty" style="display:none">
@@ -407,6 +426,7 @@ const I18N = {
   setTableTitle:{ nl:'Per set',            en:'Per set',            de:'Pro Satz',       es:'Por set',          fr:'Par set' },
   setShort:     { nl:'S',                  en:'S',                  de:'S',              es:'S',                fr:'S' },
   hours:        { nl:'u',                  en:'h',                  de:'h',              es:'h',                fr:'h' },
+  backBtn:      { nl:'← Terug',            en:'← Back',             de:'← Zurück',       es:'← Atrás',          fr:'← Retour' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -460,6 +480,8 @@ function applyLang() {
   document.getElementById('emptyTitle').textContent = t('emptyTitle');
   document.getElementById('emptyBody').textContent = t('emptyBody');
   document.getElementById('clearBtn').textContent = t('clearBtn');
+  document.getElementById('backBtn').textContent = t('backBtn');
+  document.getElementById('backBtn').href = PIN ? ('/?pin=' + PIN) : '/';
   document.getElementById('langSelect').value = currentLang;
   document.title = 'RallyPoint — ' + t('title');
 }
@@ -676,6 +698,14 @@ function render(matches) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function showPinForm() {
+  // Als er al een PIN in localStorage staat (vorige sessie of het scoreboard
+  // heeft 'm bewaard), direct doorsturen naar de juiste history — geen
+  // extra invul-stap nodig.
+  const remembered = localStorage.getItem('rallypointPin');
+  if (remembered && /^\d{4}$/.test(remembered)) {
+    location.replace('/history/' + remembered);
+    return;
+  }
   document.getElementById('pinValue').innerHTML =
     '<input type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" id="pinInput" ' +
     'placeholder="0000" style="background:transparent;border:1px solid var(--border);' +
