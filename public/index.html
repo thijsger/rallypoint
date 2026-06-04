@@ -107,37 +107,6 @@
   }
   .voice-select.show { display: inline-block; }
   .voice-select:focus { outline: none; border-color: var(--ball); }
-
-  /* Music panel — uitklap onder de top-bar */
-  .music-panel {
-    display: none;
-    grid-template-columns: 1fr auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 14px;
-    margin: 6px 12px 0;
-    background: var(--panel);
-    border: 1px solid var(--court-line);
-    border-radius: 14px;
-  }
-  .music-panel.show { display: grid; }
-  .music-panel input[type="url"] {
-    background: transparent;
-    border: 1px solid var(--court-line);
-    color: var(--ink);
-    padding: 7px 10px;
-    border-radius: 8px;
-    font: inherit;
-    font-size: .85rem;
-    width: 100%;
-    min-width: 0;
-  }
-  .music-panel input[type="url"]:focus { outline: none; border-color: var(--ball); }
-  .music-panel audio { height: 36px; }
-  @media (max-width: 640px) {
-    .music-panel { grid-template-columns: 1fr; }
-    .music-panel audio { width: 100%; }
-  }
   /* Opgeruimd beeld in volledig scherm: alleen de score */
   body.fs { cursor: none; }
   body.fs .tester { display: none !important; }
@@ -385,6 +354,58 @@
   @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
   @keyframes bump { 0%,100% { transform: scale(1); } 40% { transform: scale(1.18); } }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* ============================================================
+     Portrait mobile (iPhone, kleine Androids)
+     - Top-bar wrap zodat alle knoppen leesbaar blijven
+     - Mini-court verbergen — score is hier het belangrijkste
+     - Teams 2-koloms (geen court ertussen) zodat de scores groot blijven
+     - 100dvh ipv 100vh om Safari's URL-bar te respecteren
+     ============================================================ */
+  @media (max-width: 720px), (orientation: portrait) and (max-width: 900px) {
+    body { overflow: auto; }
+    .board { padding: 1.2vh 3vw; height: 100dvh; min-height: 100dvh; }
+
+    .board-top { flex-wrap: wrap; gap: .4rem .6rem; }
+    .board-title { font-size: 1.05rem; }
+    .board-sport { font-size: .55em; margin-left: .35rem; padding-left: .35rem; }
+    .top-right { flex-wrap: wrap; gap: .35rem; justify-content: flex-end; }
+    .icon-btn {
+      padding: .32rem .55rem; font-size: .72rem;
+    }
+    .voice-select { font-size: .72rem; padding: .32rem .55rem; max-width: 110px; }
+    .live-dot { font-size: .68rem; gap: .25rem; }
+
+    .court-wrap { display: none; }
+    .teams { grid-template-columns: 1fr 1fr; gap: 4vw; }
+    .team-name { font-size: clamp(1rem, 5vw, 1.7rem); margin-bottom: .5vh; }
+    .points { font-size: clamp(4.5rem, 30vw, 9rem); line-height: .85; }
+
+    .games-sets { gap: 5vw; padding: 1.2vh 0; }
+    .gs-label { font-size: .62rem; }
+
+    .history { max-height: 18vh; padding-top: 1vh; }
+    .history-title { font-size: .65rem; margin-bottom: .4rem; }
+
+    .set-history { font-size: .85rem; padding: .5vh 0; }
+
+    .tb-badge, .switch-toast { font-size: 1.4rem; padding: .4rem .9rem; }
+
+    /* Verbind-scherm op portrait */
+    .pin-box { width: 54px; height: 70px; font-size: 2.4rem; border-radius: 12px; }
+    .pin-boxes { gap: .6rem; margin-bottom: 1.6rem; }
+    .btn { padding: .8rem 2.4rem; font-size: 1.15rem; }
+    .logo { font-size: clamp(2.2rem, 9vw, 4rem); }
+    .tagline { font-size: .95rem; margin: .5rem 0 2rem; }
+  }
+
+  /* Heel smal (kleine telefoons of split-screen) — knoppen nog krapper */
+  @media (max-width: 400px) {
+    .icon-btn { padding: .28rem .45rem; font-size: .68rem; }
+    .voice-select { font-size: .68rem; max-width: 95px; }
+    .pin-box { width: 48px; height: 62px; font-size: 2rem; }
+    .board-title { font-size: .95rem; }
+  }
 </style>
 </head>
 <body>
@@ -418,15 +439,9 @@
         <button class="icon-btn" id="voiceBtn" data-i18n="voiceBtn" data-i18n-title="voiceBtnTitle" title="Read score aloud on/off">🔊 Speak</button>
         <select class="voice-select" id="voiceSelect" data-i18n-title="voiceSelectTitle" title="Choose a voice"></select>
         <a class="icon-btn" id="historyLink" data-i18n="historyBtn" data-i18n-title="historyBtnTitle" title="Match history" href="/history">📋 History</a>
-        <button class="icon-btn" id="musicToggle" data-i18n="musicBtn" data-i18n-title="musicBtnTitle" title="Music">♪ Music</button>
         <button class="icon-btn" id="fsBtn" data-i18n="fsEnter" data-i18n-title="fsEnterTitle" title="Fullscreen">⛶ Fullscreen</button>
         <span class="live-dot"><span class="dot"></span> <span data-i18n="livePin">Live · PIN</span> <span id="boardPin"></span></span>
       </div>
-    </div>
-
-    <div class="music-panel" id="musicPanel">
-      <input type="url" id="musicUrl" placeholder="🎵 MP3 URL of radio-stream" autocomplete="url" spellcheck="false">
-      <audio id="musicPlayer" controls preload="none" crossorigin="anonymous"></audio>
     </div>
 
     <div class="momentum"><div class="momentum-fill" id="momentumFill"></div></div>
@@ -523,8 +538,6 @@ const WEB_STRINGS = {
   voiceSelectTitle: { nl:'Kies een stem',          en:'Choose a voice',        de:'Stimme wählen',           es:'Elige una voz',                 fr:'Choisir une voix' },
   historyBtn:       { nl:'📋 Geschiedenis',        en:'📋 History',            de:'📋 Verlauf',              es:'📋 Historial',                  fr:'📋 Historique' },
   historyBtnTitle:  { nl:'Wedstrijdhistorie',      en:'Match history',         de:'Spielverlauf',            es:'Historial de partidos',         fr:'Historique des matchs' },
-  musicBtn:         { nl:'♪ Muziek',               en:'♪ Music',               de:'♪ Musik',                 es:'♪ Música',                      fr:'♪ Musique' },
-  musicBtnTitle:    { nl:'Achtergrondmuziek',      en:'Background music',      de:'Hintergrundmusik',        es:'Música de fondo',               fr:'Musique de fond' },
   fsEnter:          { nl:'⛶ Fullscreen',           en:'⛶ Fullscreen',          de:'⛶ Vollbild',              es:'⛶ Pantalla completa',           fr:'⛶ Plein écran' },
   fsExit:           { nl:'⛶ Verlaten',             en:'⛶ Exit',                de:'⛶ Verlassen',             es:'⛶ Salir',                       fr:'⛶ Quitter' },
   fsEnterTitle:     { nl:'Volledig scherm',        en:'Fullscreen',            de:'Vollbild',                es:'Pantalla completa',             fr:'Plein écran' },
@@ -1210,91 +1223,6 @@ setInterval(() => {
   if (voiceOn && hasSpeech && speechSynthesis.paused) { speechSynthesis.resume(); }
 }, 5000);
 
-/* ============================================================
-   ACHTERGRONDMUZIEK — met automatische "ducking" tijdens TTS
-   Speel een MP3-stream of radio-URL achter de scoreboard; zodra het horloge
-   een nieuwe stand stuurt en de spraak inschakelt, zachter zetten, daarna
-   weer terug. Geen muziek gekozen = niets gebeurt.
-   ============================================================ */
-const musicPlayer = document.getElementById('musicPlayer');
-const musicUrlInput = document.getElementById('musicUrl');
-const musicToggle = document.getElementById('musicToggle');
-const musicPanel = document.getElementById('musicPanel');
-let musicTargetVolume = parseFloat(localStorage.getItem('rallypointMusicVolume') || '0.7');
-let isDucking = false;
-
-if (musicTargetVolume < 0 || musicTargetVolume > 1 || isNaN(musicTargetVolume)) musicTargetVolume = 0.7;
-musicPlayer.volume = musicTargetVolume;
-
-// URL onthouden
-const savedMusicUrl = localStorage.getItem('rallypointMusicUrl') || '';
-if (savedMusicUrl) {
-  musicUrlInput.value = savedMusicUrl;
-  musicPlayer.src = savedMusicUrl;
-}
-
-// Panel opengeklapt als er al iets is ingesteld, of bij eerste activering
-const musicPanelOpen = localStorage.getItem('rallypointMusicPanelOpen') === '1';
-if (musicPanelOpen || savedMusicUrl) { musicPanel.classList.add('show'); musicToggle.classList.add('active'); }
-
-musicToggle.addEventListener('click', () => {
-  const showing = !musicPanel.classList.contains('show');
-  musicPanel.classList.toggle('show', showing);
-  musicToggle.classList.toggle('active', showing);
-  localStorage.setItem('rallypointMusicPanelOpen', showing ? '1' : '0');
-});
-
-musicUrlInput.addEventListener('change', () => {
-  const url = musicUrlInput.value.trim();
-  localStorage.setItem('rallypointMusicUrl', url);
-  if (url) {
-    musicPlayer.src = url;
-    // Voor radio-streams meteen proberen te starten — bij file-URL wacht
-    // de native control op een play-klik
-    musicPlayer.play().catch(() => {});
-  } else {
-    musicPlayer.removeAttribute('src');
-    musicPlayer.load();
-  }
-});
-
-// Sla user-gekozen volume op zodat de "restore" na ducking exact daarheen gaat
-musicPlayer.addEventListener('volumechange', () => {
-  if (isDucking) return;   // het is onze eigen ducking-aanpassing, niet de user
-  musicTargetVolume = musicPlayer.volume;
-  localStorage.setItem('rallypointMusicVolume', String(musicTargetVolume));
-});
-
-// Soepele fade ipv harde sprong — voorkomt klikken/abrupte volumeswitches
-function fadeMusicVolume(target, durationMs) {
-  if (!musicPlayer.src) return;
-  const start = musicPlayer.volume;
-  const t0 = performance.now();
-  const step = () => {
-    const t = Math.min(1, (performance.now() - t0) / durationMs);
-    musicPlayer.volume = start + (target - start) * t;
-    if (t < 1) requestAnimationFrame(step);
-  };
-  step();
-}
-
-const DUCK_VOLUME = 0.12;   // hoe zacht de muziek moet zijn tijdens spraak
-const DUCK_FADE_DOWN = 120; // ms
-const DUCK_FADE_UP   = 350; // ms — wat trager terug zodat het natuurlijker voelt
-
-ttsPlayer.addEventListener('playing', () => {
-  if (musicPlayer.paused || !musicPlayer.src) return;
-  isDucking = true;
-  fadeMusicVolume(DUCK_VOLUME, DUCK_FADE_DOWN);
-});
-function unduckMusic() {
-  if (!isDucking) return;
-  isDucking = false;
-  fadeMusicVolume(musicTargetVolume, DUCK_FADE_UP);
-}
-ttsPlayer.addEventListener('ended', unduckMusic);
-ttsPlayer.addEventListener('pause', unduckMusic);
-ttsPlayer.addEventListener('error', unduckMusic);
 
 // Bepaal wat er veranderd is en lees het passend voor
 function announce(prev, m) {
