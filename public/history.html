@@ -325,8 +325,9 @@ function render(matches) {
     if (m.setHistory && m.setHistory.length) {
       history = m.setHistory.map(s => s[0] + '-' + s[1]).join('  ');
     }
-    // Current set (if in progress)
-    if (m.inProgress && !m.over) {
+    // Onvoltooide set tonen — ook bij handmatig saven (hasUnfinishedSet)
+    const showUnfinished = m.hasUnfinishedSet || m.inProgress;
+    if (showUnfinished && !(m.over && m.winner !== -1)) {
       if (history) history += '  ';
       history += '(' + m.games[0] + '-' + m.games[1];
       const us = pointLabel(m, 0), them = pointLabel(m, 1);
@@ -366,14 +367,40 @@ function render(matches) {
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+function showPinForm() {
+  document.getElementById('pinValue').innerHTML =
+    '<input type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" id="pinInput" ' +
+    'placeholder="0000" style="background:transparent;border:1px solid var(--border);' +
+    'border-radius:6px;padding:4px 8px;color:var(--ball);font:inherit;font-weight:600;' +
+    'width:80px;font-variant-numeric:tabular-nums;letter-spacing:0.1em;text-align:center;">';
+  const inp = document.getElementById('pinInput');
+  const remembered = localStorage.getItem('rallypointPin');
+  if (remembered && /^\d{4}$/.test(remembered)) { inp.value = remembered; }
+  inp.focus();
+  inp.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (e.target.value.length === 4) {
+      localStorage.setItem('rallypointPin', e.target.value);
+      location.href = '/history/' + e.target.value;
+    }
+  });
+  document.getElementById('emptyTitle').textContent = t('emptyTitle');
+  document.getElementById('emptyBody').innerHTML =
+    { nl: 'Vul je 4-cijferige PIN in om je wedstrijdgeschiedenis te zien.',
+      en: 'Enter your 4-digit PIN above to see your match history.',
+      de: 'Gib oben deine 4-stellige PIN ein, um deinen Verlauf zu sehen.',
+      es: 'Introduce arriba tu PIN de 4 dígitos para ver tu historial.',
+      fr: 'Saisissez votre code PIN à 4 chiffres ci-dessus pour voir votre historique.'
+    }[currentLang] || 'Enter your 4-digit PIN above to see your match history.';
+  document.getElementById('empty').style.display = 'block';
+}
+
 async function load() {
   if (!PIN) {
-    document.getElementById('pinValue').textContent = '—';
-    document.getElementById('emptyTitle').textContent = t('emptyTitle');
-    document.getElementById('emptyBody').textContent = 'Open /history/XXXX (your 4-digit PIN) to see your matches.';
-    document.getElementById('empty').style.display = 'block';
+    showPinForm();
     return;
   }
+  localStorage.setItem('rallypointPin', PIN);
   document.getElementById('pinValue').textContent = PIN;
   try {
     const r = await fetch('/history/' + PIN, { headers: { 'Accept': 'application/json' } });

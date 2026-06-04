@@ -54,12 +54,15 @@ function freshMatch() {
   return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1, lang:'en' };
 }
 
-// Bouw een compacte history-entry uit de live state op het moment van saven
+// Bouw een compacte history-entry uit de live state op het moment van saven.
+// Handmatige save (state.saved=true) telt als "match ended" in de history,
+// ook als het scorebord nog midden in een set zit.
 function snapshotForHistory(state) {
   const setHistory = Array.isArray(state.setHistory) ? state.setHistory : [];
   const games = Array.isArray(state.games) ? state.games : [0, 0];
   const points = Array.isArray(state.points) ? state.points : [0, 0];
-  const inProgress = (games[0] > 0 || games[1] > 0 || points[0] > 0 || points[1] > 0);
+  const hasUnfinishedSet = (games[0] > 0 || games[1] > 0 || points[0] > 0 || points[1] > 0);
+  const manuallySaved = !!state.saved;
   return {
     savedAt: Date.now(),
     sport: typeof state.sport === 'number' ? state.sport : 0,
@@ -70,8 +73,10 @@ function snapshotForHistory(state) {
     games: games,
     points: points,
     setHistory: setHistory,
-    inProgress: inProgress,
-    over: !!state.over,
+    hasUnfinishedSet: hasUnfinishedSet,
+    inProgress: hasUnfinishedSet && !manuallySaved && !state.over,
+    over: !!state.over || manuallySaved,
+    manuallySaved: manuallySaved,
     winner: typeof state.winner === 'number' ? state.winner : -1,
     totalPoints: Number(state.totalPoints) || 0,
     longestStreak: Array.isArray(state.longestStreak) ? state.longestStreak : [0, 0],
@@ -124,6 +129,16 @@ const server = http.createServer((req, res) => {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const parts = url.pathname.split('/').filter(Boolean);
+
+  // --- /history (zonder PIN) — serveer de pagina; JS toont een "vul PIN in" hint
+  if (parts[0] === 'history' && !parts[1] && req.method === 'GET') {
+    const filePath = path.join(__dirname, 'public', 'history.html');
+    return fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+  }
 
   // --- History API + page ---
   if (parts[0] === 'history' && parts[1]) {
