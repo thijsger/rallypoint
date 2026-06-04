@@ -188,6 +188,20 @@
   }
   .badge.in-progress { background: rgba(255, 184, 74, 0.15); color: var(--amber); }
   .badge.over { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+  .badge.saved { background: rgba(79, 179, 255, 0.15); color: var(--us); }
+  .meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .meta-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    margin-right: 4px;
+    font-size: 11px;
+  }
 </style>
 </head>
 <body>
@@ -226,10 +240,19 @@ const I18N = {
                   fr:'Sauvegardez un match sur votre montre pour le voir ici.' },
   inProgress:   { nl:'Onderbroken',           en:'In progress',           de:'Unterbrochen',          es:'En curso',              fr:'En cours' },
   finished:     { nl:'Voltooid',              en:'Finished',              de:'Beendet',               es:'Finalizado',            fr:'Terminé' },
+  saved:        { nl:'Opgeslagen',            en:'Saved',                 de:'Gespeichert',           es:'Guardado',              fr:'Enregistré' },
   duration:     { nl:'Duur',                  en:'Duration',              de:'Dauer',                 es:'Duración',              fr:'Durée' },
   points:       { nl:'Punten',                en:'Points',                de:'Punkte',                es:'Puntos',                fr:'Points' },
   streak:       { nl:'Reeks',                 en:'Streak',                de:'Serie',                 es:'Racha',                 fr:'Série' },
+  tempo:        { nl:'Tempo',                 en:'Tempo',                 de:'Tempo',                 es:'Ritmo',                 fr:'Tempo' },
+  avgGame:      { nl:'Per game',              en:'Per game',              de:'Pro Game',              es:'Por juego',             fr:'Par jeu' },
+  tiebreaks:    { nl:'Tiebreaks',             en:'Tiebreaks',             de:'Tiebreaks',             es:'Tie-breaks',            fr:'Tie-breaks' },
+  deuces:       { nl:'Deuces',                en:'Deuces',                de:'Einstand',              es:'Deuces',                fr:'Égalités' },
+  sideSwitch:   { nl:'Kantwissels',           en:'Side switches',         de:'Seitenwechsel',         es:'Cambios',               fr:'Côtés' },
+  format:       { nl:'Vorm',                  en:'Format',                de:'Format',                es:'Formato',               fr:'Format' },
+  golden:       { nl:'Gouden punt',           en:'Golden point',          de:'Golden Point',          es:'Punto de oro',          fr:'Point d\'or' },
   minutes:      { nl:'min',                   en:'min',                   de:'Min',                   es:'min',                   fr:'min' },
+  ptsMin:       { nl:'pt/min',                en:'pt/min',                de:'Pkt/Min',               es:'pt/min',                fr:'pt/min' },
   teamUs:       { nl:'Wij',                   en:'You',                   de:'Wir',                   es:'Nosotros',              fr:'Nous' },
   teamThem:     { nl:'Zij',                   en:'Opp',                   de:'Sie',                   es:'Ellos',                 fr:'Eux' },
   clearBtn:     { nl:'Geschiedenis wissen',   en:'Clear history',         de:'Verlauf löschen',       es:'Borrar historial',      fr:'Effacer l\'historique' },
@@ -314,20 +337,26 @@ function render(matches) {
     const cls = m.over ? 'over' : (m.inProgress ? 'in-progress' : '');
     const teamUs = m.teamUs || t('teamUs');
     const teamThem = m.teamThem || t('teamThem');
-    const usWin = m.over && m.winner === 0;
-    const themWin = m.over && m.winner === 1;
-    const badge = m.over
-      ? '<span class="badge over">' + t('finished') + '</span>'
-      : '<span class="badge in-progress">' + t('inProgress') + '</span>';
+    const realWin = m.over && m.winner !== -1 && !m.manuallySaved;
+    const usWin = realWin && m.winner === 0;
+    const themWin = realWin && m.winner === 1;
+    let badge;
+    if (m.manuallySaved) {
+      badge = '<span class="badge saved">' + t('saved') + '</span>';
+    } else if (m.over) {
+      badge = '<span class="badge over">' + t('finished') + '</span>';
+    } else {
+      badge = '<span class="badge in-progress">' + t('inProgress') + '</span>';
+    }
 
     // Set history string
     let history = '';
     if (m.setHistory && m.setHistory.length) {
       history = m.setHistory.map(s => s[0] + '-' + s[1]).join('  ');
     }
-    // Onvoltooide set tonen — ook bij handmatig saven (hasUnfinishedSet)
+    // Onvoltooide set tonen — ook bij handmatig saven
     const showUnfinished = m.hasUnfinishedSet || m.inProgress;
-    if (showUnfinished && !(m.over && m.winner !== -1)) {
+    if (showUnfinished && !realWin) {
       if (history) history += '  ';
       history += '(' + m.games[0] + '-' + m.games[1];
       const us = pointLabel(m, 0), them = pointLabel(m, 1);
@@ -335,10 +364,39 @@ function render(matches) {
       history += ')';
     }
 
+    // Format + golden point tags
+    const fmtLabels = { 0: t('format')+': 1 set', 1: t('format')+': Bo3', 2: t('format')+': Bo5', 3: t('format')+': Pro set', 4: t('format')+': ∞' };
+    const meta = [];
+    if (typeof m.fmt === 'number' && m.fmt in fmtLabels) { meta.push('<span class="meta-tag">' + fmtLabels[m.fmt] + '</span>'); }
+    if (m.golden) { meta.push('<span class="meta-tag">⚡ ' + t('golden') + '</span>'); }
+
+    const stats = [];
+    stats.push(`<div class="stat"><span class="stat-label">${t('duration')}</span><span class="stat-value">${m.durationMin} ${t('minutes')}</span></div>`);
+    stats.push(`<div class="stat"><span class="stat-label">${t('points')}</span><span class="stat-value">${m.totalPoints}</span></div>`);
+    stats.push(`<div class="stat"><span class="stat-label">${t('streak')}</span><span class="stat-value">${m.longestStreak[0]} / ${m.longestStreak[1]}</span></div>`);
+    if (m.ptsPerMin > 0) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('tempo')}</span><span class="stat-value">${m.ptsPerMin.toFixed(1)} ${t('ptsMin')}</span></div>`);
+    }
+    if (m.avgPtsGame > 0) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('avgGame')}</span><span class="stat-value">${m.avgPtsGame.toFixed(1)}</span></div>`);
+    }
+    if (m.tiebreaks > 0) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('tiebreaks')}</span><span class="stat-value">${m.tiebreaks}</span></div>`);
+    }
+    if (m.deuceGames > 0) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('deuces')}</span><span class="stat-value">${m.deuceGames}</span></div>`);
+    }
+    if (m.sideSwitches > 0) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('sideSwitch')}</span><span class="stat-value">${m.sideSwitches}</span></div>`);
+    }
+
     return `
       <div class="match ${cls}">
         <div class="match-head">
-          <div class="match-sport">${sportLabel(m.sport)}</div>
+          <div>
+            <div class="match-sport">${sportLabel(m.sport)}</div>
+            ${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}
+          </div>
           <div class="match-date">${formatDate(m.savedAt)} · ${badge}</div>
         </div>
         <div class="match-score">
@@ -347,20 +405,7 @@ function render(matches) {
           <div class="team them ${themWin ? 'winner' : ''}">${esc(teamThem)}</div>
         </div>
         ${history ? `<div class="set-history">${history}</div>` : ''}
-        <div class="stats">
-          <div class="stat">
-            <span class="stat-label">${t('duration')}</span>
-            <span class="stat-value">${m.durationMin}${' '}${t('minutes')}</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">${t('points')}</span>
-            <span class="stat-value">${m.totalPoints}</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">${t('streak')}</span>
-            <span class="stat-value">${m.longestStreak[0]} / ${m.longestStreak[1]}</span>
-          </div>
-        </div>
+        <div class="stats">${stats.join('')}</div>
       </div>
     `;
   }).join('');
@@ -395,6 +440,35 @@ function showPinForm() {
   document.getElementById('empty').style.display = 'block';
 }
 
+function cacheKey(pin) { return 'rallypoint-history-' + pin; }
+
+function loadCached(pin) {
+  try {
+    const raw = localStorage.getItem(cacheKey(pin));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) { return []; }
+}
+
+function saveCached(pin, list) {
+  try {
+    localStorage.setItem(cacheKey(pin), JSON.stringify(list.slice(0, 100)));
+  } catch (e) {}
+}
+
+// Server + browser-cache mergen: dedupliceren via savedAt-tijdstempel.
+// Op die manier blijven wedstrijden zichtbaar zelfs als Render de gratis
+// disk wist tussen deploys — de browser onthoudt zijn eigen kopie.
+function mergeMatches(server, local) {
+  const seen = new Map();
+  for (const m of [...server, ...local]) {
+    if (!m || typeof m.savedAt !== 'number') continue;
+    if (!seen.has(m.savedAt)) { seen.set(m.savedAt, m); }
+  }
+  return Array.from(seen.values()).sort((a, b) => b.savedAt - a.savedAt).slice(0, 100);
+}
+
 async function load() {
   if (!PIN) {
     showPinForm();
@@ -402,13 +476,20 @@ async function load() {
   }
   localStorage.setItem('rallypointPin', PIN);
   document.getElementById('pinValue').textContent = PIN;
+
+  const cached = loadCached(PIN);
+  if (cached.length) { render(cached); }  // direct iets tonen terwijl server laadt
+
+  let server = [];
   try {
     const r = await fetch('/history/' + PIN, { headers: { 'Accept': 'application/json' } });
-    const matches = await r.json();
-    render(Array.isArray(matches) ? matches : []);
-  } catch (e) {
-    render([]);
-  }
+    const data = await r.json();
+    server = Array.isArray(data) ? data : [];
+  } catch (e) {}
+
+  const merged = mergeMatches(server, cached);
+  saveCached(PIN, merged);
+  render(merged);
 }
 
 document.getElementById('langSelect').addEventListener('change', e => {
