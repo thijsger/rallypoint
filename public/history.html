@@ -701,9 +701,9 @@ function showPinForm() {
   // Als er al een PIN in localStorage staat (vorige sessie of het scoreboard
   // heeft 'm bewaard), direct doorsturen naar de juiste history — geen
   // extra invul-stap nodig.
-  const remembered = localStorage.getItem('rallypointPin');
-  if (remembered && /^\d{4}$/.test(remembered)) {
-    location.replace('/history/' + remembered);
+  const savedPin = localStorage.getItem('rallypointPin');
+  if (savedPin && /^\d{4}$/.test(savedPin)) {
+    location.replace('/history/' + savedPin);
     return;
   }
   document.getElementById('pinValue').innerHTML =
