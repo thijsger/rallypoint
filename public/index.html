@@ -1136,6 +1136,11 @@ function speak(text) {
 // Speel via /tts endpoint (ElevenLabs proxy met disk-cache). 503 = "geen
 // API-key geconfigureerd op server" → schakel proxy uit voor sessie. Andere
 // fouten (network, 429) blijven we proberen — kunnen transient zijn.
+//
+// Belangrijke nuance: we cancelen ALLEEN als de vorige audio nog niet
+// daadwerkelijk klinkt. Eenmaal aan het spelen → laten finishen ook al komt
+// er een nieuwe score binnen, anders krijg je halve-zin-stiltes bij snelle
+// puntenreeks.
 async function speakViaServer(text) {
   try {
     const r = await fetch(`/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}`);
@@ -1145,7 +1150,10 @@ async function speakViaServer(text) {
     }
     const blob = await r.blob();
     const blobUrl = URL.createObjectURL(blob);
-    if (currentTtsAudio) { try { currentTtsAudio.pause(); } catch (_) {} }
+    // Annuleer alleen audio die nog niet begonnen is te spelen
+    if (currentTtsAudio && (currentTtsAudio.currentTime === 0 || currentTtsAudio.paused)) {
+      try { currentTtsAudio.pause(); } catch (_) {}
+    }
     const audio = new Audio(blobUrl);
     currentTtsAudio = audio;
     audio.onended = () => URL.revokeObjectURL(blobUrl);

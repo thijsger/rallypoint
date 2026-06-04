@@ -29,7 +29,10 @@ const TTS_CACHE_DIR = path.join(DATA_DIR, 'tts');
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
 // Sarah, multilingual; user kan overriden via env-var
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
-const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
+// Flash v2.5: respecteert language_code strict (multilingual_v2 negeerde 'm
+// soms voor korte phrases), lagere latency, ~50% goedkoper. Override met
+// ELEVENLABS_MODEL_ID env-var als je terug wil naar multilingual_v2.
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5';
 const TTS_MAX_TEXT = 200;          // chars per phrase — voorkomt misbruik
 const TTS_MAX_CACHE_MB = 200;      // hoeveel disk-ruimte de cache maximaal pakt
 try { fs.mkdirSync(TTS_CACHE_DIR, { recursive: true }); } catch (e) {}
