@@ -157,7 +157,9 @@ async function handleTts(req, res, lang, text) {
     return res.end('Bad text');
   }
 
-  const cacheKey = `${lang}|${text}|${ELEVENLABS_VOICE_ID}|${ELEVENLABS_MODEL_ID}`;
+  // cv2 = cache-versie; bump bij wijziging van API-payload (bv. language_code
+  // toegevoegd) zodat oude mis-getalde audio niet meer wordt teruggegeven.
+  const cacheKey = `cv2|${lang}|${text}|${ELEVENLABS_VOICE_ID}|${ELEVENLABS_MODEL_ID}`;
   const hash = crypto.createHash('sha256').update(cacheKey).digest('hex');
   const cachePath = path.join(TTS_CACHE_DIR, `${hash}.mp3`);
 
@@ -189,6 +191,7 @@ async function handleTts(req, res, lang, text) {
       body: JSON.stringify({
         text,
         model_id: ELEVENLABS_MODEL_ID,
+        language_code: lang.toLowerCase(),    // dwing taal af; v2 zou anders bij korte phrases gokken
         voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true }
       })
     });
