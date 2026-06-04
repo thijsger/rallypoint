@@ -82,6 +82,15 @@ function snapshotForHistory(state) {
   };
 }
 
+function archiveMatch(pin, state) {
+  if (!history[pin]) { history[pin] = []; }
+  history[pin].push(snapshotForHistory(state));
+  if (history[pin].length > MAX_PER_PIN) {
+    history[pin] = history[pin].slice(-MAX_PER_PIN);
+  }
+  persistHistory();
+}
+
 // Ruim oude live-wedstrijden periodiek op
 setInterval(() => {
   const now = Date.now();
@@ -169,10 +178,10 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // Reset
+    // Reset — match is voorbij, volgende auto-archive is weer mogelijk
     if (parts[2] === 'reset' && req.method === 'POST') {
       const state = freshMatch();
-      matches[pin] = { state, updated: Date.now() };
+      matches[pin] = { state, updated: Date.now(), wasOver: false, autoArchived: false };
       broadcast(pin, state);
       return sendJSON(res, 200, { ok: true });
     }
@@ -184,22 +193,38 @@ const server = http.createServer((req, res) => {
       req.on('end', () => {
         try {
           const state = JSON.parse(body || '{}');
-          matches[pin] = { state, updated: Date.now() };
+          const prev = matches[pin] || { wasOver: false, autoArchived: false };
+
+          // Nieuwe match begonnen (over flip true→false): auto-archive flag resetten
+          let autoArchived = prev.autoArchived;
+          if (prev.wasOver && !state.over) { autoArchived = false; }
+
+          matches[pin] = {
+            state,
+            updated: Date.now(),
+            wasOver: !!state.over,
+            autoArchived,
+          };
           broadcast(pin, state);
 
-          // Archiveer als horloge expliciet 'saved' meldt (idempotent via saveId)
+          let archived = false;
+
+          // Pad 1: gebruiker drukt op Opslaan (idempotent via saveId)
           if (state.saved) {
             const saveId = state.saveId || ('auto-' + Date.now());
             if (!seenSaveIds[pin]) { seenSaveIds[pin] = new Set(); }
             if (!seenSaveIds[pin].has(saveId)) {
               seenSaveIds[pin].add(saveId);
-              if (!history[pin]) { history[pin] = []; }
-              history[pin].push(snapshotForHistory(state));
-              if (history[pin].length > MAX_PER_PIN) {
-                history[pin] = history[pin].slice(-MAX_PER_PIN);
-              }
-              persistHistory();
+              archiveMatch(pin, state);
+              archived = true;
             }
+          }
+
+          // Pad 2: match liep gewoon af (over: false → true) en gebruiker
+          // heeft niet expliciet op save gedrukt. Archiveer alsnog.
+          if (!archived && state.over && !prev.wasOver && !prev.autoArchived) {
+            archiveMatch(pin, state);
+            matches[pin].autoArchived = true;
           }
 
           sendJSON(res, 200, { ok: true });
