@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>RallyPoint — Match history</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1216">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0e1216;
+    --bg-card: #1a2028;
+    --bg-card-hover: #232a33;
+    --border: #2a323d;
+    --text: #e8edf3;
+    --text-dim: #8a96a6;
+    --us: #4fb3ff;
+    --them: #ff6b6b;
+    --amber: #ffb84a;
+    --green: #4ade80;
+    --ball: #c4e94f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .pin-label {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .pin-value {
+    color: var(--ball);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .lang-select {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 16px 16px 60px;
+  }
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 80px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .empty strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 17px; }
+  .empty .pin {
+    color: var(--ball);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .match {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: background 0.15s;
+  }
+  .match.over { border-left: 3px solid var(--green); }
+  .match.in-progress { border-left: 3px solid var(--amber); }
+  .match-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .match-sport {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .match-sport .icon { margin-right: 6px; }
+  .match-date {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .match-score {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    align-items: center;
+    margin: 10px 0 12px;
+  }
+  .team {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .team.us { color: var(--us); text-align: right; }
+  .team.them { color: var(--them); text-align: left; }
+  .team.winner::after {
+    content: " 🏆";
+    font-size: 14px;
+  }
+  .sets {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .sets .sep { color: var(--text-dim); margin: 0 6px; font-weight: 400; }
+  .set-history {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 12px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .actions {
+    margin-top: 24px;
+    text-align: center;
+  }
+  .btn {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { color: var(--them); border-color: var(--them); }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .badge.in-progress { background: rgba(255, 184, 74, 0.15); color: var(--amber); }
+  .badge.over { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="title">Match history</h1>
+    <div class="pin-label"><span id="pinLabel">PIN</span> <span class="pin-value" id="pinValue">—</span></div>
+  </div>
+  <select class="lang-select" id="langSelect">
+    <option value="en">English</option>
+    <option value="nl">Nederlands</option>
+    <option value="de">Deutsch</option>
+    <option value="es">Español</option>
+    <option value="fr">Français</option>
+  </select>
+</header>
+<main id="main">
+  <div class="empty" id="empty" style="display:none">
+    <strong id="emptyTitle">No matches yet</strong>
+    <div id="emptyBody">Save a match on your watch to see it appear here.</div>
+  </div>
+  <div id="list"></div>
+  <div class="actions" id="actions" style="display:none">
+    <button class="btn" id="clearBtn">Clear history</button>
+  </div>
+</main>
+<script>
+const I18N = {
+  title:        { nl:'Wedstrijdhistorie',     en:'Match history',         de:'Spielverlauf',          es:'Historial de partidos', fr:'Historique des matchs' },
+  pinLabel:     { nl:'PIN',                   en:'PIN',                   de:'PIN',                   es:'PIN',                   fr:'PIN' },
+  emptyTitle:   { nl:'Nog geen wedstrijden',  en:'No matches yet',        de:'Noch keine Spiele',     es:'Aún no hay partidos',   fr:'Aucun match' },
+  emptyBody:    { nl:'Sla een wedstrijd op je horloge op om hier je geschiedenis te zien.',
+                  en:'Save a match on your watch to see it appear here.',
+                  de:'Speichere ein Spiel auf deiner Uhr, um es hier zu sehen.',
+                  es:'Guarda un partido en tu reloj para verlo aquí.',
+                  fr:'Sauvegardez un match sur votre montre pour le voir ici.' },
+  inProgress:   { nl:'Onderbroken',           en:'In progress',           de:'Unterbrochen',          es:'En curso',              fr:'En cours' },
+  finished:     { nl:'Voltooid',              en:'Finished',              de:'Beendet',               es:'Finalizado',            fr:'Terminé' },
+  duration:     { nl:'Duur',                  en:'Duration',              de:'Dauer',                 es:'Duración',              fr:'Durée' },
+  points:       { nl:'Punten',                en:'Points',                de:'Punkte',                es:'Puntos',                fr:'Points' },
+  streak:       { nl:'Reeks',                 en:'Streak',                de:'Serie',                 es:'Racha',                 fr:'Série' },
+  minutes:      { nl:'min',                   en:'min',                   de:'Min',                   es:'min',                   fr:'min' },
+  teamUs:       { nl:'Wij',                   en:'You',                   de:'Wir',                   es:'Nosotros',              fr:'Nous' },
+  teamThem:     { nl:'Zij',                   en:'Opp',                   de:'Sie',                   es:'Ellos',                 fr:'Eux' },
+  clearBtn:     { nl:'Geschiedenis wissen',   en:'Clear history',         de:'Verlauf löschen',       es:'Borrar historial',      fr:'Effacer l\'historique' },
+  clearConfirm: { nl:'Weet je zeker dat je de hele geschiedenis voor deze PIN wilt wissen?',
+                  en:'Are you sure you want to clear all match history for this PIN?',
+                  de:'Möchtest du wirklich den gesamten Verlauf für diese PIN löschen?',
+                  es:'¿Estás seguro de borrar todo el historial de esta PIN?',
+                  fr:'Voulez-vous vraiment effacer tout l\'historique de ce PIN?' },
+};
+const SPORTS = [
+  { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
+  { id:1, key:'tennis',     icon:'🎾', nl:'Tennis',      en:'Tennis',      de:'Tennis',      es:'Tenis',      fr:'Tennis' },
+  { id:2, key:'pickleball', icon:'🥒', nl:'Pickleball',  en:'Pickleball',  de:'Pickleball',  es:'Pickleball', fr:'Pickleball' },
+  { id:3, key:'tt',         icon:'🏓', nl:'Tafeltennis', en:'Table tennis',de:'Tischtennis', es:'Tenis de mesa', fr:'Tennis de table' },
+  { id:4, key:'badminton',  icon:'🏸', nl:'Badminton',   en:'Badminton',   de:'Badminton',   es:'Bádminton',  fr:'Badminton' },
+  { id:5, key:'squash',     icon:'🟦', nl:'Squash',      en:'Squash',      de:'Squash',      es:'Squash',     fr:'Squash' },
+];
+
+const path = location.pathname.split('/').filter(Boolean);
+const PIN = path[1] && /^\d{4}$/.test(path[1]) ? path[1] : null;
+
+let currentLang = localStorage.getItem('rallypointLang') || 'en';
+
+function t(key) {
+  const e = I18N[key];
+  if (!e) return key;
+  return e[currentLang] || e.en || key;
+}
+function sportLabel(id) {
+  const s = SPORTS.find(x => x.id === id) || SPORTS[0];
+  return s.icon + ' ' + (s[currentLang] || s.en);
+}
+function formatDate(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  const yest = new Date(today); yest.setDate(today.getDate() - 1);
+  const isYest = d.toDateString() === yest.toDateString();
+  const time = d.toLocaleTimeString(currentLang, { hour:'2-digit', minute:'2-digit' });
+  if (isToday) return time;
+  if (isYest) return { nl:'gisteren', en:'yesterday', de:'gestern', es:'ayer', fr:'hier' }[currentLang] + ' ' + time;
+  return d.toLocaleDateString(currentLang, { day:'numeric', month:'short' }) + ' ' + time;
+}
+function pointLabel(m, p) {
+  const o = p === 0 ? 1 : 0;
+  if (m.rally || m.tiebreak) return String(m.points[p]);
+  if (!m.golden && m.points[p] >= 3 && m.points[o] >= 3) {
+    if (m.points[p] === m.points[o]) return '40';
+    if (m.points[p] > m.points[o]) return 'Adv';
+    return '40';
+  }
+  return ['0','15','30','40','40'][Math.min(m.points[p], 4)];
+}
+
+function applyLang() {
+  document.documentElement.lang = currentLang;
+  document.getElementById('title').textContent = t('title');
+  document.getElementById('pinLabel').textContent = t('pinLabel');
+  document.getElementById('emptyTitle').textContent = t('emptyTitle');
+  document.getElementById('emptyBody').textContent = t('emptyBody');
+  document.getElementById('clearBtn').textContent = t('clearBtn');
+  document.getElementById('langSelect').value = currentLang;
+  document.title = 'RallyPoint — ' + t('title');
+}
+
+function render(matches) {
+  const main = document.getElementById('main');
+  const list = document.getElementById('list');
+  const empty = document.getElementById('empty');
+  const actions = document.getElementById('actions');
+
+  if (!matches.length) {
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    actions.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  actions.style.display = 'block';
+
+  list.innerHTML = matches.map(m => {
+    const cls = m.over ? 'over' : (m.inProgress ? 'in-progress' : '');
+    const teamUs = m.teamUs || t('teamUs');
+    const teamThem = m.teamThem || t('teamThem');
+    const usWin = m.over && m.winner === 0;
+    const themWin = m.over && m.winner === 1;
+    const badge = m.over
+      ? '<span class="badge over">' + t('finished') + '</span>'
+      : '<span class="badge in-progress">' + t('inProgress') + '</span>';
+
+    // Set history string
+    let history = '';
+    if (m.setHistory && m.setHistory.length) {
+      history = m.setHistory.map(s => s[0] + '-' + s[1]).join('  ');
+    }
+    // Current set (if in progress)
+    if (m.inProgress && !m.over) {
+      if (history) history += '  ';
+      history += '(' + m.games[0] + '-' + m.games[1];
+      const us = pointLabel(m, 0), them = pointLabel(m, 1);
+      if (us !== '0' || them !== '0') history += ', ' + us + '-' + them;
+      history += ')';
+    }
+
+    return `
+      <div class="match ${cls}">
+        <div class="match-head">
+          <div class="match-sport">${sportLabel(m.sport)}</div>
+          <div class="match-date">${formatDate(m.savedAt)} · ${badge}</div>
+        </div>
+        <div class="match-score">
+          <div class="team us ${usWin ? 'winner' : ''}">${esc(teamUs)}</div>
+          <div class="sets">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
+          <div class="team them ${themWin ? 'winner' : ''}">${esc(teamThem)}</div>
+        </div>
+        ${history ? `<div class="set-history">${history}</div>` : ''}
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">${t('duration')}</span>
+            <span class="stat-value">${m.durationMin}${' '}${t('minutes')}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">${t('points')}</span>
+            <span class="stat-value">${m.totalPoints}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">${t('streak')}</span>
+            <span class="stat-value">${m.longestStreak[0]} / ${m.longestStreak[1]}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function load() {
+  if (!PIN) {
+    document.getElementById('pinValue').textContent = '—';
+    document.getElementById('emptyTitle').textContent = t('emptyTitle');
+    document.getElementById('emptyBody').textContent = 'Open /history/XXXX (your 4-digit PIN) to see your matches.';
+    document.getElementById('empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('pinValue').textContent = PIN;
+  try {
+    const r = await fetch('/history/' + PIN, { headers: { 'Accept': 'application/json' } });
+    const matches = await r.json();
+    render(Array.isArray(matches) ? matches : []);
+  } catch (e) {
+    render([]);
+  }
+}
+
+document.getElementById('langSelect').addEventListener('change', e => {
+  currentLang = e.target.value;
+  localStorage.setItem('rallypointLang', currentLang);
+  applyLang();
+  load();
+});
+document.getElementById('clearBtn').addEventListener('click', async () => {
+  if (!PIN) return;
+  if (!confirm(t('clearConfirm'))) return;
+  try {
+    await fetch('/history/' + PIN, { method: 'DELETE' });
+    load();
+  } catch (e) {}
+});
+
+applyLang();
+load();
+</script>
+</body>
+</html>

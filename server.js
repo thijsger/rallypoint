@@ -1,11 +1,16 @@
-// PadelSmash server — houdt per pincode een wedstrijdstand bij.
-// Geen database nodig: alles in geheugen. Bij herstart begint het leeg,
-// wat voor live wedstrijden prima is.
+// PadelSmash server — houdt per pincode een wedstrijdstand bij + match history.
+// Live state in geheugen, history naar history.json zodat 'm overleeft tussen
+// requests. Op Render's free tier wordt de disk leeggegooid bij re-deploys —
+// voor lange-termijn persistence: zet RENDER_DISK_PATH naar een persistent disk
+// of switch naar een externe DB (Supabase, MongoDB Atlas etc.).
 //
 // Endpoints:
-//   POST /match/:pin        -> horloge stuurt de volledige stand (JSON body)
+//   POST /match/:pin        -> horloge stuurt de stand (JSON body). saved=true → archiveer.
 //   GET  /match/:pin        -> bord haalt de stand op
 //   POST /match/:pin/reset  -> wis de stand
+//   GET  /match/:pin/events -> SSE stream voor live updates
+//   GET  /history/:pin      -> array van afgesloten wedstrijden
+//   GET  /history/:pin/page -> serveer history.html
 //   GET  /                  -> serveert het scorebord (public/index.html)
 
 const http = require('http');
@@ -13,12 +18,31 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const TTL_MS = 1000 * 60 * 60 * 6; // stand vervalt na 6 uur inactiviteit
+const TTL_MS = 1000 * 60 * 60 * 6; // live stand vervalt na 6 uur inactiviteit
+const HISTORY_FILE = path.join(process.env.RENDER_DISK_PATH || __dirname, 'history.json');
+const MAX_PER_PIN = 100;
 
 const matches = {}; // pin -> { state, updated }
 const clients = {}; // pin -> [res, ...]  (live SSE-verbindingen)
+let history = {};   // pin -> [match, ...]  (afgesloten wedstrijden)
+const seenSaveIds = {}; // pin -> Set(saveId)  voorkomt dubbele archivering bij retries
 
-// Stuur een nieuwe stand naar alle live luisteraars van een pincode
+try {
+  if (fs.existsSync(HISTORY_FILE)) {
+    history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8') || '{}');
+  }
+} catch (e) { history = {}; }
+
+let writeQueued = false;
+function persistHistory() {
+  if (writeQueued) return;
+  writeQueued = true;
+  setTimeout(() => {
+    writeQueued = false;
+    try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(history)); } catch (e) {}
+  }, 100);
+}
+
 function broadcast(pin, state) {
   const list = clients[pin];
   if (!list || !list.length) { return; }
@@ -30,7 +54,35 @@ function freshMatch() {
   return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1, lang:'en' };
 }
 
-// Ruim oude wedstrijden periodiek op
+// Bouw een compacte history-entry uit de live state op het moment van saven
+function snapshotForHistory(state) {
+  const setHistory = Array.isArray(state.setHistory) ? state.setHistory : [];
+  const games = Array.isArray(state.games) ? state.games : [0, 0];
+  const points = Array.isArray(state.points) ? state.points : [0, 0];
+  const inProgress = (games[0] > 0 || games[1] > 0 || points[0] > 0 || points[1] > 0);
+  return {
+    savedAt: Date.now(),
+    sport: typeof state.sport === 'number' ? state.sport : 0,
+    fmt: typeof state.fmt === 'number' ? state.fmt : 1,
+    golden: !!state.golden,
+    rally: !!state.rally,
+    sets: Array.isArray(state.sets) ? state.sets : [0, 0],
+    games: games,
+    points: points,
+    setHistory: setHistory,
+    inProgress: inProgress,
+    over: !!state.over,
+    winner: typeof state.winner === 'number' ? state.winner : -1,
+    totalPoints: Number(state.totalPoints) || 0,
+    longestStreak: Array.isArray(state.longestStreak) ? state.longestStreak : [0, 0],
+    durationMin: Number(state.durationMin) || 0,
+    teamUs: typeof state.teamUs === 'string' ? state.teamUs : 'Us',
+    teamThem: typeof state.teamThem === 'string' ? state.teamThem : 'Them',
+    lang: typeof state.lang === 'string' ? state.lang : 'en',
+  };
+}
+
+// Ruim oude live-wedstrijden periodiek op
 setInterval(() => {
   const now = Date.now();
   for (const pin of Object.keys(matches)) {
@@ -42,7 +94,7 @@ function sendJSON(res, code, obj) {
   res.writeHead(code, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(obj));
@@ -55,21 +107,48 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
       'Access-Control-Allow-Headers': 'Content-Type',
     });
     return res.end();
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const parts = url.pathname.split('/').filter(Boolean); // ['match','1234','reset']
+  const parts = url.pathname.split('/').filter(Boolean);
 
-  // --- API ---
+  // --- History API + page ---
+  if (parts[0] === 'history' && parts[1]) {
+    const pin = parts[1];
+    if (!validPin(pin)) { return sendJSON(res, 400, { error: 'Pincode moet 4 cijfers zijn.' }); }
+
+    // Browser-bezoek naar /history/1234 → serveer de HTML-pagina
+    if (req.method === 'GET' && (parts[2] === 'page' || (req.headers.accept || '').includes('text/html'))) {
+      const filePath = path.join(__dirname, 'public', 'history.html');
+      return fs.readFile(filePath, (err, data) => {
+        if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      });
+    }
+
+    if (req.method === 'GET') {
+      const list = (history[pin] || []).slice().reverse(); // nieuwste eerst
+      return sendJSON(res, 200, list);
+    }
+    if (req.method === 'DELETE') {
+      delete history[pin];
+      delete seenSaveIds[pin];
+      persistHistory();
+      return sendJSON(res, 200, { ok: true });
+    }
+  }
+
+  // --- Match API ---
   if (parts[0] === 'match' && parts[1]) {
     const pin = parts[1];
     if (!validPin(pin)) { return sendJSON(res, 400, { error: 'Pincode moet 4 cijfers zijn.' }); }
 
-    // Live updates (Server-Sent Events): bord blijft verbonden en krijgt elke wijziging push
+    // Live updates (SSE)
     if (parts[2] === 'events' && req.method === 'GET') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -107,6 +186,22 @@ const server = http.createServer((req, res) => {
           const state = JSON.parse(body || '{}');
           matches[pin] = { state, updated: Date.now() };
           broadcast(pin, state);
+
+          // Archiveer als horloge expliciet 'saved' meldt (idempotent via saveId)
+          if (state.saved) {
+            const saveId = state.saveId || ('auto-' + Date.now());
+            if (!seenSaveIds[pin]) { seenSaveIds[pin] = new Set(); }
+            if (!seenSaveIds[pin].has(saveId)) {
+              seenSaveIds[pin].add(saveId);
+              if (!history[pin]) { history[pin] = []; }
+              history[pin].push(snapshotForHistory(state));
+              if (history[pin].length > MAX_PER_PIN) {
+                history[pin] = history[pin].slice(-MAX_PER_PIN);
+              }
+              persistHistory();
+            }
+          }
+
           sendJSON(res, 200, { ok: true });
         } catch (e) {
           sendJSON(res, 400, { error: 'Ongeldige JSON.' });
