@@ -16,11 +16,23 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const TTL_MS = 1000 * 60 * 60 * 6; // live stand vervalt na 6 uur inactiviteit
-const HISTORY_FILE = path.join(process.env.RENDER_DISK_PATH || __dirname, 'history.json');
+const DATA_DIR = process.env.RENDER_DISK_PATH || __dirname;
+const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 const MAX_PER_PIN = 100;
+
+// --- TTS cache (ElevenLabs proxy) ---
+const TTS_CACHE_DIR = path.join(DATA_DIR, 'tts');
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+// Sarah, multilingual; user kan overriden via env-var
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
+const TTS_MAX_TEXT = 200;          // chars per phrase — voorkomt misbruik
+const TTS_MAX_CACHE_MB = 200;      // hoeveel disk-ruimte de cache maximaal pakt
+try { fs.mkdirSync(TTS_CACHE_DIR, { recursive: true }); } catch (e) {}
 
 const matches = {}; // pin -> { state, updated }
 const clients = {}; // pin -> [res, ...]  (live SSE-verbindingen)
@@ -86,6 +98,8 @@ function snapshotForHistory(state) {
     sideSwitches: Number(state.sideSwitches) || 0,
     ptsPerMin: Number(state.ptsPerMin) || 0,
     avgPtsGame: Number(state.avgPtsGame) || 0,
+    pointsByTeam: Array.isArray(state.pointsByTeam) ? state.pointsByTeam : [0, 0],
+    setStats: Array.isArray(state.setStats) ? state.setStats : [],
     teamUs: typeof state.teamUs === 'string' ? state.teamUs : 'Us',
     teamThem: typeof state.teamThem === 'string' ? state.teamThem : 'Them',
     lang: typeof state.lang === 'string' ? state.lang : 'en',
@@ -121,6 +135,112 @@ function sendJSON(res, code, obj) {
 
 function validPin(pin) { return /^\d{4}$/.test(pin); }
 
+// --- TTS: proxy naar ElevenLabs met disk-cache ---
+// Eerste request voor een phrase = API-call + cache schrijven. Daarna serveert
+// de cache het MP3 instant en gratis. Onder ~200MB blijft de cache vanzelf zo
+// klein dat we niet hoeven op te ruimen; daarboven gooien we LRU weg.
+async function handleTts(req, res, lang, text) {
+  const cors = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  };
+  if (!ELEVENLABS_API_KEY) {
+    res.writeHead(503, Object.assign({ 'Content-Type': 'text/plain' }, cors));
+    return res.end('TTS not configured');
+  }
+  if (!/^[a-z]{2}$/i.test(lang)) {
+    res.writeHead(400, Object.assign({ 'Content-Type': 'text/plain' }, cors));
+    return res.end('Bad lang');
+  }
+  if (!text || text.length > TTS_MAX_TEXT) {
+    res.writeHead(400, Object.assign({ 'Content-Type': 'text/plain' }, cors));
+    return res.end('Bad text');
+  }
+
+  const cacheKey = `${lang}|${text}|${ELEVENLABS_VOICE_ID}|${ELEVENLABS_MODEL_ID}`;
+  const hash = crypto.createHash('sha256').update(cacheKey).digest('hex');
+  const cachePath = path.join(TTS_CACHE_DIR, `${hash}.mp3`);
+
+  try {
+    if (fs.existsSync(cachePath)) {
+      const data = fs.readFileSync(cachePath);
+      // Markeer als recent gebruikt voor LRU-prune
+      try { const now = new Date(); fs.utimesSync(cachePath, now, now); } catch (_) {}
+      res.writeHead(200, Object.assign({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': data.length,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Cache': 'HIT'
+      }, cors));
+      return res.end(data);
+    }
+  } catch (e) {}
+
+  // Cache-miss: ophalen bij ElevenLabs en wegschrijven
+  try {
+    const apiUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const apiRes = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': ELEVENLABS_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg'
+      },
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_MODEL_ID,
+        voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true }
+      })
+    });
+    if (!apiRes.ok) {
+      const errBody = await apiRes.text().catch(() => '');
+      console.error('[tts] ElevenLabs', apiRes.status, errBody.slice(0, 200));
+      const code = (apiRes.status === 401 || apiRes.status === 403) ? 502
+                 : (apiRes.status === 429) ? 429
+                 : 502;
+      res.writeHead(code, Object.assign({ 'Content-Type': 'text/plain' }, cors));
+      return res.end('TTS upstream error');
+    }
+    const buf = Buffer.from(await apiRes.arrayBuffer());
+    try { fs.writeFileSync(cachePath, buf); } catch (e) {}
+    pruneTtsCacheIfNeeded();
+    res.writeHead(200, Object.assign({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': buf.length,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Cache': 'MISS'
+    }, cors));
+    return res.end(buf);
+  } catch (e) {
+    console.error('[tts] handler error', e && e.message);
+    res.writeHead(502, Object.assign({ 'Content-Type': 'text/plain' }, cors));
+    return res.end('TTS failed');
+  }
+}
+
+let ttsPruneScheduled = false;
+function pruneTtsCacheIfNeeded() {
+  if (ttsPruneScheduled) return;
+  ttsPruneScheduled = true;
+  setImmediate(() => {
+    ttsPruneScheduled = false;
+    try {
+      const limit = TTS_MAX_CACHE_MB * 1024 * 1024;
+      const files = fs.readdirSync(TTS_CACHE_DIR)
+        .filter(f => f.endsWith('.mp3'))
+        .map(f => { const p = path.join(TTS_CACHE_DIR, f); return { p, stat: fs.statSync(p) }; });
+      const total = files.reduce((s, f) => s + f.stat.size, 0);
+      if (total <= limit) return;
+      files.sort((a, b) => a.stat.atimeMs - b.stat.atimeMs);   // oudste atime eerst
+      let cur = total;
+      for (const f of files) {
+        if (cur <= limit) break;
+        try { fs.unlinkSync(f.p); cur -= f.stat.size; } catch (_) {}
+      }
+    } catch (e) {}
+  });
+}
+
 const server = http.createServer((req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -134,6 +254,14 @@ const server = http.createServer((req, res) => {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const parts = url.pathname.split('/').filter(Boolean);
+
+  // --- TTS proxy: /tts/:lang/:text — ElevenLabs spraak met disk-cache
+  if (parts[0] === 'tts' && req.method === 'GET' && parts.length >= 3) {
+    const lang = parts[1];
+    const text = decodeURIComponent(parts.slice(2).join('/'));
+    handleTts(req, res, lang, text);
+    return;
+  }
 
   // --- /history (zonder PIN) — serveer de pagina; JS toont een "vul PIN in" hint
   if (parts[0] === 'history' && !parts[1] && req.method === 'GET') {

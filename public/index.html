@@ -972,14 +972,19 @@ document.addEventListener('visibilitychange', () => {
 
 /* ============================================================
    SPRAAK — stand hardop voorlezen, taal volgt het horloge
+   Eerst proberen we de server-TTS (ElevenLabs via /tts), valt terug op
+   browser speechSynthesis als de server geen sleutel heeft of bereik faalt.
    ============================================================ */
-let voiceOn = false;
+let voiceOn = localStorage.getItem('rallypointVoiceOn') === '1';
 let currentVoice = null;
 let userPickedVoice = false;   // gebruiker handmatig gekozen? Dan niet meer auto-wisselen bij taalverandering
 const speechRate = 1.0;
 const voiceBtn = document.getElementById('voiceBtn');
 const voiceSelect = document.getElementById('voiceSelect');
 const hasSpeech = 'speechSynthesis' in window;
+let serverTtsAvailable = true;   // false = endpoint heeft geen key of bereik onmogelijk
+let currentTtsAudio = null;
+let audioUnlocked = false;        // browser autoplay-context vrijgegeven door user-gesture?
 
 // BCP-47 voorvoegsel per app-taal, voor het matchen van stemmen
 const LANG_VOICE_PREFIX = { nl: 'nl', en: 'en', de: 'de', es: 'es', fr: 'fr' };
@@ -1082,15 +1087,36 @@ voiceSelect.addEventListener('change', () => {
 
 voiceBtn.addEventListener('click', () => {
   voiceOn = !voiceOn;
+  localStorage.setItem('rallypointVoiceOn', voiceOn ? '1' : '0');
+  audioUnlocked = true;     // klik telt als user-gesture
   voiceBtn.classList.toggle('active', voiceOn);
   voiceBtn.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn');
   voiceSelect.classList.toggle('show', voiceOn);
   if (voiceOn) {
     speak(t('voiceOn'));   // eerste klik ontgrendelt spraak in de browser
   } else {
-    speechSynthesis.cancel();
+    if (currentTtsAudio) { try { currentTtsAudio.pause(); } catch (_) {} }
+    if (hasSpeech) speechSynthesis.cancel();
   }
 });
+
+// Visueel herstellen als voiceOn al uit localStorage komt
+if (voiceOn) {
+  voiceBtn.classList.add('active');
+  voiceSelect.classList.add('show');
+}
+
+// Audio autoplay-restricties: pas na de eerste user-gesture mag de browser
+// geluid afspelen. Als voiceOn al "aan" stond uit een vorige sessie, vangen
+// we de eerste klik ergens op de pagina en spelen we de welkomstzin af zodat
+// alle volgende speak() calls vrij spel hebben.
+function unlockOnFirstGesture() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  if (voiceOn) { speak(t('voiceOn')); }
+}
+document.addEventListener('click', unlockOnFirstGesture, { once: true, capture: true });
+document.addEventListener('touchstart', unlockOnFirstGesture, { once: true, capture: true });
 
 function voiceLangTag() {
   if (currentVoice && currentVoice.lang) { return currentVoice.lang; }
@@ -1099,7 +1125,40 @@ function voiceLangTag() {
 }
 
 function speak(text) {
-  if (!voiceOn || !hasSpeech) { return; }
+  if (!voiceOn || !text) { return; }
+  if (serverTtsAvailable) {
+    speakViaServer(text);
+  } else {
+    speakViaBrowser(text);
+  }
+}
+
+// Speel via /tts endpoint (ElevenLabs proxy met disk-cache). 503 = "geen
+// API-key geconfigureerd op server" → schakel proxy uit voor sessie. Andere
+// fouten (network, 429) blijven we proberen — kunnen transient zijn.
+async function speakViaServer(text) {
+  try {
+    const r = await fetch(`/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}`);
+    if (!r.ok) {
+      if (r.status === 503) { serverTtsAvailable = false; }
+      throw new Error('status ' + r.status);
+    }
+    const blob = await r.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    if (currentTtsAudio) { try { currentTtsAudio.pause(); } catch (_) {} }
+    const audio = new Audio(blobUrl);
+    currentTtsAudio = audio;
+    audio.onended = () => URL.revokeObjectURL(blobUrl);
+    audio.onerror = () => { URL.revokeObjectURL(blobUrl); speakViaBrowser(text); };
+    const p = audio.play();
+    if (p && p.catch) { p.catch(() => speakViaBrowser(text)); }
+  } catch (e) {
+    speakViaBrowser(text);
+  }
+}
+
+function speakViaBrowser(text) {
+  if (!hasSpeech) { return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   if (currentVoice) { u.voice = currentVoice; u.lang = currentVoice.lang; }

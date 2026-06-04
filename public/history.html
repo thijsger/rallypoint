@@ -202,6 +202,141 @@
     margin-right: 4px;
     font-size: 11px;
   }
+
+  /* --- Overall summary (top of page) --- */
+  .summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 16px;
+    margin-bottom: 20px;
+  }
+  .summary-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .summary-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+  }
+  .summary-window {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .summary-stat .num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-stat .num.us  { color: var(--us); }
+  .summary-stat .num.amber { color: var(--amber); }
+  .summary-stat .num.green { color: var(--green); }
+  .summary-stat .lbl {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+
+  .sport-row {
+    display: grid;
+    grid-template-columns: minmax(80px, auto) 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .sport-row:first-of-type { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
+  .sport-row .sport-name { color: var(--text); }
+  .sport-row .bar {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.05);
+    overflow: hidden;
+    position: relative;
+  }
+  .sport-row .bar-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--us), var(--ball));
+    border-radius: 3px;
+  }
+  .sport-row .figures {
+    color: var(--text-dim);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .sport-row .figures .wins { color: var(--green); font-weight: 600; }
+
+  /* --- Per-set table inside match card --- */
+  .set-table {
+    margin-top: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .set-table-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .set-row {
+    display: grid;
+    grid-template-columns: 30px 1fr 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .set-row + .set-row { border-top: 1px dashed rgba(255,255,255,0.05); }
+  .set-row .set-no { color: var(--text-dim); font-size: 11px; }
+  .set-row .games {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .set-row .games.us-win { color: var(--us); }
+  .set-row .games.them-win { color: var(--them); }
+  .set-row .pts {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .set-row .streak {
+    color: var(--text-dim);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .set-row .streak .v { color: var(--amber); font-weight: 600; }
+
+  /* --- Cross-match chart bar (matches per week, simple) --- */
+  .activity-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 36px;
+    margin-top: 8px;
+  }
+  .activity-chart .bar {
+    flex: 1;
+    background: var(--us);
+    opacity: 0.4;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+  }
+  .activity-chart .bar.active { opacity: 1; }
 </style>
 </head>
 <body>
@@ -223,6 +358,7 @@
     <strong id="emptyTitle">No matches yet</strong>
     <div id="emptyBody">Save a match on your watch to see it appear here.</div>
   </div>
+  <div id="summary" style="display:none"></div>
   <div id="list"></div>
   <div class="actions" id="actions" style="display:none">
     <button class="btn" id="clearBtn">Clear history</button>
@@ -261,6 +397,16 @@ const I18N = {
                   de:'Möchtest du wirklich den gesamten Verlauf für diese PIN löschen?',
                   es:'¿Estás seguro de borrar todo el historial de esta PIN?',
                   fr:'Voulez-vous vraiment effacer tout l\'historique de ce PIN?' },
+  overallTitle: { nl:'Overzicht',          en:'Overall',            de:'Übersicht',      es:'Resumen',          fr:'Aperçu' },
+  totalMatches: { nl:'Wedstrijden',        en:'Matches',            de:'Spiele',         es:'Partidos',         fr:'Matchs' },
+  totalWinRate: { nl:'Winratio',           en:'Win rate',           de:'Siegquote',      es:'% victorias',      fr:'Taux victoire' },
+  totalTime:    { nl:'Speeltijd',          en:'Play time',          de:'Spielzeit',      es:'Tiempo total',     fr:'Temps jeu' },
+  bestStreak:   { nl:'Beste reeks',        en:'Best W-streak',      de:'Beste Serie',    es:'Mejor racha',      fr:'Meilleure série' },
+  last7days:    { nl:'Laatste 7 dagen',    en:'Last 7 days',        de:'Letzte 7 Tage',  es:'Últimos 7 días',   fr:'7 derniers jours' },
+  bySport:      { nl:'Per sport',          en:'By sport',           de:'Pro Sport',      es:'Por deporte',      fr:'Par sport' },
+  setTableTitle:{ nl:'Per set',            en:'Per set',            de:'Pro Satz',       es:'Por set',          fr:'Par set' },
+  setShort:     { nl:'S',                  en:'S',                  de:'S',              es:'S',                fr:'S' },
+  hours:        { nl:'u',                  en:'h',                  de:'h',              es:'h',                fr:'h' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -318,20 +464,136 @@ function applyLang() {
   document.title = 'RallyPoint — ' + t('title');
 }
 
+// Bouw het samenvatting-blok bovenaan met aggregaten over alle wedstrijden.
+function renderSummary(matches) {
+  const summary = document.getElementById('summary');
+  if (!matches.length) { summary.style.display = 'none'; return; }
+  summary.style.display = 'block';
+
+  const finished = matches.filter(m => m.over && !m.manuallySaved);
+  const wins = finished.filter(m => m.winner === 0).length;
+  const winRate = finished.length > 0 ? Math.round((wins / finished.length) * 100) : null;
+  const total = matches.length;
+
+  const totalMin = matches.reduce((sum, m) => sum + (Number(m.durationMin) || 0), 0);
+  const hours = Math.floor(totalMin / 60);
+  const mins = Math.round(totalMin % 60);
+  const timeStr = hours > 0 ? `${hours}${t('hours')} ${mins}${t('minutes')}` : `${mins} ${t('minutes')}`;
+
+  // Beste winning streak: chronologisch (oudste eerst), tel opeenvolgende wins
+  const chrono = matches.slice().sort((a, b) => a.savedAt - b.savedAt);
+  let bestStreak = 0, curStreak = 0;
+  for (const m of chrono) {
+    if (!m.over || m.manuallySaved) { continue; }
+    if (m.winner === 0) {
+      curStreak += 1;
+      if (curStreak > bestStreak) bestStreak = curStreak;
+    } else {
+      curStreak = 0;
+    }
+  }
+
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const last7 = matches.filter(m => m.savedAt >= cutoff).length;
+
+  // Aggregaat per sport voor de breakdown-balkjes
+  const sportAgg = {};
+  for (const m of matches) {
+    const sId = typeof m.sport === 'number' ? m.sport : 0;
+    if (!sportAgg[sId]) sportAgg[sId] = { total: 0, wins: 0, finished: 0 };
+    sportAgg[sId].total += 1;
+    if (m.over && !m.manuallySaved) {
+      sportAgg[sId].finished += 1;
+      if (m.winner === 0) sportAgg[sId].wins += 1;
+    }
+  }
+  const sportRows = Object.keys(sportAgg)
+    .map(sId => {
+      const s = SPORTS.find(x => x.id === Number(sId)) || SPORTS[0];
+      const a = sportAgg[sId];
+      const rate = a.finished > 0 ? Math.round((a.wins / a.finished) * 100) : null;
+      const barPct = total > 0 ? Math.round((a.total / total) * 100) : 0;
+      return { sport: s, total: a.total, finished: a.finished, rate, barPct };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const winRateStr = winRate !== null ? `${winRate}%` : '—';
+  const winRateCls = winRate !== null && winRate >= 50 ? 'green' : '';
+
+  let sportsHtml = '';
+  if (sportRows.length > 1) {
+    sportsHtml = `
+      <div class="summary-title" style="margin-top:4px;margin-bottom:6px">${t('bySport')}</div>
+      ${sportRows.map(r => `
+        <div class="sport-row">
+          <div class="sport-name">${r.sport.icon} ${r.sport[currentLang] || r.sport.en}</div>
+          <div class="bar"><div class="bar-fill" style="width:${r.barPct}%"></div></div>
+          <div class="figures">${r.total}${r.rate !== null ? ` · <span class="wins">${r.rate}%</span>` : ''}</div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  summary.innerHTML = `
+    <div class="summary-head">
+      <div class="summary-title">${t('overallTitle')}</div>
+      <div class="summary-window">${last7} · ${t('last7days')}</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-stat"><div class="num">${total}</div><div class="lbl">${t('totalMatches')}</div></div>
+      <div class="summary-stat"><div class="num ${winRateCls}">${winRateStr}</div><div class="lbl">${t('totalWinRate')}</div></div>
+      <div class="summary-stat"><div class="num">${timeStr}</div><div class="lbl">${t('totalTime')}</div></div>
+      <div class="summary-stat"><div class="num amber">${bestStreak || '—'}</div><div class="lbl">${t('bestStreak')}</div></div>
+    </div>
+    ${sportsHtml}
+  `;
+}
+
+// Per-set breakdown binnen een match-card (alleen tonen als setStats data heeft).
+function renderSetTable(m) {
+  if (!Array.isArray(m.setStats) || !m.setStats.length) return '';
+  const rows = m.setStats.map((s, idx) => {
+    const cls = s.winner === 0 ? 'us-win' : (s.winner === 1 ? 'them-win' : '');
+    const ptsLine = (typeof s.pointsUs === 'number' && typeof s.pointsThem === 'number')
+      ? `${s.pointsUs} - ${s.pointsThem} ${t('points').toLowerCase()}`
+      : '';
+    const streakLine = (typeof s.streak === 'number' && s.streak > 0)
+      ? `<span class="v">${s.streak}</span> ${t('streak').toLowerCase()}`
+      : '';
+    return `
+      <div class="set-row">
+        <div class="set-no">${t('setShort')}${idx + 1}</div>
+        <div class="games ${cls}">${s.gamesUs} - ${s.gamesThem}</div>
+        <div class="pts">${ptsLine}</div>
+        <div class="streak">${streakLine}</div>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="set-table">
+      <div class="set-table-title">${t('setTableTitle')}</div>
+      ${rows}
+    </div>
+  `;
+}
+
 function render(matches) {
   const main = document.getElementById('main');
   const list = document.getElementById('list');
   const empty = document.getElementById('empty');
   const actions = document.getElementById('actions');
+  const summary = document.getElementById('summary');
 
   if (!matches.length) {
     empty.style.display = 'block';
     list.innerHTML = '';
     actions.style.display = 'none';
+    summary.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
   actions.style.display = 'block';
+  renderSummary(matches);
 
   list.innerHTML = matches.map(m => {
     const cls = m.over ? 'over' : (m.inProgress ? 'in-progress' : '');
@@ -406,6 +668,7 @@ function render(matches) {
         </div>
         ${history ? `<div class="set-history">${history}</div>` : ''}
         <div class="stats">${stats.join('')}</div>
+        ${renderSetTable(m)}
       </div>
     `;
   }).join('');
