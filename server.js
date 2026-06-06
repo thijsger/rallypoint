@@ -48,13 +48,43 @@ try {
   }
 } catch (e) { history = {}; }
 
+// Bouw seenSaveIds opnieuw op uit de gepersisteerde history — anders gaat
+// dedup-cache verloren bij elke server-restart en retries archiveren dubbel.
+for (const pin of Object.keys(history)) {
+  if (!Array.isArray(history[pin])) continue;
+  for (const m of history[pin]) {
+    if (m && typeof m.saveId === 'string') {
+      if (!seenSaveIds[pin]) seenSaveIds[pin] = new Set();
+      seenSaveIds[pin].add(m.saveId);
+    }
+  }
+}
+
+// Startup-log: zien waar geschreven wordt zodat ephemeral-disk-issues
+// meteen zichtbaar zijn in Render's deploy log.
+console.log('[boot] DATA_DIR =', DATA_DIR);
+console.log('[boot] HISTORY_FILE =', HISTORY_FILE);
+console.log('[boot] history-pins loaded =', Object.keys(history).length);
+console.log('[boot] ELEVENLABS_API_KEY present =', !!ELEVENLABS_API_KEY);
+if (DATA_DIR === __dirname) {
+  console.warn('[boot] WARNING: RENDER_DISK_PATH not set — history overleeft geen redeploy. Mount een Render Disk en zet de env-var.');
+}
+
 let writeQueued = false;
 function persistHistory() {
   if (writeQueued) return;
   writeQueued = true;
   setTimeout(() => {
     writeQueued = false;
-    try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(history)); } catch (e) {}
+    // Atomic write: tmp + rename. Voorkomt corrupte/halve history.json als
+    // het proces midden in een write gekild wordt.
+    const tmp = HISTORY_FILE + '.tmp';
+    try {
+      fs.writeFileSync(tmp, JSON.stringify(history));
+      fs.renameSync(tmp, HISTORY_FILE);
+    } catch (e) {
+      console.error('[history] write failed:', e && e.message);
+    }
   }, 100);
 }
 
@@ -80,6 +110,8 @@ function snapshotForHistory(state) {
   const manuallySaved = !!state.saved;
   return {
     savedAt: Date.now(),
+    saveId: typeof state.saveId === 'string' ? state.saveId : null,
+    fp: matchFingerprint(state),
     sport: typeof state.sport === 'number' ? state.sport : 0,
     fmt: typeof state.fmt === 'number' ? state.fmt : 1,
     golden: !!state.golden,
@@ -109,9 +141,35 @@ function snapshotForHistory(state) {
   };
 }
 
+// Stabiele vingerafdruk van een match: alleen velden die niet wijzigen na de
+// laatste rally. Twee uploads van dezelfde wedstrijd (bv. door een server-
+// herstart die seenSaveIds wist en de watch retry) krijgen dezelfde fingerprint
+// → dedup voorkomt dubbel-in-history.
+function matchFingerprint(state) {
+  return [
+    typeof state.sport === 'number' ? state.sport : 0,
+    typeof state.winner === 'number' ? state.winner : -1,
+    JSON.stringify(Array.isArray(state.sets) ? state.sets : [0, 0]),
+    JSON.stringify(Array.isArray(state.setHistory) ? state.setHistory : []),
+    Number(state.totalPoints) || 0,
+  ].join('|');
+}
+
 function archiveMatch(pin, state) {
   if (!history[pin]) { history[pin] = []; }
-  history[pin].push(snapshotForHistory(state));
+  const snap = snapshotForHistory(state);
+
+  // Dedup: zelfde saveId of zelfde fingerprint binnen de laatste paar entries
+  // = waarschijnlijk dezelfde wedstrijd die opnieuw binnenkomt (retry of
+  // server-restart). Sla over.
+  const recent = history[pin].slice(-5);
+  const dupe = recent.find(m =>
+    (snap.saveId != null && m.saveId === snap.saveId) ||
+    (snap.fp && m.fp === snap.fp)
+  );
+  if (dupe) { return; }
+
+  history[pin].push(snap);
   if (history[pin].length > MAX_PER_PIN) {
     history[pin] = history[pin].slice(-MAX_PER_PIN);
   }
