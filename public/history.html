@@ -353,6 +353,174 @@
     min-height: 2px;
   }
   .activity-chart .bar.active { opacity: 1; }
+
+  /* --- Stats page: charts & records --- */
+  .stats-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .stats-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+  .stats-section-sub {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-top: -10px;
+    margin-bottom: 12px;
+  }
+
+  /* Filter pills voor tijdsbereik */
+  .filter-pills {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-pill {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { color: var(--text); border-color: var(--text-dim); }
+  .filter-pill.active {
+    background: var(--us);
+    color: var(--bg);
+    border-color: var(--us);
+    font-weight: 600;
+  }
+
+  /* SVG-chart base styles */
+  .chart-svg {
+    width: 100%;
+    display: block;
+    height: 140px;
+  }
+  .chart-svg .axis-label {
+    font-size: 10px;
+    fill: var(--text-dim);
+    font-family: inherit;
+  }
+  .chart-svg .bar-week { fill: var(--us); transition: fill 0.15s; }
+  .chart-svg .bar-week.hot { fill: var(--ball); }
+  .chart-svg .bar-week.empty { fill: rgba(255,255,255,0.04); }
+  .chart-svg .grid-line { stroke: rgba(255,255,255,0.04); stroke-width: 1; }
+  .chart-svg .line-trend {
+    fill: none;
+    stroke: var(--us);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chart-svg .line-trend-area {
+    fill: var(--us);
+    opacity: 0.12;
+  }
+  .chart-svg .dot {
+    fill: var(--ball);
+    stroke: var(--bg-card);
+    stroke-width: 2;
+  }
+  .chart-svg .donut-bg { fill: rgba(255,255,255,0.06); }
+
+  /* Hour-of-day grid */
+  .hour-grid {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    margin-top: 10px;
+  }
+  .hour-cell {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+    position: relative;
+  }
+  .hour-cell[data-i] { background: var(--us); }
+  .hour-labels {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    margin-top: 4px;
+    color: var(--text-dim);
+    font-size: 9px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .hour-labels span { opacity: 0; }
+  .hour-labels span:nth-child(7),
+  .hour-labels span:nth-child(13),
+  .hour-labels span:nth-child(19) { opacity: 0.7; }
+
+  /* Records grid */
+  .records-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 12px;
+  }
+  .record {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .record-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .record-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .record-value.us { color: var(--us); }
+  .record-value.ball { color: var(--ball); }
+  .record-value.green { color: var(--green); }
+  .record-value.amber { color: var(--amber); }
+  .record-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Donut + sport breakdown */
+  .donut-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 18px;
+    align-items: center;
+  }
+  @media (max-width: 520px) {
+    .donut-row { grid-template-columns: 1fr; }
+    .donut-row svg { margin: 0 auto; }
+  }
+
+  /* Match-card improvements */
+  .match-list-title {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 4px 4px 10px;
+  }
 </style>
 </head>
 <body>
@@ -377,7 +545,11 @@
     <strong id="emptyTitle">No matches yet</strong>
     <div id="emptyBody">Save a match on your watch to see it appear here.</div>
   </div>
+  <div id="filters" style="display:none"></div>
   <div id="summary" style="display:none"></div>
+  <div id="records" style="display:none"></div>
+  <div id="charts" style="display:none"></div>
+  <div class="match-list-title" id="matchListTitle" style="display:none"></div>
   <div id="list"></div>
   <div class="actions" id="actions" style="display:none">
     <button class="btn" id="clearBtn">Clear history</button>
@@ -427,6 +599,24 @@ const I18N = {
   setShort:     { nl:'S',                  en:'S',                  de:'S',              es:'S',                fr:'S' },
   hours:        { nl:'u',                  en:'h',                  de:'h',              es:'h',                fr:'h' },
   backBtn:      { nl:'← Terug',            en:'← Back',             de:'← Zurück',       es:'← Atrás',          fr:'← Retour' },
+  range7:       { nl:'7 dagen',            en:'7 days',             de:'7 Tage',         es:'7 días',           fr:'7 jours' },
+  range30:      { nl:'30 dagen',           en:'30 days',            de:'30 Tage',        es:'30 días',          fr:'30 jours' },
+  range90:      { nl:'90 dagen',           en:'90 days',            de:'90 Tage',        es:'90 días',          fr:'90 jours' },
+  rangeAll:     { nl:'Alles',              en:'All time',           de:'Alle',           es:'Todo',             fr:'Tout' },
+  weeklyTitle:  { nl:'Wedstrijden per week', en:'Matches per week', de:'Spiele pro Woche', es:'Partidos por semana', fr:'Matchs par semaine' },
+  hourTitle:    { nl:'Speeluur',           en:'Hour of day',        de:'Spielzeit',      es:'Hora del día',     fr:'Heure du jour' },
+  trendTitle:   { nl:'Tempo over tijd',    en:'Tempo over time',    de:'Tempo im Verlauf', es:'Ritmo en el tiempo', fr:'Tempo dans le temps' },
+  sportsTitle:  { nl:'Sport verdeling',    en:'Sport breakdown',    de:'Sportarten',     es:'Por deporte',      fr:'Par sport' },
+  recordsTitle: { nl:'Records',            en:'Records',            de:'Rekorde',        es:'Récords',          fr:'Records' },
+  matchesTitle: { nl:'Wedstrijden',        en:'Matches',            de:'Spiele',         es:'Partidos',         fr:'Matchs' },
+  recLongestMatch:  { nl:'Langste wedstrijd', en:'Longest match', de:'Längstes Spiel', es:'Partido más largo', fr:'Plus long match' },
+  recMostPoints:    { nl:'Meeste punten',     en:'Most points',   de:'Meiste Punkte',  es:'Más puntos',         fr:'Plus de points' },
+  recLongestStreak: { nl:'Langste reeks',     en:'Longest streak',de:'Längste Serie',  es:'Mejor racha',        fr:'Plus longue série' },
+  recHighestTempo:  { nl:'Hoogste tempo',     en:'Highest tempo', de:'Höchstes Tempo', es:'Mayor ritmo',        fr:'Tempo le plus élevé' },
+  recBestWin:       { nl:'Grootste overwinning', en:'Biggest win', de:'Größter Sieg', es:'Mayor victoria',     fr:'Plus grande victoire' },
+  recWinStreak:     { nl:'Win-streak',        en:'Win streak',    de:'Sieg-Serie',     es:'Racha de victorias', fr:'Série de victoires' },
+  noData:           { nl:'Te weinig data',    en:'Not enough data',de:'Zu wenig Daten', es:'Datos insuficientes', fr:'Pas assez de données' },
+  vsLabel:          { nl:' tegen ',           en:' vs ',          de:' gegen ',        es:' contra ',           fr:' contre ' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -599,23 +789,361 @@ function renderSetTable(m) {
   `;
 }
 
+// === STATS PAGE ===
+let allMatches = [];
+let activeRange = 'all';      // '7' | '30' | '90' | 'all'
+
+function filterByRange(matches, range) {
+  if (range === 'all') return matches;
+  const days = Number(range);
+  if (!days) return matches;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return matches.filter(m => m.savedAt >= cutoff);
+}
+
+function renderFilters(_matches) {
+  const el = document.getElementById('filters');
+  el.style.display = 'block';
+  el.className = 'filter-pills';
+  const ranges = [
+    { id: '7',   label: t('range7')   },
+    { id: '30',  label: t('range30')  },
+    { id: '90',  label: t('range90')  },
+    { id: 'all', label: t('rangeAll') },
+  ];
+  el.innerHTML = ranges.map(r =>
+    `<button class="filter-pill ${activeRange === r.id ? 'active' : ''}" data-range="${r.id}">${r.label}</button>`
+  ).join('');
+  el.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeRange = btn.dataset.range;
+      const filtered = filterByRange(allMatches, activeRange);
+      renderStatsAndList(filtered);
+    });
+  });
+}
+
+// === CHARTS (handgemaakte inline SVG, geen libs) ===
+
+function chartMatchesPerWeek(matches, weeks) {
+  if (!matches.length) return '';
+  weeks = weeks || 12;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const startMs = now.getTime() - (weeks - 1) * 7 * 24 * 60 * 60 * 1000;
+  const buckets = new Array(weeks).fill(0);
+  for (const m of matches) {
+    const offset = Math.floor((m.savedAt - startMs) / (7 * 24 * 60 * 60 * 1000));
+    if (offset >= 0 && offset < weeks) buckets[offset] += 1;
+  }
+  const max = Math.max(1, ...buckets);
+  const w = 600, h = 110, pad = 18;
+  const barW = (w - pad * 2) / weeks - 4;
+  const bars = buckets.map((v, i) => {
+    const x = pad + i * ((w - pad * 2) / weeks) + 2;
+    const barH = (v / max) * (h - pad - 18);
+    const y = h - 18 - barH;
+    const cls = v === max && v > 0 ? 'bar-week hot' : (v === 0 ? 'bar-week empty' : 'bar-week');
+    return `<rect class="${cls}" x="${x}" y="${y}" width="${barW}" height="${Math.max(2, barH)}" rx="2" ry="2">
+      <title>${v} match${v === 1 ? '' : 'es'}</title>
+    </rect>`;
+  }).join('');
+  // Labels: alleen eerste, midden, laatste week tonen
+  const labels = [0, Math.floor(weeks / 2), weeks - 1].map(i => {
+    const d = new Date(startMs + i * 7 * 24 * 60 * 60 * 1000);
+    const x = pad + i * ((w - pad * 2) / weeks) + barW / 2;
+    return `<text class="axis-label" x="${x}" y="${h - 4}" text-anchor="middle">${d.getDate()}/${d.getMonth() + 1}</text>`;
+  }).join('');
+  return `<svg class="chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}${labels}</svg>`;
+}
+
+function chartTempoTrend(matches) {
+  // Lijn van pointsPerMinute over de laatste N matches.
+  // matches komen newest-first binnen → .slice(0, 20) = recentste 20 → sorteer
+  // oplopend zodat de x-as van oud naar nieuw loopt.
+  const finished = matches.filter(m => Number(m.ptsPerMin) > 0).slice(0, 20);
+  if (finished.length < 3) {
+    return `<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:30px 0;">${t('noData')}</div>`;
+  }
+  finished.sort((a, b) => a.savedAt - b.savedAt);
+  const values = finished.map(m => Number(m.ptsPerMin) || 0);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = Math.max(0.5, max - min);
+  const w = 600, h = 110, pad = 12;
+  const xStep = (w - pad * 2) / (values.length - 1);
+  const yFor = (v) => pad + (h - pad * 2) * (1 - (v - min) / range);
+
+  const pts = values.map((v, i) => [pad + i * xStep, yFor(v)]);
+  const line = 'M ' + pts.map(p => p.join(' ')).join(' L ');
+  const area = line + ` L ${pts[pts.length - 1][0]} ${h - pad} L ${pad} ${h - pad} Z`;
+
+  const dots = pts.map(([x, y], i) =>
+    `<circle class="dot" cx="${x}" cy="${y}" r="3"><title>${values[i].toFixed(1)} pt/min</title></circle>`
+  ).join('');
+
+  return `<svg class="chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path class="line-trend-area" d="${area}"/>
+    <path class="line-trend" d="${line}"/>
+    ${dots}
+  </svg>`;
+}
+
+function chartHourOfDay(matches) {
+  const buckets = new Array(24).fill(0);
+  for (const m of matches) {
+    const d = new Date(m.savedAt);
+    buckets[d.getHours()] += 1;
+  }
+  const max = Math.max(1, ...buckets);
+  const cells = buckets.map((v, h) => {
+    if (v === 0) return `<div class="hour-cell" title="${h}:00 – ${v}"></div>`;
+    const opacity = 0.25 + 0.75 * (v / max);
+    return `<div class="hour-cell" data-i style="opacity:${opacity.toFixed(2)}" title="${h}:00 – ${v}"></div>`;
+  }).join('');
+  const labels = new Array(24).fill(0).map((_, i) => `<span>${i}</span>`).join('');
+  return `<div class="hour-grid">${cells}</div><div class="hour-labels">${labels}</div>`;
+}
+
+function chartSportDonut(matches) {
+  if (!matches.length) return '';
+  const sportAgg = {};
+  for (const m of matches) {
+    const s = typeof m.sport === 'number' ? m.sport : 0;
+    sportAgg[s] = (sportAgg[s] || 0) + 1;
+  }
+  const entries = Object.entries(sportAgg)
+    .map(([sId, count]) => ({ sport: SPORTS.find(x => x.id === Number(sId)) || SPORTS[0], count }))
+    .sort((a, b) => b.count - a.count);
+  const total = entries.reduce((s, e) => s + e.count, 0);
+  const r = 50, cx = 60, cy = 60, stroke = 18;
+  const circ = 2 * Math.PI * r;
+  // Color palette per sport (cycle through theme colors)
+  const colors = ['var(--us)', 'var(--ball)', 'var(--them)', 'var(--green)', 'var(--amber)', '#a78bfa'];
+  let acc = 0;
+  const slices = entries.map((e, i) => {
+    const frac = e.count / total;
+    const dash = frac * circ;
+    const gap = circ - dash;
+    const offset = -acc;
+    acc += dash;
+    return `<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${colors[i % colors.length]}"
+      stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${offset}"
+      transform="rotate(-90 ${cx} ${cy})"/>`;
+  }).join('');
+  const list = entries.map((e, i) => {
+    const pct = Math.round((e.count / total) * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[i % colors.length]}"></span>
+      <span style="flex:1">${e.sport.icon} ${e.sport[currentLang] || e.sport.en}</span>
+      <span style="color:var(--text-dim);font-variant-numeric:tabular-nums">${e.count} · ${pct}%</span>
+    </div>`;
+  }).join('');
+  return `<div class="donut-row">
+    <svg width="120" height="120" viewBox="0 0 120 120">
+      <circle class="donut-bg" r="${r}" cx="${cx}" cy="${cy}"/>
+      <g>${slices}</g>
+      <text x="${cx}" y="${cy + 2}" text-anchor="middle" style="fill:var(--text);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">${total}</text>
+      <text x="${cx}" y="${cy + 17}" text-anchor="middle" style="fill:var(--text-dim);font-size:9px;text-transform:uppercase;letter-spacing:0.05em">${t('totalMatches')}</text>
+    </svg>
+    <div>${list}</div>
+  </div>`;
+}
+
+function renderCharts(matches) {
+  const el = document.getElementById('charts');
+  if (!matches.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  el.innerHTML = `
+    <div class="stats-section">
+      <div class="stats-section-title">${t('weeklyTitle')}</div>
+      ${chartMatchesPerWeek(matches, 12)}
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">${t('sportsTitle')}</div>
+      ${chartSportDonut(matches)}
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">${t('trendTitle')}</div>
+      <div class="stats-section-sub">${t('range30').toLowerCase()}+ recent</div>
+      ${chartTempoTrend(matches)}
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">${t('hourTitle')}</div>
+      ${chartHourOfDay(matches)}
+    </div>
+  `;
+}
+
+// === PERSONAL RECORDS ===
+
+function computeRecords(matches) {
+  if (!matches.length) return null;
+  const recs = {};
+
+  // Langste wedstrijd (duur)
+  const byDuration = matches.slice().sort((a, b) => (b.durationMin || 0) - (a.durationMin || 0));
+  if (byDuration[0] && byDuration[0].durationMin > 0) {
+    recs.longestMatch = { value: byDuration[0].durationMin, m: byDuration[0] };
+  }
+
+  // Meeste punten in een wedstrijd
+  const byPoints = matches.slice().sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+  if (byPoints[0] && byPoints[0].totalPoints > 0) {
+    recs.mostPoints = { value: byPoints[0].totalPoints, m: byPoints[0] };
+  }
+
+  // Langste reeks (binnen één wedstrijd)
+  const byStreak = matches.slice().sort((a, b) => {
+    const am = Math.max((a.longestStreak || [0,0])[0], (a.longestStreak || [0,0])[1]);
+    const bm = Math.max((b.longestStreak || [0,0])[0], (b.longestStreak || [0,0])[1]);
+    return bm - am;
+  });
+  if (byStreak[0]) {
+    const ls = byStreak[0].longestStreak || [0, 0];
+    const m = Math.max(ls[0], ls[1]);
+    if (m > 0) recs.longestStreak = { value: m, m: byStreak[0] };
+  }
+
+  // Hoogste tempo (pts/min)
+  const byTempo = matches.slice().sort((a, b) => (b.ptsPerMin || 0) - (a.ptsPerMin || 0));
+  if (byTempo[0] && byTempo[0].ptsPerMin > 0) {
+    recs.highestTempo = { value: byTempo[0].ptsPerMin, m: byTempo[0] };
+  }
+
+  // Grootste overwinning (verschil in sets, alleen winst voor "us")
+  const wins = matches.filter(m => m.over && !m.manuallySaved && m.winner === 0 && Array.isArray(m.sets));
+  wins.sort((a, b) => (b.sets[0] - b.sets[1]) - (a.sets[0] - a.sets[1]));
+  if (wins[0]) {
+    recs.bestWin = { value: `${wins[0].sets[0]}-${wins[0].sets[1]}`, m: wins[0] };
+  }
+
+  // Langste win-streak (over wedstrijden heen)
+  const chrono = matches.slice().sort((a, b) => a.savedAt - b.savedAt);
+  let cur = 0, best = 0, bestEndMatch = null, curStart = null;
+  for (const m of chrono) {
+    if (!m.over || m.manuallySaved) continue;
+    if (m.winner === 0) {
+      if (cur === 0) curStart = m;
+      cur += 1;
+      if (cur > best) { best = cur; bestEndMatch = m; }
+    } else { cur = 0; curStart = null; }
+  }
+  if (best > 0) recs.winStreak = { value: best, m: bestEndMatch };
+
+  return recs;
+}
+
+function recordCard(labelKey, value, sub, colorCls) {
+  return `<div class="record">
+    <div class="record-label">${t(labelKey)}</div>
+    <div class="record-value ${colorCls || ''}">${value}</div>
+    ${sub ? `<div class="record-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function renderRecords(matches) {
+  const el = document.getElementById('records');
+  const recs = computeRecords(matches);
+  if (!recs || Object.keys(recs).length === 0) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  const cards = [];
+  if (recs.longestMatch) {
+    cards.push(recordCard('recLongestMatch',
+      `${recs.longestMatch.value} <span style="font-size:14px;color:var(--text-dim)">${t('minutes')}</span>`,
+      formatDate(recs.longestMatch.m.savedAt),
+      'ball'));
+  }
+  if (recs.mostPoints) {
+    cards.push(recordCard('recMostPoints',
+      recs.mostPoints.value,
+      formatDate(recs.mostPoints.m.savedAt),
+      'us'));
+  }
+  if (recs.longestStreak) {
+    cards.push(recordCard('recLongestStreak',
+      recs.longestStreak.value,
+      formatDate(recs.longestStreak.m.savedAt),
+      'amber'));
+  }
+  if (recs.highestTempo) {
+    cards.push(recordCard('recHighestTempo',
+      `${recs.highestTempo.value.toFixed(1)} <span style="font-size:14px;color:var(--text-dim)">${t('ptsMin')}</span>`,
+      formatDate(recs.highestTempo.m.savedAt),
+      'green'));
+  }
+  if (recs.bestWin) {
+    cards.push(recordCard('recBestWin',
+      recs.bestWin.value,
+      formatDate(recs.bestWin.m.savedAt) + ' · sets',
+      'us'));
+  }
+  if (recs.winStreak) {
+    cards.push(recordCard('recWinStreak',
+      `${recs.winStreak.value}×`,
+      formatDate(recs.winStreak.m.savedAt),
+      'green'));
+  }
+
+  el.innerHTML = `
+    <div class="stats-section">
+      <div class="stats-section-title">${t('recordsTitle')}</div>
+      <div class="records-grid">${cards.join('')}</div>
+    </div>
+  `;
+}
+
+// === MAIN RENDER ENTRY ===
+
+function renderStatsAndList(matches) {
+  renderSummary(matches);
+  renderCharts(matches);
+  renderRecords(matches);
+
+  const list = document.getElementById('list');
+  const matchListTitle = document.getElementById('matchListTitle');
+  matchListTitle.style.display = matches.length ? 'block' : 'none';
+  matchListTitle.textContent = t('matchesTitle');
+  renderMatchList(list, matches);
+}
+
 function render(matches) {
-  const main = document.getElementById('main');
   const list = document.getElementById('list');
   const empty = document.getElementById('empty');
   const actions = document.getElementById('actions');
   const summary = document.getElementById('summary');
+  const filters = document.getElementById('filters');
+  const charts = document.getElementById('charts');
+  const records = document.getElementById('records');
+  const matchListTitle = document.getElementById('matchListTitle');
+
+  allMatches = matches;
 
   if (!matches.length) {
     empty.style.display = 'block';
     list.innerHTML = '';
     actions.style.display = 'none';
     summary.style.display = 'none';
+    filters.style.display = 'none';
+    charts.style.display = 'none';
+    records.style.display = 'none';
+    matchListTitle.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
   actions.style.display = 'block';
-  renderSummary(matches);
+  renderFilters(matches);
+
+  const filtered = filterByRange(matches, activeRange);
+  renderStatsAndList(filtered);
+}
+
+function renderMatchList(list, matches) {
 
   list.innerHTML = matches.map(m => {
     const cls = m.over ? 'over' : (m.inProgress ? 'in-progress' : '');
