@@ -565,6 +565,8 @@ const WEB_STRINGS = {
   voiceSet:         { nl:'Stem ingesteld.',        en:'Voice selected.',       de:'Stimme eingestellt.',     es:'Voz seleccionada.',             fr:'Voix sélectionnée.' },
   voiceOn:          { nl:'Voorlezen staat aan.',   en:'Reading is on.',        de:'Vorlesen ist ein.',       es:'Lectura activada.',             fr:'Lecture activée.' },
   spokenAdv:        { nl:'Voordeel {name}.',       en:'Advantage {name}.',     de:'Vorteil {name}.',         es:'Ventaja {name}.',               fr:'Avantage {name}.' },
+  spokenAdvServer:  { nl:'Voordeel.',              en:'Advantage in.',         de:'Vorteil Aufschläger.',    es:'Ventaja saque.',                fr:'Avantage service.' },
+  spokenAdvReceiver:{ nl:'Nadeel.',                en:'Advantage out.',        de:'Vorteil Rückschläger.',   es:'Ventaja resto.',                fr:'Avantage retour.' },
   spokenDeuce:      { nl:'Deuce.',                 en:'Deuce.',                de:'Einstand.',               es:'Iguales.',                      fr:'Égalité.' },
   spokenEqual:      { nl:'{n} gelijk.',            en:'{n} all.',              de:'{n} beide.',              es:'{n} iguales.',                  fr:'{n} partout.' },
   spokenSetWon:     { nl:'Set gewonnen. Sets {a} tegen {b}.', en:'Set won. Sets {a} to {b}.', de:'Satz gewonnen. Sätze {a} zu {b}.', es:'Set ganado. Sets {a} a {b}.', fr:'Set gagné. Sets {a} à {b}.' },
@@ -1253,9 +1255,17 @@ function announce(prev, m) {
 // Maak de puntenstand natuurlijk uitspreekbaar.
 // Conventie: stand van de serverende partij wordt eerst genoemd.
 // Cijfers worden omgezet naar woorden zodat ElevenLabs de juiste taal kiest.
+// Voor "Adv": we noemen het vanuit de server: "voordeel" als de server het
+// voordeel heeft, "nadeel" als de receiver het heeft. Per taal vertaald.
 function spokenScore(us, them, serveTeam) {
-  if (us === 'Adv') return t('spokenAdv', { name: teamUs });
-  if (them === 'Adv') return t('spokenAdv', { name: teamThem });
+  if (us === 'Adv') {
+    const serverHasAdv = (serveTeam === 0);
+    return t(serverHasAdv ? 'spokenAdvServer' : 'spokenAdvReceiver');
+  }
+  if (them === 'Adv') {
+    const serverHasAdv = (serveTeam === 1);
+    return t(serverHasAdv ? 'spokenAdvServer' : 'spokenAdvReceiver');
+  }
   if (us === '40' && them === '40') return t('spokenDeuce');
   const usW = tennisWord(us);
   const themW = tennisWord(them);
