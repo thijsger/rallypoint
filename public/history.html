@@ -1304,6 +1304,11 @@ async function load() {
   let server = [];
   try {
     const r = await fetch('/history/' + PIN, { headers: { 'Accept': 'application/json' } });
+    if (r.status === 402) {
+      // License required — stuur user naar de payment landing page voor deze PIN
+      window.location = '/p/' + PIN;
+      return;
+    }
     const data = await r.json();
     server = Array.isArray(data) ? data : [];
   } catch (e) {}

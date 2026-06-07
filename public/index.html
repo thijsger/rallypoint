@@ -406,6 +406,64 @@
     .pin-box { width: 48px; height: 62px; font-size: 2rem; }
     .board-title { font-size: .95rem; }
   }
+
+  /* ---- Upgrade modal (license-required) ---- */
+  .upgrade-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(3, 18, 14, .82); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; padding: 1.25rem;
+  }
+  .upgrade-overlay.show { display: flex; animation: fadeIn .25s ease both; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .upgrade-card {
+    background: var(--panel); border: 1px solid var(--court-line);
+    border-radius: 20px; padding: 1.8rem; max-width: 420px; width: 100%;
+    text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.5);
+  }
+  .upgrade-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: 1.8rem; text-transform: uppercase; letter-spacing: .04em;
+    line-height: 1; margin-bottom: .4rem;
+  }
+  .upgrade-title span { color: var(--ball); }
+  .upgrade-sub { color: var(--muted); font-size: .92rem; margin-bottom: 1.4rem; line-height: 1.45; }
+  .upgrade-features { color: var(--muted); font-size: .85rem; margin-bottom: 1.3rem; line-height: 1.6; }
+  .upgrade-features b { color: var(--ink); font-weight: 600; }
+  .upgrade-plans { display: flex; flex-direction: column; gap: .7rem; }
+  .upgrade-plan-btn {
+    background: var(--ball); color: #052017; border: none; border-radius: 100px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.05rem;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: .9rem 1.4rem; cursor: pointer; transition: transform .15s, box-shadow .15s;
+    display: flex; justify-content: space-between; align-items: center; gap: .7rem;
+  }
+  .upgrade-plan-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212,255,0,.25); }
+  .upgrade-plan-btn.secondary { background: transparent; color: var(--ink); border: 2px solid var(--court-line); }
+  .upgrade-plan-btn.secondary:hover { border-color: var(--ball); box-shadow: none; }
+  .upgrade-plan-btn .price { font-size: .95em; opacity: .85; }
+  .upgrade-plan-btn .trial-badge {
+    background: #052017; color: var(--ball); font-size: .65rem;
+    padding: .15rem .4rem; border-radius: 100px; letter-spacing: .04em;
+  }
+  .upgrade-plan-btn.secondary .trial-badge { background: var(--court-line); color: var(--ink); }
+  .upgrade-small {
+    color: var(--muted); font-size: .75rem; margin-top: 1.2rem; line-height: 1.5;
+  }
+  .upgrade-small a { color: var(--ball); text-decoration: none; cursor: pointer; }
+  .upgrade-pin {
+    display: inline-block; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; color: var(--ball); letter-spacing: .12em;
+  }
+  /* Trial-banner: discreet bovenaan het scorebord */
+  .trial-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 90;
+    background: var(--panel); color: var(--ink); border-bottom: 1px solid var(--court-line);
+    padding: .45rem 1rem; text-align: center; font-size: .82rem;
+  }
+  .trial-banner.show { display: block; }
+  .trial-banner b { color: var(--ball); }
+  .trial-banner a { color: var(--ball); text-decoration: none; margin-left: .8rem; cursor: pointer; font-weight: 600; }
+  body.fs .trial-banner { display: none !important; }
 </style>
 </head>
 <body>
@@ -430,6 +488,38 @@
        gemaakte Audio() betrouwbaar af; één vast element in de DOM herbruiken
        werkt wél, mits 'ie 1× door een user-gesture is geactiveerd. -->
   <audio id="ttsPlayer" preload="none" playsinline style="display:none"></audio>
+
+  <!-- Trial-banner (in-trial: countdown, optionele upgrade-link) -->
+  <div class="trial-banner" id="trialBanner"></div>
+
+  <!-- Upgrade modal (license required / trial expired) -->
+  <div class="upgrade-overlay" id="upgradeOverlay">
+    <div class="upgrade-card">
+      <div class="upgrade-title">Rally<span>Point</span> Pro</div>
+      <div class="upgrade-sub" id="upgradeSub">Start je 7 dagen gratis trial</div>
+      <div class="upgrade-features">
+        <b>Live scoreboard</b> · <b>spraak</b> · <b>geschiedenis</b> · <b>stats</b>
+      </div>
+      <div class="upgrade-plans">
+        <button class="upgrade-plan-btn" id="upgradeTrialBtn">
+          <span>Start 7 dagen gratis <span class="trial-badge">geen kaart</span></span>
+        </button>
+        <button class="upgrade-plan-btn" data-plan="monthly">
+          <span>Maandelijks</span>
+          <span class="price">€2/mnd</span>
+        </button>
+        <button class="upgrade-plan-btn secondary" data-plan="lifetime">
+          <span>Lifetime</span>
+          <span class="price">€10</span>
+        </button>
+      </div>
+      <div class="err" id="upgradeErr" style="margin-top:.8rem;min-height:1.1em;font-size:.85rem;"></div>
+      <div class="upgrade-small">
+        Gekoppeld aan PIN <span class="upgrade-pin" id="upgradePin">––––</span> ·
+        <a id="upgradeCancel">Annuleren</a>
+      </div>
+    </div>
+  </div>
 
   <!-- SCOREBORD -->
   <div class="board" id="board">
@@ -616,9 +706,21 @@ function applyLanguage(lang) {
 
 async function fetchMatch(pin) {
   const res = await fetch(`${SERVER_URL}/match/${pin}`);
+  if (res.status === 402) { const e = new Error('license_required'); e.licenseRequired = true; throw e; }
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('serverfout');
   return res.json();
+}
+
+// Vraag de licentiestatus op voor een PIN. Geen errors als 't faalt — caller
+// behandelt dat zelf (we willen geen connect-flow blokkeren als de status
+// niet bereikbaar is, dan gewoon fetchMatch proberen en op 402 reageren).
+async function fetchLicenseStatus(pin) {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/license/status?pin=${encodeURIComponent(pin)}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch (e) { return null; }
 }
 
 /* ---- Weergave-helpers ---- */
@@ -652,6 +754,75 @@ function applyNames() {
   document.getElementById('teamNameUs').textContent   = teamUs;
   document.getElementById('teamNameThem').textContent = teamThem;
 }
+
+// --- Upgrade modal & trial banner ---
+const upgradeOverlay  = document.getElementById('upgradeOverlay');
+const upgradeSub      = document.getElementById('upgradeSub');
+const upgradePin      = document.getElementById('upgradePin');
+const upgradeCancel   = document.getElementById('upgradeCancel');
+const upgradeTrialBtn = document.getElementById('upgradeTrialBtn');
+const upgradeErr      = document.getElementById('upgradeErr');
+const trialBanner     = document.getElementById('trialBanner');
+let upgradeForPin = null;
+
+function showUpgradeModal(pin, status) {
+  upgradeForPin = pin;
+  upgradePin.textContent = pin;
+  upgradeErr.textContent = '';
+  const state = status && status.state;
+  const trialUsed = !!(status && status.trial_used);
+  upgradeSub.textContent = (state === 'expired')
+    ? 'Je trial of abonnement is verlopen. Kies hieronder hoe je doorgaat.'
+    : 'Probeer 7 dagen gratis — geen creditcard nodig';
+  // Trial-button alleen tonen als state=none EN nog niet eens trial gebruikt
+  if (state === 'none' && !trialUsed) {
+    upgradeTrialBtn.style.display = '';
+  } else {
+    upgradeTrialBtn.style.display = 'none';
+  }
+  upgradeOverlay.classList.add('show');
+}
+function hideUpgradeModal() { upgradeOverlay.classList.remove('show'); upgradeForPin = null; }
+upgradeCancel.addEventListener('click', hideUpgradeModal);
+document.querySelectorAll('.upgrade-plan-btn[data-plan]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!upgradeForPin) { return; }
+    const plan = btn.dataset.plan;
+    window.location = `${SERVER_URL}/api/license/checkout?pin=${encodeURIComponent(upgradeForPin)}&plan=${plan}`;
+  });
+});
+upgradeTrialBtn.addEventListener('click', async () => {
+  if (!upgradeForPin) { return; }
+  upgradeErr.textContent = '';
+  upgradeTrialBtn.disabled = true;
+  try {
+    const r = await fetch(`${SERVER_URL}/api/license/start-trial?pin=${encodeURIComponent(upgradeForPin)}`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) {
+      upgradeErr.textContent = data.error === 'trial_already_used'
+        ? 'Je trial is al gebruikt voor deze PIN.'
+        : 'Trial kon niet starten.';
+      upgradeTrialBtn.disabled = false;
+      return;
+    }
+    // Trial actief — herlaad zodat connect-flow opnieuw start mét license
+    window.location = `${location.pathname}?pin=${encodeURIComponent(upgradeForPin)}`;
+  } catch (e) {
+    upgradeErr.textContent = 'Netwerkfout — probeer opnieuw.';
+    upgradeTrialBtn.disabled = false;
+  }
+});
+
+function showTrialBanner(daysLeft, pin) {
+  const dayWord = daysLeft === 1 ? 'dag' : 'dagen';
+  trialBanner.innerHTML =
+    `<b>Trial:</b> nog ${daysLeft} ${dayWord} · <a id="trialUpgradeLink">Upgrade nu</a>`;
+  document.getElementById('trialUpgradeLink').addEventListener('click', () => {
+    showUpgradeModal(pin, { state: 'trial', days_left: daysLeft });
+  });
+  trialBanner.classList.add('show');
+}
+function hideTrialBanner() { trialBanner.classList.remove('show'); }
 
 // PIN-invoer
 const boxes = [...document.querySelectorAll('.pin-box')];
@@ -687,24 +858,45 @@ connectBtn.addEventListener('click', async () => {
   errEl.textContent = '';
 
   // De gratis server kan in slaap zijn; eerste antwoord kan ~30-60s duren.
-  // We proberen daarom maximaal ~60s geduldig opnieuw.
+  // We doen license-check ook in dezelfde retry-loop — die roept dezelfde
+  // server aan en is meteen wakker als 'ie reageert.
   const started = Date.now();
-  let match = null;
-  let lastErr = null;
+  let licenseStatus = null;
   connectBtn.dataset.busy = '1';
   connectBtn.textContent = t('connecting');
 
   while (Date.now() - started < 60000) {
-    try {
-      match = await fetchMatch(pin);
-      if (match) break;            // gevonden
-      lastErr = 'pin';             // server bereikbaar maar geen wedstrijd
-      break;
-    } catch (e) {
-      lastErr = 'net';             // server nog aan het opstarten
-      errEl.textContent = t('serverWaking');
-      await new Promise(r => setTimeout(r, 3000));
+    licenseStatus = await fetchLicenseStatus(pin);
+    if (licenseStatus) { break; }
+    errEl.textContent = t('serverWaking');
+    await new Promise(r => setTimeout(r, 3000));
+  }
+
+  // Geen toegang? Modal openen en stoppen — fetchMatch zou toch 402 geven.
+  if (licenseStatus && (licenseStatus.state === 'none' || licenseStatus.state === 'expired')) {
+    delete connectBtn.dataset.busy;
+    connectBtn.textContent = t('connect');
+    connectBtn.disabled = false;
+    errEl.textContent = '';
+    showUpgradeModal(pin, licenseStatus);
+    return;
+  }
+
+  // Server bereikbaar én license OK (trial/active). Match ophalen.
+  let match = null;
+  let lastErr = null;
+  try {
+    match = await fetchMatch(pin);
+    if (!match) { lastErr = 'pin'; }
+  } catch (e) {
+    if (e.licenseRequired) {
+      delete connectBtn.dataset.busy;
+      connectBtn.textContent = t('connect');
+      connectBtn.disabled = false;
+      showUpgradeModal(pin, licenseStatus || { state: 'expired' });
+      return;
     }
+    lastErr = 'net';
   }
 
   delete connectBtn.dataset.busy;
@@ -726,6 +918,13 @@ connectBtn.addEventListener('click', async () => {
   acquireWakeLock();
   applyState(match);   // ook taal-switch + render in één keer
   startLive();
+
+  // Trial-banner alleen tijdens trial; bij active/lifetime niets tonen
+  if (licenseStatus && licenseStatus.state === 'trial') {
+    showTrialBanner(licenseStatus.days_left, pin);
+  } else {
+    hideTrialBanner();
+  }
 });
 
 // Live verbinding: elke 1,5s de stand ophalen van de server
@@ -1201,7 +1400,7 @@ function speakViaServer(text) {
       fallback('error');
     };
     ttsPlayer.oncanplay = null;
-    ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}?voice=${encodeURIComponent(selectedVoiceId)}`;
+    ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}?voice=${encodeURIComponent(selectedVoiceId)}&pin=${encodeURIComponent(connectedPin || '')}`;
     const p = ttsPlayer.play();
     if (p && p.catch) { p.catch(() => fallback('playreject')); }
   } catch (e) {

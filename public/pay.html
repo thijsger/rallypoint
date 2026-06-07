@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RallyPoint Pro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap');
+  :root {
+    --court: #0a4d3c; --court-line: #2a8c6f; --ball: #d4ff00;
+    --ink: #f4fff9; --muted: #7fae9f; --panel: #073b2e; --them: #ff5a3c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: radial-gradient(ellipse at top, #0d5c47 0%, #062821 70%), #062821;
+    color: var(--ink); min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center; padding: 2rem 1.25rem;
+  }
+  .wrap { max-width: 460px; width: 100%; text-align: center; }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: clamp(2.2rem, 8vw, 3.4rem); letter-spacing: .04em;
+    text-transform: uppercase; line-height: .95;
+  }
+  .logo span { color: var(--ball); }
+  .tagline { color: var(--muted); margin: .6rem 0 1.6rem; font-size: .95rem; letter-spacing: .14em; text-transform: uppercase; }
+  .pin-card {
+    background: var(--panel); border: 1px solid var(--court-line);
+    border-radius: 16px; padding: 1rem 1.4rem; margin: 0 0 1.6rem;
+    display: inline-flex; align-items: baseline; gap: .9rem;
+  }
+  .pin-card .lbl { color: var(--muted); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; }
+  .pin-card .val { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.8rem; letter-spacing: .12em; }
+  .features { color: var(--muted); font-size: .85rem; margin: 1rem 0 1.6rem; line-height: 1.7; }
+  .features b { color: var(--ink); font-weight: 600; }
+  .actions { display: flex; flex-direction: column; gap: .9rem; }
+  .btn {
+    background: var(--ball); color: #052017; border: none; border-radius: 100px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.1rem;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 1rem 1.4rem; cursor: pointer; width: 100%;
+    transition: transform .15s, box-shadow .15s;
+    display: flex; justify-content: space-between; align-items: center; gap: .7rem;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212,255,0,.25); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn.secondary { background: transparent; color: var(--ink); border: 2px solid var(--court-line); }
+  .btn.secondary:hover { border-color: var(--ball); box-shadow: none; }
+  .btn .price { font-weight: 700; font-size: 1em; opacity: .9; }
+  .btn .trial-badge {
+    background: #052017; color: var(--ball); font-size: .65rem;
+    padding: .15rem .4rem; border-radius: 100px; letter-spacing: .04em;
+  }
+  .btn.secondary .trial-badge { background: var(--court-line); color: var(--ink); }
+  .status-card {
+    background: var(--panel); border: 1px solid var(--ball);
+    border-radius: 16px; padding: 1rem 1.2rem; margin-bottom: 1rem;
+    color: var(--ink); font-size: .95rem;
+  }
+  .status-card.green { border-color: #6fde8d; }
+  .status-card.red { border-color: var(--them); }
+  .status-card b { color: var(--ball); }
+  .small { color: var(--muted); font-size: .78rem; margin-top: 1.2rem; line-height: 1.5; }
+  .small a { color: var(--ball); text-decoration: none; }
+  .err { color: var(--them); margin-top: 1rem; min-height: 1.2em; font-size: .9rem; }
+  .loading { color: var(--muted); padding: 2rem 0; }
+  .hidden { display: none !important; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: none; } }
+  .wrap { animation: rise .5s ease both; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Rally<span>Point</span> Pro</div>
+  <div class="tagline">Live scoreboard · Spraak · Statistieken</div>
+
+  <div class="pin-card">
+    <span class="lbl">Pincode</span>
+    <span class="val">__PIN__</span>
+  </div>
+
+  <div id="statusBox"></div>
+
+  <div class="features">
+    Pro krijgt: <b>live scoreboard</b>, <b>spraak-aankondiging</b>, <b>volledige geschiedenis</b>, <b>statistieken &amp; grafieken</b>, <b>4 stemmen</b>.
+  </div>
+
+  <div class="loading" id="loading">Status laden…</div>
+
+  <div class="actions hidden" id="actions">
+    <button class="btn hidden" id="btnTrial">
+      <span>Start 7 dagen gratis <span class="trial-badge">geen kaart</span></span>
+    </button>
+    <button class="btn" id="btnMonthly">
+      <span>Maandelijks</span>
+      <span class="price">€2/mnd</span>
+    </button>
+    <button class="btn secondary" id="btnLifetime">
+      <span>Lifetime</span>
+      <span class="price">€10</span>
+    </button>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="small">
+    License wordt gekoppeld aan PIN <b>__PIN__</b>.<br>
+    Vragen of license overzetten? Mail <a href="mailto:support@rallypoint.pro">support@rallypoint.pro</a>.
+  </div>
+</div>
+
+<script>
+  const pin = '__PIN__';
+  const errEl = document.getElementById('err');
+  const statusBox = document.getElementById('statusBox');
+  const loading = document.getElementById('loading');
+  const actions = document.getElementById('actions');
+  const btnTrial = document.getElementById('btnTrial');
+  const btnMonthly = document.getElementById('btnMonthly');
+  const btnLifetime = document.getElementById('btnLifetime');
+
+  async function refresh() {
+    loading.classList.remove('hidden');
+    actions.classList.add('hidden');
+    statusBox.innerHTML = '';
+    try {
+      const r = await fetch(`/api/license/status?pin=${pin}`);
+      const s = await r.json();
+      render(s);
+    } catch (e) {
+      loading.textContent = 'Status kon niet geladen worden.';
+    }
+  }
+
+  function render(s) {
+    loading.classList.add('hidden');
+    actions.classList.remove('hidden');
+
+    // Banner-boodschap obv state
+    if (s.state === 'active') {
+      statusBox.innerHTML = `<div class="status-card green">Je hebt <b>Pro</b> ${s.plan === 'lifetime' ? 'lifetime' : 'maandelijks'}. <a href="/?pin=${pin}" style="color:var(--ball);font-weight:600">Open scoreboard →</a></div>`;
+      // Nog steeds upgrade-paths tonen (bv. monthly → lifetime)
+      if (s.plan === 'lifetime') {
+        btnMonthly.classList.add('hidden');
+        btnLifetime.classList.add('hidden');
+      } else {
+        btnMonthly.classList.add('hidden');
+      }
+      btnTrial.classList.add('hidden');
+    } else if (s.state === 'trial') {
+      statusBox.innerHTML = `<div class="status-card green">Trial actief — nog <b>${s.days_left} dagen</b>. <a href="/?pin=${pin}" style="color:var(--ball);font-weight:600">Open scoreboard →</a></div>`;
+      btnTrial.classList.add('hidden');
+    } else if (s.state === 'expired') {
+      statusBox.innerHTML = `<div class="status-card red">Je trial of abonnement is verlopen. Kies hieronder hoe je doorgaat.</div>`;
+      btnTrial.classList.add('hidden');
+    } else {
+      // state === 'none'
+      if (s.trial_used) {
+        btnTrial.classList.add('hidden');
+      } else {
+        btnTrial.classList.remove('hidden');
+      }
+    }
+  }
+
+  btnTrial.addEventListener('click', async () => {
+    errEl.textContent = '';
+    btnTrial.disabled = true;
+    try {
+      const r = await fetch(`/api/license/start-trial?pin=${pin}`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent = data.error === 'trial_already_used'
+          ? 'Je trial is al eens gebruikt voor deze PIN.'
+          : 'Trial kon niet gestart worden.';
+        btnTrial.disabled = false;
+        return;
+      }
+      // Trial gestart — door naar scoreboard
+      window.location = `/?pin=${pin}`;
+    } catch (e) {
+      errEl.textContent = 'Netwerkfout — probeer opnieuw.';
+      btnTrial.disabled = false;
+    }
+  });
+
+  function startCheckout(plan, btn) {
+    errEl.textContent = '';
+    btn.disabled = true;
+    const url = `/api/license/checkout?pin=${encodeURIComponent(pin)}&plan=${plan}`;
+    fetch(url, { redirect: 'manual' }).then(r => {
+      if (r.status === 302 || r.type === 'opaqueredirect') {
+        window.location = url;
+      } else {
+        return r.json().then(j => {
+          errEl.textContent = j.error === 'LS not configured'
+            ? 'Betalen is nog niet geconfigureerd — probeer later opnieuw.'
+            : ('Fout: ' + (j.error || r.status));
+          btn.disabled = false;
+        });
+      }
+    }).catch(() => { window.location = url; });
+  }
+  btnMonthly.addEventListener('click', () => startCheckout('monthly', btnMonthly));
+  btnLifetime.addEventListener('click', () => startCheckout('lifetime', btnLifetime));
+
+  refresh();
+</script>
+</body>
+</html>
