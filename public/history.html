@@ -154,6 +154,12 @@
     font-variant-numeric: tabular-nums;
     margin-bottom: 12px;
   }
+  .flow-wrap { margin: 4px 0 12px; }
+  .flow-title {
+    color: var(--text-dim); font-size: 11px;
+    text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px;
+  }
+  .flow-chart { display: block; width: 100%; max-width: 100%; }
   .stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -596,6 +602,10 @@ const I18N = {
   last7days:    { nl:'Laatste 7 dagen',    en:'Last 7 days',        de:'Letzte 7 Tage',  es:'Últimos 7 días',   fr:'7 derniers jours' },
   bySport:      { nl:'Per sport',          en:'By sport',           de:'Pro Sport',      es:'Por deporte',      fr:'Par sport' },
   setTableTitle:{ nl:'Per set',            en:'Per set',            de:'Pro Satz',       es:'Por set',          fr:'Par set' },
+  flowTitle:    { nl:'Match flow',         en:'Match flow',         de:'Spielverlauf',   es:'Flujo del partido', fr:'Flux du match' },
+  totalPointsScored:{ nl:'Punten totaal',  en:'Points scored',      de:'Punkte total',   es:'Puntos totales',    fr:'Points totaux' },
+  avgDuration:  { nl:'Gem. duur',          en:'Avg duration',       de:'Ø Dauer',        es:'Duración media',    fr:'Durée moy.' },
+  bestComeback: { nl:'Beste comeback',     en:'Best comeback',      de:'Bestes Comeback',es:'Mejor remontada',   fr:'Meilleur retour' },
   setShort:     { nl:'S',                  en:'S',                  de:'S',              es:'S',                fr:'S' },
   hours:        { nl:'u',                  en:'h',                  de:'h',              es:'h',                fr:'h' },
   backBtn:      { nl:'← Terug',            en:'← Back',             de:'← Zurück',       es:'← Atrás',          fr:'← Retour' },
@@ -708,6 +718,27 @@ function renderSummary(matches) {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const last7 = matches.filter(m => m.savedAt >= cutoff).length;
 
+  // Aanvullende metrics — totaal punten, gemiddelde duur, grootste comeback
+  const totalPoints = matches.reduce((s, m) => s + (Number(m.totalPoints) || 0), 0);
+  const matchesWithDuration = matches.filter(m => Number(m.durationMin) > 0);
+  const avgDuration = matchesWithDuration.length > 0
+    ? Math.round(matchesWithDuration.reduce((s, m) => s + m.durationMin, 0) / matchesWithDuration.length)
+    : 0;
+
+  // Beste comeback: grootste deficit (vanuit Us-perspectief) die uiteindelijk
+  // werd ingehaald en winst opleverde. Vereist pointLog.
+  let bestComeback = 0;
+  for (const m of matches) {
+    if (!Array.isArray(m.pointLog) || !m.pointLog.length) continue;
+    if (!m.over || m.winner !== 0) continue;
+    let diff = 0, minDiff = 0;
+    for (const t of m.pointLog) {
+      diff += (Number(t) === 0 ? 1 : -1);
+      if (diff < minDiff) minDiff = diff;
+    }
+    if (Math.abs(minDiff) > bestComeback) bestComeback = Math.abs(minDiff);
+  }
+
   // Aggregaat per sport voor de breakdown-balkjes
   const sportAgg = {};
   for (const m of matches) {
@@ -756,6 +787,9 @@ function renderSummary(matches) {
       <div class="summary-stat"><div class="num ${winRateCls}">${winRateStr}</div><div class="lbl">${t('totalWinRate')}</div></div>
       <div class="summary-stat"><div class="num">${timeStr}</div><div class="lbl">${t('totalTime')}</div></div>
       <div class="summary-stat"><div class="num amber">${bestStreak || '—'}</div><div class="lbl">${t('bestStreak')}</div></div>
+      <div class="summary-stat"><div class="num">${totalPoints || '—'}</div><div class="lbl">${t('totalPointsScored')}</div></div>
+      <div class="summary-stat"><div class="num">${avgDuration ? avgDuration + ' ' + t('minutes') : '—'}</div><div class="lbl">${t('avgDuration')}</div></div>
+      <div class="summary-stat"><div class="num ${bestComeback ? 'green' : ''}">${bestComeback ? '+' + bestComeback : '—'}</div><div class="lbl">${t('bestComeback')}</div></div>
     </div>
     ${sportsHtml}
   `;
@@ -1202,6 +1236,14 @@ function renderMatchList(list, matches) {
       stats.push(`<div class="stat"><span class="stat-label">${t('sideSwitch')}</span><span class="stat-value">${m.sideSwitches}</span></div>`);
     }
 
+    // Match-flow chart: cumulatieve scoreverschuiving per punt (Us+1 / Them-1)
+    const flowAttr = (Array.isArray(m.pointLog) && m.pointLog.length > 1)
+      ? `data-flow="${m.pointLog.join(',')}"` : '';
+    const flowHtml = flowAttr
+      ? `<div class="flow-wrap"><div class="flow-title">${t('flowTitle') || 'Match flow'}</div>
+           <canvas class="flow-chart" ${flowAttr} height="64"></canvas>
+         </div>` : '';
+
     return `
       <div class="match ${cls}">
         <div class="match-head">
@@ -1217,11 +1259,86 @@ function renderMatchList(list, matches) {
           <div class="team them ${themWin ? 'winner' : ''}">${esc(teamThem)}</div>
         </div>
         ${history ? `<div class="set-history">${history}</div>` : ''}
+        ${flowHtml}
         <div class="stats">${stats.join('')}</div>
         ${renderSetTable(m)}
       </div>
     `;
   }).join('');
+
+  // Na render: alle flow-canvasses tekenen
+  list.querySelectorAll('canvas.flow-chart').forEach(c => drawFlowChart(c));
+}
+
+// Match-flow chart: line van cumulative score-diff (Us = +1, Them = -1).
+// Boven de baseline = Us was voor; onder = Them was voor.
+function drawFlowChart(canvas) {
+  const raw = canvas.getAttribute('data-flow') || '';
+  const pl = raw.split(',').map(s => Number(s) === 1 ? 1 : 0);
+  if (pl.length < 2) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const cssH = canvas.height || 64;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Cumulatieve diff: Us=0 wint → +1, Them=1 wint → -1
+  let diff = 0;
+  const pts = [0];
+  for (const t of pl) { diff += (t === 0 ? 1 : -1); pts.push(diff); }
+
+  const maxAbs = Math.max(1, ...pts.map(p => Math.abs(p)));
+  const padX = 6, padY = 6;
+  const innerW = cssW - 2 * padX;
+  const innerH = cssH - 2 * padY;
+  const midY = padY + innerH / 2;
+
+  // Zero-line
+  ctx.strokeStyle = 'rgba(127,174,159,.4)';
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padX, midY);
+  ctx.lineTo(padX + innerW, midY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Area fill (gradient): boven baseline = us color, onder = them color
+  const xAt = (i) => padX + (i / (pts.length - 1)) * innerW;
+  const yAt = (v) => midY - (v / maxAbs) * (innerH / 2);
+
+  // Subtle area fill
+  ctx.fillStyle = 'rgba(212,255,0,.08)';
+  ctx.beginPath();
+  ctx.moveTo(xAt(0), midY);
+  pts.forEach((v, i) => { ctx.lineTo(xAt(i), yAt(v)); });
+  ctx.lineTo(xAt(pts.length - 1), midY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Flow line
+  ctx.strokeStyle = '#d4ff00';
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = xAt(i), y = yAt(v);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Eindmarker
+  const lastV = pts[pts.length - 1];
+  ctx.fillStyle = lastV >= 0 ? '#d4ff00' : '#ff5a3c';
+  ctx.beginPath();
+  ctx.arc(xAt(pts.length - 1), yAt(lastV), 3, 0, Math.PI * 2);
+  ctx.fill();
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 

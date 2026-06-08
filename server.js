@@ -356,6 +356,9 @@ function snapshotForHistory(state) {
     teamUs: typeof state.teamUs === 'string' ? state.teamUs : 'Us',
     teamThem: typeof state.teamThem === 'string' ? state.teamThem : 'Them',
     lang: typeof state.lang === 'string' ? state.lang : 'en',
+    // pointLog: array van 0/1 per scorende team (volgorde = chronologisch).
+    // Gebruikt voor match-flow chart in /history.
+    pointLog: Array.isArray(state.history) ? state.history.map(n => Number(n) === 1 ? 1 : 0) : [],
   };
 }
 
