@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nieuw wachtwoord — RallyPoint</title>
+<link rel="stylesheet" href="/account/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Rally<span>Point</span></div>
+  <div class="tagline">Nieuw wachtwoord</div>
+  <div class="card">
+    <h1>Stel een nieuw wachtwoord in</h1>
+    <div class="sub">Hierna word je automatisch ingelogd.</div>
+    <form id="resetForm">
+      <label for="password">Nieuw wachtwoord (min 8 tekens)</label>
+      <input type="password" id="password" required minlength="8" autocomplete="new-password">
+      <button class="btn" type="submit">Wachtwoord opslaan</button>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="link-row">
+      <a href="/account/login">Terug naar inloggen</a>
+    </div>
+  </div>
+</div>
+<script>
+  // Token zit in URL: /account/reset/:token
+  const parts = location.pathname.split('/').filter(Boolean);
+  const token = parts[2] || new URLSearchParams(location.search).get('token') || '';
+  const form = document.getElementById('resetForm');
+  const errEl = document.getElementById('err');
+
+  if (!token) { errEl.textContent = 'Ongeldige resetlink.'; form.querySelector('button').disabled = true; }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const password = document.getElementById('password').value;
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/auth/reset', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ token, password })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent = data.error === 'invalid_token' ? 'Deze link is verlopen of ongeldig.' : 'Reset mislukt.';
+        btn.disabled = false; return;
+      }
+      window.location = '/account/login?reset=1';
+    } catch (e) {
+      errEl.textContent = 'Netwerkfout.';
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

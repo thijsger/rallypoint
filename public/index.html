@@ -496,13 +496,13 @@
   <div class="upgrade-overlay" id="upgradeOverlay">
     <div class="upgrade-card">
       <div class="upgrade-title">Rally<span>Point</span> Pro</div>
-      <div class="upgrade-sub" id="upgradeSub">Start je 7 dagen gratis trial</div>
+      <div class="upgrade-sub" id="upgradeSub">Start je 3 dagen gratis trial</div>
       <div class="upgrade-features">
         <b>Live scoreboard</b> · <b>spraak</b> · <b>geschiedenis</b> · <b>stats</b>
       </div>
       <div class="upgrade-plans">
         <button class="upgrade-plan-btn" id="upgradeTrialBtn">
-          <span>Start 7 dagen gratis <span class="trial-badge">geen kaart</span></span>
+          <span>Start 3 dagen gratis <span class="trial-badge">geen kaart</span></span>
         </button>
         <button class="upgrade-plan-btn" data-plan="monthly">
           <span>Maandelijks</span>
@@ -706,7 +706,13 @@ function applyLanguage(lang) {
 
 async function fetchMatch(pin) {
   const res = await fetch(`${SERVER_URL}/match/${pin}`);
-  if (res.status === 402) { const e = new Error('license_required'); e.licenseRequired = true; throw e; }
+  if (res.status === 402) {
+    const body = await res.json().catch(() => ({}));
+    const e = new Error('license_required');
+    e.licenseRequired = true;
+    e.licenseState = body.state || 'expired';
+    throw e;
+  }
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('serverfout');
   return res.json();
@@ -771,15 +777,13 @@ function showUpgradeModal(pin, status) {
   upgradeErr.textContent = '';
   const state = status && status.state;
   const trialUsed = !!(status && status.trial_used);
-  upgradeSub.textContent = (state === 'expired')
-    ? 'Je trial of abonnement is verlopen. Kies hieronder hoe je doorgaat.'
-    : 'Probeer 7 dagen gratis — geen creditcard nodig';
-  // Trial-button alleen tonen als state=none EN nog niet eens trial gebruikt
-  if (state === 'none' && !trialUsed) {
-    upgradeTrialBtn.style.display = '';
+  if (state === 'expired') {
+    upgradeSub.textContent = 'Je trial of abonnement is verlopen. Kies hieronder hoe je doorgaat.';
   } else {
-    upgradeTrialBtn.style.display = 'none';
+    upgradeSub.textContent = 'Probeer 3 dagen gratis — geen creditcard nodig';
   }
+  // Trial-button alleen als nog niet gebruikt en niet expired
+  upgradeTrialBtn.style.display = (state !== 'expired' && !trialUsed) ? '' : 'none';
   upgradeOverlay.classList.add('show');
 }
 function hideUpgradeModal() { upgradeOverlay.classList.remove('show'); upgradeForPin = null; }
@@ -796,16 +800,20 @@ upgradeTrialBtn.addEventListener('click', async () => {
   upgradeErr.textContent = '';
   upgradeTrialBtn.disabled = true;
   try {
-    const r = await fetch(`${SERVER_URL}/api/license/start-trial?pin=${encodeURIComponent(upgradeForPin)}`, { method: 'POST' });
+    const r = await fetch(`${SERVER_URL}/api/license/start-trial`, { method: 'POST' });
+    if (r.status === 401) {
+      // Niet ingelogd → naar login + return
+      window.location = `/account/login?next=${encodeURIComponent('/p/' + upgradeForPin)}`;
+      return;
+    }
     const data = await r.json();
     if (!r.ok) {
       upgradeErr.textContent = data.error === 'trial_already_used'
-        ? 'Je trial is al gebruikt voor deze PIN.'
+        ? 'Je trial is al gebruikt.'
         : 'Trial kon niet starten.';
       upgradeTrialBtn.disabled = false;
       return;
     }
-    // Trial actief — herlaad zodat connect-flow opnieuw start mét license
     window.location = `${location.pathname}?pin=${encodeURIComponent(upgradeForPin)}`;
   } catch (e) {
     upgradeErr.textContent = 'Netwerkfout — probeer opnieuw.';
@@ -872,6 +880,13 @@ connectBtn.addEventListener('click', async () => {
     await new Promise(r => setTimeout(r, 3000));
   }
 
+  // PIN nog niet aan account gekoppeld → stuur naar /p/PIN waar de coupling
+  // en account-flow leven (heeft eigen UX voor login + koppel).
+  if (licenseStatus && licenseStatus.state === 'unclaimed') {
+    window.location = `/p/${encodeURIComponent(pin)}`;
+    return;
+  }
+
   // Geen toegang? Modal openen en stoppen — fetchMatch zou toch 402 geven.
   if (licenseStatus && (licenseStatus.state === 'none' || licenseStatus.state === 'expired')) {
     delete connectBtn.dataset.busy;
@@ -893,7 +908,11 @@ connectBtn.addEventListener('click', async () => {
       delete connectBtn.dataset.busy;
       connectBtn.textContent = t('connect');
       connectBtn.disabled = false;
-      showUpgradeModal(pin, licenseStatus || { state: 'expired' });
+      if (e.licenseState === 'unclaimed') {
+        window.location = `/p/${encodeURIComponent(pin)}`;
+        return;
+      }
+      showUpgradeModal(pin, licenseStatus || { state: e.licenseState || 'expired' });
       return;
     }
     lastErr = 'net';

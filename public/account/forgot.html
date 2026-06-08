@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wachtwoord vergeten — RallyPoint</title>
+<link rel="stylesheet" href="/account/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Rally<span>Point</span></div>
+  <div class="tagline">Wachtwoord vergeten</div>
+  <div class="card">
+    <h1>Reset link aanvragen</h1>
+    <div class="sub">We sturen een resetlink naar je e-mailadres. De link is 1 uur geldig.</div>
+    <form id="forgotForm">
+      <label for="email">E-mailadres</label>
+      <input type="email" id="email" required autocomplete="email">
+      <button class="btn" type="submit">Stuur resetlink</button>
+      <div class="success" id="msg" style="display:none">Als dit e-mailadres bekend is, krijg je binnen enkele minuten een mail.</div>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="link-row">
+      <a href="/account/login">Terug naar inloggen</a>
+    </div>
+  </div>
+</div>
+<script>
+  const form = document.getElementById('forgotForm');
+  const errEl = document.getElementById('err');
+  const msgEl = document.getElementById('msg');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    errEl.textContent = ''; msgEl.style.display = 'none';
+    const email = document.getElementById('email').value.trim();
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    try {
+      await fetch('/api/auth/forgot', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ email })
+      });
+      msgEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = 'Netwerkfout.';
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>

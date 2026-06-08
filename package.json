@@ -1,12 +1,16 @@
 {
   "name": "padelsmash-server",
   "version": "1.0.0",
-  "description": "Live padel scorebord server met PIN-koppeling",
+  "description": "Live padel scorebord server met PIN-koppeling + accounts",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "bcryptjs": "^2.4.3"
   }
 }

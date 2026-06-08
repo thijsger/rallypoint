@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inloggen — RallyPoint</title>
+<link rel="stylesheet" href="/account/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Rally<span>Point</span></div>
+  <div class="tagline">Inloggen</div>
+  <div class="card">
+    <h1>Welkom terug</h1>
+    <div class="sub">Log in om je license en watches te beheren.</div>
+    <form id="loginForm">
+      <label for="email">E-mailadres</label>
+      <input type="email" id="email" required autocomplete="email">
+      <label for="password">Wachtwoord</label>
+      <input type="password" id="password" required autocomplete="current-password" minlength="8">
+      <button class="btn" type="submit">Inloggen</button>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="link-row">
+      <a href="/account/forgot">Wachtwoord vergeten?</a>
+    </div>
+    <div class="link-row" style="margin-top:.4rem">
+      Nieuw hier? <a href="/account/signup">Account aanmaken</a>
+    </div>
+  </div>
+</div>
+<script>
+  const next = new URLSearchParams(location.search).get('next') || '/account';
+  const form = document.getElementById('loginForm');
+  const errEl = document.getElementById('err');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    errEl.textContent = '';
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent = data.error === 'bad_credentials' ? 'E-mail of wachtwoord klopt niet.' : 'Inloggen mislukt.';
+        btn.disabled = false; return;
+      }
+      window.location = next;
+    } catch (e) {
+      errEl.textContent = 'Netwerkfout.';
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

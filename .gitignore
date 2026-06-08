@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+.env
+
+# Runtime data (lokaal — productie zit op /var/data via Render Disk)
+history.json
+licenses.json
+rallypoint.db
+rallypoint.db-shm
+rallypoint.db-wal
+tts/
