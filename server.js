@@ -40,16 +40,6 @@ const TTS_MAX_TEXT = 200;          // chars per phrase — voorkomt misbruik
 const TTS_MAX_CACHE_MB = 200;      // hoeveel disk-ruimte de cache maximaal pakt
 try { fs.mkdirSync(TTS_CACHE_DIR, { recursive: true }); } catch (e) {}
 
-// --- License / paywall (Lemon Squeezy + server-side trial) ---
-// Trial: 3d server-side, gebonden aan een account (1 trial per user ever).
-// Na trial: user kiest €2/mnd (LS subscription) of €10 lifetime (LS one-time).
-// LS "Has free trial" setting moet UIT staan op de monthly variant. Webhooks
-// zijn source of truth voor paid state.
-const LS_STORE_SLUG = process.env.LS_STORE_SLUG || '';                // bv. "rallypoint" → rallypoint.lemonsqueezy.com
-const LS_MONTHLY_VARIANT_ID = process.env.LS_MONTHLY_VARIANT_ID || '';
-const LS_LIFETIME_VARIANT_ID = process.env.LS_LIFETIME_VARIANT_ID || '';
-const LS_WEBHOOK_SECRET = process.env.LS_WEBHOOK_SECRET || '';
-const TRIAL_DAYS = 3;
 const BCRYPT_COST = 10;
 
 const matches = {}; // pin -> { state, updated }
@@ -83,152 +73,6 @@ console.log('[boot] history-pins loaded =', Object.keys(history).length);
 console.log('[boot] ELEVENLABS_API_KEY present =', !!ELEVENLABS_API_KEY);
 if (DATA_DIR === __dirname) {
   console.warn('[boot] WARNING: RENDER_DISK_PATH not set — history overleeft geen redeploy. Mount een Render Disk en zet de env-var.');
-}
-
-console.log('[boot] LS_STORE_SLUG =', LS_STORE_SLUG || '(not set)');
-console.log('[boot] LS_WEBHOOK_SECRET present =', !!LS_WEBHOOK_SECRET);
-
-// --- License-status uit DB ---
-// State per PIN: 'unclaimed' (PIN niet aan account gekoppeld), 'none' (account
-// maar geen license), 'trial', 'active', 'expired'.
-function licenseStateForPin(pin) {
-  const owner = db.getPinOwner(pin);
-  if (!owner) return { state: 'unclaimed', trial_used: false };
-  const lic = db.getLicense(owner.user_id);
-  if (!lic) return { state: 'none', trial_used: false, user_id: owner.user_id };
-
-  const now = Date.now();
-  const trialUsed = !!lic.trial_used_at;
-
-  if (lic.plan === 'lifetime' && lic.status === 'active') {
-    return { state: 'active', plan: 'lifetime', trial_used: trialUsed };
-  }
-  const expires = typeof lic.expires_at === 'number' ? lic.expires_at : null;
-  if (expires && now > expires) {
-    return { state: 'expired', plan: lic.plan || null, trial_used: trialUsed };
-  }
-  if (lic.status === 'trial') {
-    const daysLeft = expires ? Math.max(0, Math.ceil((expires - now) / (24*60*60*1000))) : 0;
-    return { state: 'trial', plan: null, days_left: daysLeft, trial_used: true };
-  }
-  if (lic.status === 'active' || lic.status === 'cancelled') {
-    return { state: 'active', plan: lic.plan || 'monthly', trial_used: trialUsed };
-  }
-  return { state: lic.status || 'expired', plan: lic.plan, trial_used: trialUsed };
-}
-
-function hasAccessByPin(pin) {
-  const s = licenseStateForPin(pin);
-  return s.state === 'trial' || s.state === 'active';
-}
-
-function sendLicenseRequired(res, pin) {
-  res.writeHead(402, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-  });
-  res.end(JSON.stringify({ error: 'license_required', pin, state: licenseStateForPin(pin).state }));
-}
-
-// Start trial voor een user. Idempotent. Eén trial per user ever.
-function startTrialForUser(userId) {
-  const lic = db.getLicense(userId) || {};
-  const now = Date.now();
-  // Al actieve license? Geef bestaande state terug.
-  if (lic.status === 'trial' || lic.status === 'active' || lic.status === 'cancelled') {
-    return { ok: true, alreadyActive: true };
-  }
-  if (lic.trial_used_at) {
-    return { ok: false, error: 'trial_already_used' };
-  }
-  const expires = now + (TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  db.upsertLicense(userId, {
-    status: 'trial',
-    plan: null,
-    trial_used_at: now,
-    trial_ends_at: expires,
-    expires_at: expires,
-  });
-  console.log('[trial] started user=' + userId + ' expires=' + new Date(expires).toISOString());
-  return { ok: true };
-}
-
-function lsCheckoutUrl(plan, userId, pin) {
-  const variantId = plan === 'lifetime' ? LS_LIFETIME_VARIANT_ID : LS_MONTHLY_VARIANT_ID;
-  if (!LS_STORE_SLUG || !variantId) return null;
-  // Custom data: user_id (gezagvol — webhook gebruikt dit) + pin (voor redirect-back).
-  const successUrl = encodeURIComponent(`https://rallypoint.pro/?pin=${pin || ''}&licensed=1`);
-  let url = `https://${LS_STORE_SLUG}.lemonsqueezy.com/checkout/buy/${variantId}` +
-            `?checkout[custom][user_id]=${encodeURIComponent(String(userId))}` +
-            `&checkout[success_url]=${successUrl}`;
-  if (pin) { url += `&checkout[custom][pin]=${encodeURIComponent(pin)}`; }
-  return url;
-}
-
-function handleLsWebhook(body, sigHeader) {
-  if (!LS_WEBHOOK_SECRET) return { code: 503, msg: 'Webhook secret not set' };
-  if (!sigHeader) return { code: 401, msg: 'No signature' };
-  const expected = crypto.createHmac('sha256', LS_WEBHOOK_SECRET).update(body).digest('hex');
-  try {
-    const sigBuf = Buffer.from(String(sigHeader), 'hex');
-    const expBuf = Buffer.from(expected, 'hex');
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      return { code: 401, msg: 'Bad signature' };
-    }
-  } catch (e) { return { code: 401, msg: 'Bad signature' }; }
-
-  let payload;
-  try { payload = JSON.parse(body.toString('utf8')); } catch (e) { return { code: 400, msg: 'Bad JSON' }; }
-
-  const event = payload.meta && payload.meta.event_name;
-  const custom = (payload.meta && payload.meta.custom_data) || {};
-  const data = payload.data || {};
-  const attrs = data.attributes || {};
-  const userIdRaw = custom.user_id;
-  const userId = userIdRaw ? Number(userIdRaw) : null;
-  if (!userId || !db.getUserById(userId)) {
-    console.warn('[webhook]', event, 'unknown user_id in custom_data:', userIdRaw);
-    return { code: 200, msg: 'OK (no user)' };
-  }
-
-  const now = Date.now();
-  const fields = { customer_email: attrs.user_email || undefined };
-
-  if (event === 'subscription_created') {
-    const trialEnds = attrs.trial_ends_at ? Date.parse(attrs.trial_ends_at) : null;
-    const renewsAt = attrs.renews_at ? Date.parse(attrs.renews_at) : null;
-    fields.plan = 'monthly';
-    fields.ls_subscription_id = String(data.id);
-    fields.expires_at = trialEnds || renewsAt || null;
-    fields.status = (trialEnds && trialEnds > now) ? 'trial' : 'active';
-  } else if (event === 'subscription_updated' || event === 'subscription_payment_success' || event === 'subscription_resumed') {
-    const renewsAt = attrs.renews_at ? Date.parse(attrs.renews_at) : null;
-    fields.plan = 'monthly';
-    if (renewsAt) { fields.expires_at = renewsAt; }
-    if (attrs.status === 'on_trial') { fields.status = 'trial'; }
-    else if (attrs.status === 'active') { fields.status = 'active'; }
-  } else if (event === 'subscription_cancelled') {
-    const endsAt = attrs.ends_at ? Date.parse(attrs.ends_at) : null;
-    fields.status = 'cancelled';
-    if (endsAt) { fields.expires_at = endsAt; }
-  } else if (event === 'subscription_expired') {
-    fields.status = 'expired';
-    fields.expires_at = now;
-  } else if (event === 'order_created') {
-    const isSubOrder = attrs.first_subscription_id != null;
-    if (isSubOrder) return { code: 200, msg: 'OK (subscription order, ignored)' };
-    fields.plan = 'lifetime';
-    fields.ls_order_id = String(data.id);
-    fields.status = 'active';
-    fields.expires_at = null;
-  } else {
-    console.log('[webhook] ignoring event:', event);
-    return { code: 200, msg: 'OK (ignored)' };
-  }
-
-  db.upsertLicense(userId, fields);
-  console.log('[webhook]', event, 'user=' + userId, 'status=' + fields.status, 'plan=' + fields.plan);
-  return { code: 200, msg: 'OK' };
 }
 
 // --- Auth helpers ---
@@ -553,9 +397,9 @@ const server = http.createServer((req, res) => {
     const text = decodeURIComponent(parts.slice(2).join('/'));
     const voice = url.searchParams.get('voice') || '';
     const pin = url.searchParams.get('pin') || '';
-    if (!validPin(pin) || !hasAccessByPin(pin)) {
-      res.writeHead(402, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      return res.end('License required');
+    if (!validPin(pin)) {
+      res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+      return res.end('Bad pin');
     }
     handleTts(req, res, lang, text, voice);
     return;
@@ -662,7 +506,21 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'couple-pin' && req.method === 'POST') {
       return readJsonBody(req).then(body => {
         const pin = String(body.pin || '');
+        const code = String(body.code || '').toLowerCase().trim();
         if (!validPin(pin)) return sendJSON(res, 400, { error: 'bad_pin' });
+        if (!/^[0-9a-f]{6}$/.test(code)) return sendJSON(res, 400, { error: 'bad_code' });
+
+        // Server moet de setup-code van deze PIN kennen — die wordt door de
+        // watch meegestuurd in /match POST. Geen code = watch nog niet
+        // geüpload sinds server-start → user moet eerst de watch-app openen.
+        const m = matches[pin];
+        if (!m || !m.setupCode) {
+          return sendJSON(res, 412, { error: 'watch_not_active' });
+        }
+        if (m.setupCode !== code) {
+          return sendJSON(res, 401, { error: 'bad_code' });
+        }
+
         const result = db.pairPin(pin, user.id);
         if (!result.ok) return sendJSON(res, 409, { error: result.error || 'cannot_pair' });
         return sendJSON(res, 200, { ok: true, pin, already_owned: !!result.alreadyOwned });
@@ -676,51 +534,6 @@ const server = http.createServer((req, res) => {
       if (!validPin(pin)) return sendJSON(res, 400, { error: 'bad_pin' });
       db.unpairPin(pin, user.id);
       return sendJSON(res, 200, { ok: true });
-    }
-    return sendJSON(res, 404, { error: 'Not found' });
-  }
-
-  // --- License API ---
-  if (parts[0] === 'api' && parts[1] === 'license') {
-    if (parts[2] === 'status' && req.method === 'GET') {
-      const pin = url.searchParams.get('pin') || '';
-      if (!validPin(pin)) { return sendJSON(res, 400, { error: 'Bad pin' }); }
-      return sendJSON(res, 200, licenseStateForPin(pin));
-    }
-    if (parts[2] === 'checkout' && req.method === 'GET') {
-      const user = getUserFromReq(req);
-      if (!user) {
-        // Niet ingelogd → stuur naar login met return-redirect
-        const plan = url.searchParams.get('plan') || '';
-        const next = encodeURIComponent('/api/license/checkout?plan=' + plan);
-        res.writeHead(302, { 'Location': '/account/login?next=' + next });
-        return res.end();
-      }
-      const plan = url.searchParams.get('plan') || '';
-      const pinParam = url.searchParams.get('pin') || '';
-      if (plan !== 'monthly' && plan !== 'lifetime') { return sendJSON(res, 400, { error: 'Bad plan' }); }
-      const target = lsCheckoutUrl(plan, user.id, validPin(pinParam) ? pinParam : '');
-      if (!target) { return sendJSON(res, 503, { error: 'LS not configured' }); }
-      res.writeHead(302, { 'Location': target });
-      return res.end();
-    }
-    if (parts[2] === 'start-trial' && req.method === 'POST') {
-      const user = getUserFromReq(req);
-      if (!user) return sendJSON(res, 401, { error: 'not_authenticated' });
-      const result = startTrialForUser(user.id);
-      if (!result.ok) return sendJSON(res, 409, { error: result.error || 'cannot_start_trial' });
-      return sendJSON(res, 200, { ok: true });
-    }
-    if (parts[2] === 'webhook' && req.method === 'POST') {
-      const chunks = []; let total = 0;
-      req.on('data', c => { chunks.push(c); total += c.length; if (total > 5e5) req.destroy(); });
-      req.on('end', () => {
-        const body = Buffer.concat(chunks);
-        const result = handleLsWebhook(body, req.headers['x-signature']);
-        res.writeHead(result.code, { 'Content-Type': 'text/plain' });
-        res.end(result.msg);
-      });
-      return;
     }
     return sendJSON(res, 404, { error: 'Not found' });
   }
@@ -758,19 +571,6 @@ const server = http.createServer((req, res) => {
     // Onbekend account-path: laat door naar static (bv. /account/style.css)
   }
 
-  // --- Payment landing page: /p/:pin (watch verwijst gebruiker hierheen)
-  if (parts[0] === 'p' && parts[1] && req.method === 'GET') {
-    const pin = parts[1];
-    if (!validPin(pin)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Pin niet geldig'); }
-    const filePath = path.join(__dirname, 'public', 'pay.html');
-    return fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
-      const html = data.toString('utf8').replace(/__PIN__/g, pin);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-    });
-  }
-
   // --- /history (zonder PIN) — serveer de pagina; JS toont een "vul PIN in" hint
   if (parts[0] === 'history' && !parts[1] && req.method === 'GET') {
     const filePath = path.join(__dirname, 'public', 'history.html');
@@ -797,12 +597,10 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'GET') {
-      if (!hasAccessByPin(pin)) { return sendLicenseRequired(res, pin); }
       const list = (history[pin] || []).slice().reverse(); // nieuwste eerst
       return sendJSON(res, 200, list);
     }
     if (req.method === 'DELETE') {
-      if (!hasAccessByPin(pin)) { return sendLicenseRequired(res, pin); }
       delete history[pin];
       delete seenSaveIds[pin];
       persistHistory();
@@ -857,11 +655,19 @@ const server = http.createServer((req, res) => {
           let autoArchived = prev.autoArchived;
           if (prev.wasOver && !state.over) { autoArchived = false; }
 
+          // Setup-code (immutable na 1e set) — voor account-coupling.
+          // Eenmaal gezet niet meer overschreven; voorkomt dat een aanvaller
+          // een gespoofte upload met fake code de coupling overneemt.
+          const incomingCode = (typeof state.setupCode === 'string' && /^[0-9a-f]{6}$/i.test(state.setupCode))
+            ? state.setupCode.toLowerCase() : null;
+          const keepCode = prev.setupCode || incomingCode || null;
+
           matches[pin] = {
             state,
             updated: Date.now(),
             wasOver: !!state.over,
             autoArchived,
+            setupCode: keepCode,
           };
           broadcast(pin, state);
 
