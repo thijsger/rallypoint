@@ -807,11 +807,10 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // --- Match API ---
+  // --- Match API (publiek — watch upload + live view zijn gratis) ---
   if (parts[0] === 'match' && parts[1]) {
     const pin = parts[1];
     if (!validPin(pin)) { return sendJSON(res, 400, { error: 'Pincode moet 4 cijfers zijn.' }); }
-    if (!hasAccessByPin(pin)) { return sendLicenseRequired(res, pin); }
 
     // Live updates (SSE)
     if (parts[2] === 'events' && req.method === 'GET') {

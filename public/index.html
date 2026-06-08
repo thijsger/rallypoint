@@ -99,6 +99,8 @@
   }
   .icon-btn:hover { border-color: var(--ball); transform: translateY(-1px); }
   .icon-btn.active { background: var(--ball); color: #052017; border-color: var(--ball); }
+  .icon-btn.locked { opacity: .55; }
+  .icon-btn.locked::after { content: ' 🔒'; }
   .voice-select {
     display: none; background: var(--panel); color: var(--ink);
     border: 1px solid var(--court-line); border-radius: 100px;
@@ -706,13 +708,6 @@ function applyLanguage(lang) {
 
 async function fetchMatch(pin) {
   const res = await fetch(`${SERVER_URL}/match/${pin}`);
-  if (res.status === 402) {
-    const body = await res.json().catch(() => ({}));
-    const e = new Error('license_required');
-    e.licenseRequired = true;
-    e.licenseState = body.state || 'expired';
-    throw e;
-  }
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('serverfout');
   return res.json();
@@ -832,6 +827,27 @@ function showTrialBanner(daysLeft, pin) {
 }
 function hideTrialBanner() { trialBanner.classList.remove('show'); }
 
+// Past Pro-feature UI toggles toe — TTS-knop en history-link worden visueel
+// 'locked' als de PIN geen actieve license heeft. Click op locked feature
+// opent de upgrade modal i.p.v. de feature te triggeren.
+let isPro = false;
+function applyProFeatures(status) {
+  const state = status && status.state;
+  isPro = (state === 'trial' || state === 'active');
+  const vb = document.getElementById('voiceBtn');
+  const hl = document.getElementById('historyLink');
+  const vs = document.getElementById('voiceSelect');
+  if (vb) {
+    vb.classList.toggle('locked', !isPro);
+    if (!isPro) { vb.title = 'Pro feature — upgrade om spraak in te schakelen'; }
+  }
+  if (hl) {
+    hl.classList.toggle('locked', !isPro);
+    if (!isPro) { hl.title = 'Pro feature — upgrade voor geschiedenis & stats'; }
+  }
+  if (vs && !isPro) { vs.classList.remove('show'); }
+}
+
 // PIN-invoer
 const boxes = [...document.querySelectorAll('.pin-box')];
 const connectBtn = document.getElementById('connectBtn');
@@ -880,41 +896,14 @@ connectBtn.addEventListener('click', async () => {
     await new Promise(r => setTimeout(r, 3000));
   }
 
-  // PIN nog niet aan account gekoppeld → stuur naar /p/PIN waar de coupling
-  // en account-flow leven (heeft eigen UX voor login + koppel).
-  if (licenseStatus && licenseStatus.state === 'unclaimed') {
-    window.location = `/p/${encodeURIComponent(pin)}`;
-    return;
-  }
-
-  // Geen toegang? Modal openen en stoppen — fetchMatch zou toch 402 geven.
-  if (licenseStatus && (licenseStatus.state === 'none' || licenseStatus.state === 'expired')) {
-    delete connectBtn.dataset.busy;
-    connectBtn.textContent = t('connect');
-    connectBtn.disabled = false;
-    errEl.textContent = '';
-    showUpgradeModal(pin, licenseStatus);
-    return;
-  }
-
-  // Server bereikbaar én license OK (trial/active). Match ophalen.
+  // Live view is publiek voor iedereen — geen blokkade op verbinden. Pro-
+  // features (TTS, history) worden hieronder per-feature gated obv status.
   let match = null;
   let lastErr = null;
   try {
     match = await fetchMatch(pin);
     if (!match) { lastErr = 'pin'; }
   } catch (e) {
-    if (e.licenseRequired) {
-      delete connectBtn.dataset.busy;
-      connectBtn.textContent = t('connect');
-      connectBtn.disabled = false;
-      if (e.licenseState === 'unclaimed') {
-        window.location = `/p/${encodeURIComponent(pin)}`;
-        return;
-      }
-      showUpgradeModal(pin, licenseStatus || { state: e.licenseState || 'expired' });
-      return;
-    }
     lastErr = 'net';
   }
 
@@ -932,11 +921,22 @@ connectBtn.addEventListener('click', async () => {
   document.getElementById('connectScreen').style.display = 'none';
   document.getElementById('board').classList.add('live');
   document.getElementById('boardPin').textContent = pin;
-  document.getElementById('historyLink').href = '/history/' + pin;   // directe deeplink
+  // History link: bij Pro = deeplink, anders click → upgrade modal
+  const hLink = document.getElementById('historyLink');
+  hLink.href = '/history/' + pin;
+  hLink.onclick = (e) => {
+    if (!isPro) {
+      e.preventDefault();
+      showUpgradeModal(pin, { state: 'none', trial_used: false });
+    }
+  };
   boardLive = true;
   acquireWakeLock();
   applyState(match);   // ook taal-switch + render in één keer
   startLive();
+
+  // Pro-features instellen op basis van license-status voor deze PIN
+  applyProFeatures(licenseStatus);
 
   // Trial-banner alleen tijdens trial; bij active/lifetime niets tonen
   if (licenseStatus && licenseStatus.state === 'trial') {
@@ -1353,7 +1353,12 @@ voiceSelect.addEventListener('change', () => {
   if (voiceOn) { speak(t('voiceSet')); }
 });
 
-voiceBtn.addEventListener('click', () => {
+voiceBtn.addEventListener('click', (e) => {
+  if (!isPro) {
+    showUpgradeModal(connectedPin || '', { state: 'none', trial_used: false });
+    e.preventDefault();
+    return;
+  }
   voiceOn = !voiceOn;
   localStorage.setItem('rallypointVoiceOn', voiceOn ? '1' : '0');
   audioUnlocked = true;     // klik telt als user-gesture
@@ -1392,6 +1397,7 @@ function voiceLangTag() {
 }
 
 function speak(text) {
+  if (!isPro) { return; }   // Pro-only feature — niet voorlezen voor free users
   if (!voiceOn || !text) { return; }
   if (serverTtsAvailable) {
     speakViaServer(text);
