@@ -5,20 +5,20 @@
 <title>RallyPoint — Match history</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e1216">
-<link rel="icon" href="data:,">
+<link rel="icon" href="/img/logo.png">
 <style>
   :root {
-    --bg: #0e1216;
-    --bg-card: #1a2028;
-    --bg-card-hover: #232a33;
-    --border: #2a323d;
-    --text: #e8edf3;
-    --text-dim: #8a96a6;
-    --us: #4fb3ff;
-    --them: #ff6b6b;
-    --amber: #ffb84a;
+    --bg: #000000;
+    --bg-card: #111111;
+    --bg-card-hover: #1a1a1a;
+    --border: #1f1f1f;
+    --text: #ffffff;
+    --text-dim: #7a7a7a;
+    --us: #c4ff00;
+    --them: #ff5a3c;
+    --amber: #c4ff00;
     --green: #4ade80;
-    --ball: #c4e94f;
+    --ball: #c4ff00;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -531,9 +531,12 @@
 </head>
 <body>
 <header>
-  <div>
-    <h1 id="title">Match history</h1>
-    <div class="pin-label"><span id="pinLabel">PIN</span> <span class="pin-value" id="pinValue">—</span></div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <img src="/img/logo.png" alt="" style="width:42px;height:42px;border-radius:8px;flex-shrink:0">
+    <div>
+      <h1 id="title">Match history</h1>
+      <div class="pin-label"><span id="pinLabel">PIN</span> <span class="pin-value" id="pinValue">—</span></div>
+    </div>
   </div>
   <div class="header-actions">
     <a class="back-link" id="backBtn" href="/">← Back</a>

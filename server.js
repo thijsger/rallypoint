@@ -132,6 +132,46 @@ function validEmail(e) {
 }
 function validPassword(p) { return typeof p === 'string' && p.length >= 8 && p.length <= 200; }
 
+// Aggregeert match-stats over alle PINs die aan deze user gekoppeld zijn.
+// Verzamelt totaal aantal, finished, wins, duration, points en sport-counts.
+function statsForUser(userId) {
+  const pins = db.getPinsForUser(userId).map(p => p.pin);
+  let total = 0, finished = 0, wins = 0, totalDuration = 0, totalPoints = 0;
+  let longestMatchPts = 0;
+  const sportCounts = {};
+  for (const pin of pins) {
+    const list = history[pin] || [];
+    for (const m of list) {
+      total++;
+      totalDuration += Number(m.durationMin) || 0;
+      totalPoints += Number(m.totalPoints) || 0;
+      if ((Number(m.totalPoints) || 0) > longestMatchPts) longestMatchPts = Number(m.totalPoints) || 0;
+      const sport = typeof m.sport === 'number' ? m.sport : 0;
+      sportCounts[sport] = (sportCounts[sport] || 0) + 1;
+      if (m.over && !m.manuallySaved) {
+        finished++;
+        if (m.winner === 0) wins++;
+      }
+    }
+  }
+  // Favorite sport: sport met de hoogste count
+  let favoriteSport = null, favoriteCount = 0;
+  for (const k of Object.keys(sportCounts)) {
+    if (sportCounts[k] > favoriteCount) { favoriteCount = sportCounts[k]; favoriteSport = Number(k); }
+  }
+  return {
+    total_matches: total,
+    finished_matches: finished,
+    wins,
+    win_rate: finished > 0 ? Math.round((wins / finished) * 100) : null,
+    total_duration_min: totalDuration,
+    total_points: totalPoints,
+    longest_match_pts: longestMatchPts,
+    most_played_sport: favoriteSport,
+    pin_count: pins.length,
+  };
+}
+
 let writeQueued = false;
 function persistHistory() {
   if (writeQueued) return;
@@ -535,6 +575,43 @@ const server = http.createServer((req, res) => {
       db.unpairPin(pin, user.id);
       return sendJSON(res, 200, { ok: true });
     }
+    if (parts[2] === 'profile' && req.method === 'GET') {
+      const pins = db.getPinsForUser(user.id).map(p => p.pin);
+      return sendJSON(res, 200, {
+        user_id: user.id,
+        email: user.email,
+        email_verified: !!user.email_verified,
+        display_name: user.display_name || null,
+        avatar_url: user.avatar_url || null,
+        favorite_sport: user.favorite_sport == null ? null : Number(user.favorite_sport),
+        created_at: user.created_at,
+        pins,
+        stats: statsForUser(user.id),
+      });
+    }
+    if (parts[2] === 'profile' && req.method === 'PATCH') {
+      return readJsonBody(req).then(body => {
+        const fields = {};
+        if (body.display_name !== undefined) {
+          const dn = String(body.display_name || '').trim().slice(0, 60);
+          fields.display_name = dn || null;
+        }
+        if (body.avatar_url !== undefined) {
+          const av = String(body.avatar_url || '').trim().slice(0, 500);
+          if (av && !/^https?:\/\//i.test(av)) return sendJSON(res, 400, { error: 'bad_avatar' });
+          fields.avatar_url = av || null;
+        }
+        if (body.favorite_sport !== undefined) {
+          const fs = body.favorite_sport == null ? null : Number(body.favorite_sport);
+          if (fs != null && (!Number.isInteger(fs) || fs < 0 || fs > 5)) {
+            return sendJSON(res, 400, { error: 'bad_sport' });
+          }
+          fields.favorite_sport = fs;
+        }
+        db.updateProfile(user.id, fields);
+        return sendJSON(res, 200, { ok: true });
+      }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
+    }
     return sendJSON(res, 404, { error: 'Not found' });
   }
 
@@ -559,7 +636,7 @@ const server = http.createServer((req, res) => {
       });
     }
     // Bekende page-namen → corresponderende HTML
-    const pages = { '': 'index.html', 'login': 'login.html', 'signup': 'signup.html', 'forgot': 'forgot.html', 'reset': 'reset.html' };
+    const pages = { '': 'index.html', 'login': 'login.html', 'signup': 'signup.html', 'forgot': 'forgot.html', 'reset': 'reset.html', 'profile': 'profile.html' };
     const pageKey = parts[1] || '';
     if (pages[pageKey] !== undefined && !parts[2]) {
       return fs.readFile(path.join(__dirname, 'public', 'account', pages[pageKey]), (err, data) => {

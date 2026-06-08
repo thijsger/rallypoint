@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profiel — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
+<link rel="stylesheet" href="/account/style.css">
+<style>
+  .profile-head {
+    display: flex; align-items: center; gap: 1.2rem; margin-bottom: 1.6rem;
+  }
+  .profile-head .meta { flex: 1; min-width: 0; }
+  .profile-head .name {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: 1.6rem; line-height: 1.1; margin-bottom: .25rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .profile-head .email { color: var(--muted); font-size: .85rem; }
+  .save-row { margin-top: .4rem; }
+</style>
+</head>
+<body>
+<div class="wrap-wide">
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
+
+  <nav class="subnav">
+    <a href="/account">Dashboard</a>
+    <a href="/account/profile" class="active">Profiel</a>
+    <a href="/" style="margin-left:auto">Scoreboard →</a>
+  </nav>
+
+  <div id="bannerSlot"></div>
+  <div class="loading" id="loading">Profiel laden…</div>
+
+  <div id="content" class="hidden">
+    <div class="card">
+      <div class="profile-head">
+        <span class="avatar lg" id="avatarPreview"></span>
+        <div class="meta">
+          <div class="name" id="displayName">—</div>
+          <div class="email" id="profileEmail"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Persoonlijke gegevens</h2>
+        <form id="profileForm">
+          <label for="displayNameInput">Weergavenaam</label>
+          <input type="text" id="displayNameInput" maxlength="60" placeholder="Hoe wil je heten?">
+
+          <label for="avatarUrlInput">Avatar URL (optioneel)</label>
+          <input type="url" id="avatarUrlInput" placeholder="https://...">
+
+          <label for="favoriteSportInput">Favoriete sport</label>
+          <select id="favoriteSportInput">
+            <option value="">— Geen voorkeur —</option>
+            <option value="0">Padel</option>
+            <option value="1">Tennis</option>
+            <option value="2">Pickleball</option>
+            <option value="3">Tafeltennis</option>
+            <option value="4">Badminton</option>
+            <option value="5">Squash</option>
+          </select>
+
+          <div class="save-row">
+            <button class="btn" type="submit">Opslaan</button>
+            <div class="success" id="saveMsg" style="display:none;margin-top:.6rem">Opgeslagen.</div>
+            <div class="err" id="saveErr"></div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section">
+        <h2>Mijn stats</h2>
+        <div class="stats-grid" id="statsGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const SPORTS = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+  const loading = document.getElementById('loading');
+  const content = document.getElementById('content');
+  const avatarPreview = document.getElementById('avatarPreview');
+  const displayName = document.getElementById('displayName');
+  const profileEmail = document.getElementById('profileEmail');
+  const displayNameInput = document.getElementById('displayNameInput');
+  const avatarUrlInput = document.getElementById('avatarUrlInput');
+  const favoriteSportInput = document.getElementById('favoriteSportInput');
+  const statsGrid = document.getElementById('statsGrid');
+  const saveMsg = document.getElementById('saveMsg');
+  const saveErr = document.getElementById('saveErr');
+
+  function avatarUrlFor(email, custom) {
+    if (custom) return custom;
+    // Dicebear-fallback: deterministische avatar uit email zonder Gravatar (privacy)
+    const seed = encodeURIComponent(email || 'rallypoint');
+    return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=111111&shape1Color=c4ff00&shape2Color=2a2a2a&shape3Color=ffffff`;
+  }
+
+  function fmtDuration(min) {
+    if (!min) return '0 min';
+    const h = Math.floor(min / 60), m = Math.round(min % 60);
+    return h > 0 ? `${h}u ${m}m` : `${m} min`;
+  }
+
+  async function load() {
+    let p;
+    try {
+      const r = await fetch('/api/account/profile');
+      if (r.status === 401) { window.location = '/account/login?next=/account/profile'; return; }
+      p = await r.json();
+    } catch (e) {
+      loading.textContent = 'Profiel kon niet geladen worden.';
+      return;
+    }
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+
+    // Header
+    displayName.textContent = p.display_name || p.email.split('@')[0];
+    profileEmail.textContent = p.email;
+    avatarPreview.style.backgroundImage = `url('${avatarUrlFor(p.email, p.avatar_url)}')`;
+
+    // Form
+    displayNameInput.value = p.display_name || '';
+    avatarUrlInput.value = p.avatar_url || '';
+    favoriteSportInput.value = p.favorite_sport == null ? '' : String(p.favorite_sport);
+
+    // Stats
+    const s = p.stats || {};
+    const tiles = [
+      { num: s.total_matches || 0, lbl: 'Matches' },
+      { num: s.win_rate != null ? s.win_rate + '%' : '—', lbl: 'Win-rate', accent: true },
+      { num: fmtDuration(s.total_duration_min || 0), lbl: 'Speeltijd' },
+      { num: s.total_points || 0, lbl: 'Punten totaal' },
+      { num: s.longest_match_pts || 0, lbl: 'Langste match' },
+      { num: s.most_played_sport != null ? SPORTS[s.most_played_sport] : '—', lbl: 'Favoriet' },
+      { num: s.pin_count || 0, lbl: 'Watches' },
+    ];
+    statsGrid.innerHTML = tiles.map(t =>
+      `<div class="stat-tile"><div class="num ${t.accent?'accent':''}">${t.num}</div><div class="lbl">${t.lbl}</div></div>`
+    ).join('');
+  }
+
+  // Live avatar preview when URL changes
+  avatarUrlInput.addEventListener('input', () => {
+    const v = avatarUrlInput.value.trim();
+    if (v) { avatarPreview.style.backgroundImage = `url('${v}')`; }
+  });
+
+  document.getElementById('profileForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    saveMsg.style.display = 'none'; saveErr.textContent = '';
+    const body = {
+      display_name: displayNameInput.value.trim(),
+      avatar_url: avatarUrlInput.value.trim(),
+      favorite_sport: favoriteSportInput.value === '' ? null : Number(favoriteSportInput.value),
+    };
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/account/profile', {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        saveErr.textContent =
+          data.error === 'bad_avatar' ? 'Avatar URL moet beginnen met http(s)://' :
+          data.error === 'bad_sport' ? 'Ongeldige sport-keuze.' :
+          'Opslaan mislukt.';
+        btn.disabled = false; return;
+      }
+      saveMsg.style.display = 'block';
+      load();   // refresh header
+    } catch (e) {
+      saveErr.textContent = 'Netwerkfout.';
+    }
+    btn.disabled = false;
+  });
+
+  load();
+</script>
+</body>
+</html>

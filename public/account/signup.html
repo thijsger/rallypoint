@@ -4,26 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Account aanmaken — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">Rally<span>Point</span></div>
-  <div class="tagline">Account aanmaken</div>
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
   <div class="card">
-    <h1>Maak je account aan</h1>
-    <div class="sub">Eén account voor al je watches en license-info.</div>
+    <h1>Account aanmaken</h1>
+    <div class="sub">Eén account voor al je watches en stats.</div>
     <form id="signupForm">
       <label for="email">E-mailadres</label>
       <input type="email" id="email" required autocomplete="email">
-      <label for="password">Wachtwoord (min 8 tekens)</label>
-      <input type="password" id="password" required autocomplete="new-password" minlength="8">
+      <label for="password">Wachtwoord</label>
+      <input type="password" id="password" required autocomplete="new-password" minlength="8" placeholder="Minimaal 8 tekens">
       <button class="btn" type="submit">Account aanmaken</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row">
-      Heb je al een account? <a href="/account/login">Inloggen</a>
-    </div>
+    <div class="link-row">Heb je al een account? <a href="/account/login">Inloggen</a></div>
   </div>
 </div>
 <script>

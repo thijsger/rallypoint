@@ -3,56 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mijn account — RallyPoint</title>
+<title>Dashboard — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
-<style>
-  .wrap { max-width: 520px; }
-  .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .9rem 0; border-bottom: 1px solid var(--court-line); }
-  .row:last-child { border-bottom: 0; }
-  .row-label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; }
-  .row-value { font-weight: 600; }
-  .section + .section { margin-top: 1.4rem; }
-  .section h2 {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.2rem;
-    text-transform: uppercase; letter-spacing: .04em; margin-bottom: .6rem; color: var(--ball);
-  }
-  .pin-input-row { display: flex; gap: .5rem; }
-  .pin-input-row input { flex: 1; margin-bottom: 0; text-align: center; letter-spacing: .3em; font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; }
-  .pin-input-row button { width: auto; padding: 0 1.4rem; }
-  .banner { background: rgba(212,255,0,.1); border: 1px solid var(--ball); color: var(--ball); padding: .7rem 1rem; border-radius: 10px; font-size: .85rem; margin-bottom: 1rem; }
-  .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
-  .actions .btn { width: auto; flex: 1; min-width: 140px; }
-  .small { font-size: .8rem; color: var(--muted); margin-top: .6rem; line-height: 1.4; }
-</style>
 </head>
 <body>
-<div class="wrap">
-  <div class="logo">Rally<span>Point</span></div>
-  <div class="tagline">Mijn account</div>
+<div class="wrap-wide">
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
+
+  <nav class="subnav">
+    <a href="/account" class="active">Dashboard</a>
+    <a href="/account/profile">Profiel</a>
+    <a href="/" style="margin-left:auto">Scoreboard →</a>
+  </nav>
 
   <div id="bannerSlot"></div>
 
-  <div class="card" id="content" style="display:none">
-    <div class="section">
-      <h2>Account</h2>
-      <div class="row"><span class="row-label">E-mail</span> <span class="row-value" id="userEmail"></span></div>
-      <div class="row"><span class="row-label">Geverifieerd</span> <span class="row-value" id="userVerified"></span></div>
-    </div>
-
-    <div class="section">
-      <h2>Watches</h2>
-      <ul class="pin-list" id="pinList"></ul>
-      <div class="pin-input-row">
-        <input type="text" id="pinInput" placeholder="PIN" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
-        <input type="text" id="codeInput" placeholder="Code" maxlength="6" pattern="[0-9a-fA-F]{6}" style="letter-spacing:.25em">
-        <button class="btn" id="couplePinBtn">Koppel</button>
+  <div id="content" class="hidden">
+    <div class="card">
+      <div class="section">
+        <h2>Account</h2>
+        <div class="row"><span class="row-label">E-mail</span><span class="row-value" id="userEmail"></span></div>
+        <div class="row"><span class="row-label">Status</span><span class="row-value" id="userVerified"></span></div>
       </div>
-      <div class="small">PIN en Code staan bovenaan het Setup-menu van je RallyPoint-app op de watch. Open de app eerst — anders kan de server de code niet verifiëren.</div>
-      <div class="err" id="pinErr"></div>
     </div>
 
-    <div class="section">
-      <button class="btn secondary" id="logoutBtn">Uitloggen</button>
+    <div class="card">
+      <div class="section">
+        <h2>Watches</h2>
+        <ul class="pin-list" id="pinList"></ul>
+        <div class="pin-input-row" style="margin-top:.6rem">
+          <input class="pin" type="text" id="pinInput" placeholder="PIN" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
+          <input type="text" id="codeInput" placeholder="Code" maxlength="6" pattern="[0-9a-fA-F]{6}" style="letter-spacing:.25em;text-transform:lowercase;text-align:center">
+          <button class="btn" id="couplePinBtn">Koppel</button>
+        </div>
+        <div class="info" style="margin-top:.8rem;margin-bottom:0">PIN en Code staan bovenaan het Setup-menu van je RallyPoint-app. Open de app eerst — anders kan de server de code niet verifiëren.</div>
+        <div class="err" id="pinErr"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section">
+        <h2>Sessie</h2>
+        <button class="btn secondary" id="logoutBtn">Uitloggen</button>
+      </div>
     </div>
   </div>
 </div>
@@ -65,11 +64,10 @@
   const pinInput = document.getElementById('pinInput');
   const pinErr = document.getElementById('pinErr');
 
-  // Banner (post-actie)
   const q = new URLSearchParams(location.search);
-  if (q.get('verified') === '1') bannerSlot.innerHTML = '<div class="banner">E-mail bevestigd. Welkom!</div>';
-  else if (q.get('verified') === '0') bannerSlot.innerHTML = '<div class="banner" style="border-color:var(--them);color:var(--them)">Bevestiglink ongeldig of verlopen.</div>';
-  else if (q.get('just_signed_up') === '1') bannerSlot.innerHTML = '<div class="banner">Account aangemaakt! Check je inbox voor een bevestigingsmail.</div>';
+  if (q.get('verified') === '1') bannerSlot.innerHTML = '<div class="banner success">E-mail bevestigd. Welkom!</div>';
+  else if (q.get('verified') === '0') bannerSlot.innerHTML = '<div class="banner err">Bevestiglink ongeldig of verlopen.</div>';
+  else if (q.get('just_signed_up') === '1') bannerSlot.innerHTML = '<div class="banner">Account aangemaakt. Check je inbox voor de bevestigingsmail.</div>';
 
   async function load() {
     let me;
@@ -78,34 +76,25 @@
       if (r.status === 401) { window.location = '/account/login'; return; }
       me = await r.json();
     } catch (e) {
-      bannerSlot.innerHTML = '<div class="banner" style="border-color:var(--them);color:var(--them)">Kon account niet laden.</div>';
+      bannerSlot.innerHTML = '<div class="banner err">Kon account niet laden.</div>';
       return;
     }
-    content.style.display = '';
+    content.classList.remove('hidden');
     userEmail.textContent = me.email;
     userVerified.innerHTML = me.email_verified
       ? '<span class="status-pill active">Geverifieerd</span>'
-      : '<span class="status-pill expired">Niet geverifieerd</span> <a href="#" id="resendVerify" style="color:var(--ball);font-size:.85rem;margin-left:.5rem">resend</a>';
+      : '<span class="status-pill expired">Niet geverifieerd</span>';
 
-    // PIN-lijst
     pinList.innerHTML = '';
     if (!me.pins || !me.pins.length) {
-      pinList.innerHTML = '<li style="opacity:.6;font-family:Outfit,sans-serif;font-size:.9rem;letter-spacing:0">Nog geen watches gekoppeld.</li>';
+      pinList.innerHTML = '<li style="opacity:.6;justify-content:center"><span style="font-family:Inter;font-size:.85rem;letter-spacing:0;color:var(--muted)">Nog geen watches gekoppeld.</span></li>';
     } else {
       for (const pin of me.pins) {
         const li = document.createElement('li');
-        li.innerHTML = `<span>${pin}</span><button data-pin="${pin}">Ontkoppel</button>`;
+        li.innerHTML = `<span class="pin-val">${pin}</span><button data-pin="${pin}">Ontkoppel</button>`;
         pinList.appendChild(li);
       }
     }
-
-    // Resend verify
-    const r1 = document.getElementById('resendVerify');
-    if (r1) r1.addEventListener('click', async e => {
-      e.preventDefault();
-      // Geen aparte endpoint nu — voor MVP doe forgot-flow als hint
-      alert('Check je inbox of mail support@rallypoint.pro');
-    });
   }
 
   document.getElementById('couplePinBtn').addEventListener('click', async () => {
@@ -123,12 +112,11 @@
       pinErr.textContent =
         data.error === 'pin_taken' ? 'Deze PIN is al gekoppeld aan een ander account.' :
         data.error === 'bad_code' ? 'Code klopt niet — check het Setup-menu op je watch.' :
-        data.error === 'watch_not_active' ? 'Open je RallyPoint-app op de watch (dan stuurt de watch de code naar de server) en probeer opnieuw.' :
+        data.error === 'watch_not_active' ? 'Open je RallyPoint-app op de watch en probeer opnieuw.' :
         'Koppelen mislukt.';
       return;
     }
-    pinInput.value = '';
-    document.getElementById('codeInput').value = '';
+    pinInput.value = ''; document.getElementById('codeInput').value = '';
     load();
   });
 

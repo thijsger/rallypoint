@@ -4,15 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inloggen — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">Rally<span>Point</span></div>
-  <div class="tagline">Inloggen</div>
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
   <div class="card">
-    <h1>Welkom terug</h1>
-    <div class="sub">Log in om je license en watches te beheren.</div>
+    <h1>Inloggen</h1>
+    <div class="sub">Welkom terug.</div>
     <form id="loginForm">
       <label for="email">E-mailadres</label>
       <input type="email" id="email" required autocomplete="email">
@@ -21,12 +26,8 @@
       <button class="btn" type="submit">Inloggen</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row">
-      <a href="/account/forgot">Wachtwoord vergeten?</a>
-    </div>
-    <div class="link-row" style="margin-top:.4rem">
-      Nieuw hier? <a href="/account/signup">Account aanmaken</a>
-    </div>
+    <div class="link-row"><a href="/account/forgot">Wachtwoord vergeten?</a></div>
+    <div class="link-row">Nieuw hier? <a href="/account/signup">Account aanmaken</a></div>
   </div>
 </div>
 <script>

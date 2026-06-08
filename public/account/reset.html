@@ -4,35 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nieuw wachtwoord — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">Rally<span>Point</span></div>
-  <div class="tagline">Nieuw wachtwoord</div>
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
   <div class="card">
-    <h1>Stel een nieuw wachtwoord in</h1>
-    <div class="sub">Hierna word je automatisch ingelogd.</div>
+    <h1>Nieuw wachtwoord</h1>
+    <div class="sub">Daarna log je opnieuw in.</div>
     <form id="resetForm">
-      <label for="password">Nieuw wachtwoord (min 8 tekens)</label>
-      <input type="password" id="password" required minlength="8" autocomplete="new-password">
+      <label for="password">Nieuw wachtwoord</label>
+      <input type="password" id="password" required minlength="8" autocomplete="new-password" placeholder="Minimaal 8 tekens">
       <button class="btn" type="submit">Wachtwoord opslaan</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row">
-      <a href="/account/login">Terug naar inloggen</a>
-    </div>
+    <div class="link-row"><a href="/account/login">Terug naar inloggen</a></div>
   </div>
 </div>
 <script>
-  // Token zit in URL: /account/reset/:token
   const parts = location.pathname.split('/').filter(Boolean);
   const token = parts[2] || new URLSearchParams(location.search).get('token') || '';
   const form = document.getElementById('resetForm');
   const errEl = document.getElementById('err');
-
   if (!token) { errEl.textContent = 'Ongeldige resetlink.'; form.querySelector('button').disabled = true; }
-
   form.addEventListener('submit', async e => {
     e.preventDefault();
     errEl.textContent = '';

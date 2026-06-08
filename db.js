@@ -94,6 +94,17 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
+// Profile fields toevoegen aan users tabel — idempotent door try/catch op
+// "duplicate column" errors (ALTER TABLE ADD COLUMN IF NOT EXISTS pas vanaf
+// SQLite 3.35, en niet altijd beschikbaar).
+function addColumnIfMissing(table, col, def) {
+  try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); }
+  catch (e) { if (!String(e.message).includes('duplicate column')) throw e; }
+}
+addColumnIfMissing('users', 'display_name', 'TEXT');
+addColumnIfMissing('users', 'avatar_url', 'TEXT');
+addColumnIfMissing('users', 'favorite_sport', 'INTEGER');
+
 // --- Eenmalige migratie: licenses.json → orphan_licenses ---
 function migrateLicensesJsonIfNeeded() {
   const done = db.prepare('SELECT value FROM settings WHERE key = ?').get('migrated_json');
@@ -178,6 +189,15 @@ const stmts = {
 
   getOrphansByEmail: db.prepare('SELECT * FROM orphan_licenses WHERE customer_email = ?'),
   deleteOrphan: db.prepare('DELETE FROM orphan_licenses WHERE pin = ?'),
+
+  updateProfile: db.prepare(`
+    UPDATE users SET
+      display_name = COALESCE(?, display_name),
+      avatar_url = COALESCE(?, avatar_url),
+      favorite_sport = COALESCE(?, favorite_sport),
+      updated_at = ?
+    WHERE id = ?
+  `),
 };
 
 // Periodieke cleanup van expired sessions (1× per uur)
@@ -300,6 +320,16 @@ function claimOrphansForUser(userId, email) {
   return { claimed };
 }
 
+function updateProfile(userId, fields) {
+  stmts.updateProfile.run(
+    fields.display_name === undefined ? null : (fields.display_name || null),
+    fields.avatar_url === undefined ? null : (fields.avatar_url || null),
+    fields.favorite_sport === undefined ? null : (fields.favorite_sport == null ? null : Number(fields.favorite_sport)),
+    Date.now(),
+    userId
+  );
+}
+
 module.exports = {
   randomHex,
   getUserById, getUserByEmail, createUser,
@@ -308,4 +338,5 @@ module.exports = {
   createSession, getSessionUser, deleteSession,
   pairPin, unpairPin, getPinOwner, getUserByPin, getPinsForUser,
   getLicense, upsertLicense, claimOrphansForUser,
+  updateProfile,
 };

@@ -4,33 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">RallyPoint Scoreboard</title>
+<link rel="icon" href="/img/logo.png">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
   :root {
-    --court: #0a4d3c;
-    --court-line: #2a8c6f;
-    --ball: #d4ff00;
-    --us: #d4ff00;
+    --court: #050505;
+    --court-line: #1f1f1f;
+    --ball: #c4ff00;
+    --us: #c4ff00;
     --them: #ff5a3c;
-    --ink: #f4fff9;
-    --muted: #7fae9f;
-    --panel: #073b2e;
+    --ink: #ffffff;
+    --muted: #7a7a7a;
+    --panel: #111111;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'Outfit', sans-serif;
-    background:
-      radial-gradient(ellipse at top, #0d5c47 0%, #062821 70%),
-      #062821;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #000000;
     color: var(--ink);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
   /* ---- Verbind-scherm ---- */
@@ -38,11 +38,16 @@
     text-align: center;
     animation: rise .6s ease both;
   }
+  .logo-img {
+    width: 88px; height: 88px;
+    display: block; margin: 0 auto .6rem;
+    border-radius: 16px;
+  }
   .logo {
     font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: clamp(2.5rem, 7vw, 5rem);
-    letter-spacing: .04em;
+    font-weight: 800;
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    letter-spacing: .02em;
     text-transform: uppercase;
     line-height: .95;
   }
@@ -413,6 +418,7 @@
 
   <!-- VERBIND-SCHERM -->
   <div class="connect" id="connectScreen">
+    <img class="logo-img" src="/img/logo.png" alt="">
     <div class="logo">Rally<span>Point</span></div>
     <div class="tagline" data-i18n="tagline">Live Scoreboard</div>
     <div class="pin-label" data-i18n="pinLabel">Enter the PIN from your watch</div>
