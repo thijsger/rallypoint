@@ -6,16 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e1216">
 <link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
 <style>
   :root {
-    --bg: #000000;
-    --bg-card: #111111;
-    --bg-card-hover: #1a1a1a;
-    --border: #1f1f1f;
+    --bg: #0c0f12;
+    --bg-card: #1a1f25;
+    --bg-card-hover: #232830;
+    --border: #2a3038;
     --text: #ffffff;
-    --text-dim: #7a7a7a;
+    --text-dim: #8b95a3;
     --us: #c4ff00;
-    --them: #ff5a3c;
+    --them: #ff6b54;
     --amber: #c4ff00;
     --green: #4ade80;
     --ball: #c4ff00;
@@ -84,9 +87,14 @@
   .empty {
     text-align: center;
     color: var(--text-dim);
-    padding: 80px 20px;
+    padding: 60px 20px;
     font-size: 15px;
     line-height: 1.6;
+    max-width: 360px; margin: 0 auto;
+  }
+  .empty-icon {
+    font-size: 3rem; line-height: 1; margin-bottom: 1rem;
+    filter: grayscale(.3);
   }
   .empty strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 17px; }
   .empty .pin {
@@ -551,6 +559,7 @@
 </header>
 <main id="main">
   <div class="empty" id="empty" style="display:none">
+    <div class="empty-icon">🎾</div>
     <strong id="emptyTitle">No matches yet</strong>
     <div id="emptyBody">Save a match on your watch to see it appear here.</div>
   </div>

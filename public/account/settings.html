@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instellingen — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
+<link rel="stylesheet" href="/account/style.css">
+<style>
+  .danger-card {
+    border-color: rgba(255,107,84,.3);
+    background: rgba(255,107,84,.04);
+  }
+  .danger-card h2 { color: var(--them); }
+  .checkbox-row {
+    display: flex; align-items: flex-start; gap: .6rem;
+    margin: 1rem 0; color: var(--muted-hi); font-size: .88rem;
+  }
+  .checkbox-row input { width: auto; margin: 0; flex-shrink: 0; margin-top: .15rem; }
+  .checkbox-row label {
+    margin: 0; text-transform: none; letter-spacing: 0; font-size: .88rem;
+    color: var(--muted-hi); font-weight: 400; line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <a href="/" style="text-decoration:none;color:inherit;display:inline-block">
+      <span class="brand-logo"></span>
+      <div class="brand-name">Rally<span>Point</span></div>
+    </a>
+  </div>
+
+  <nav class="subnav">
+    <a href="/account">Dashboard</a>
+    <a href="/account/profile">Profiel</a>
+    <a href="/account/settings" class="active">Instellingen</a>
+    <a href="/" style="margin-left:auto">Scoreboard →</a>
+  </nav>
+
+  <div class="card">
+    <h1>Wachtwoord wijzigen</h1>
+    <div class="sub">Na opslaan blijven andere apparaten ingelogd.</div>
+    <form id="pwForm">
+      <label for="curPw">Huidig wachtwoord</label>
+      <input type="password" id="curPw" required autocomplete="current-password">
+      <label for="newPw">Nieuw wachtwoord</label>
+      <input type="password" id="newPw" required minlength="8" autocomplete="new-password" placeholder="Min 8 tekens">
+      <button class="btn" type="submit">Wachtwoord opslaan</button>
+      <div class="success" id="pwOk" style="display:none">Wachtwoord gewijzigd.</div>
+      <div class="err" id="pwErr"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h1>E-mailadres wijzigen</h1>
+    <div class="sub">Je krijgt een verificatiemail op het nieuwe adres.</div>
+    <form id="emailForm">
+      <label for="newEmail">Nieuw e-mailadres</label>
+      <input type="email" id="newEmail" required>
+      <label for="curPwEmail">Huidig wachtwoord ter bevestiging</label>
+      <input type="password" id="curPwEmail" required autocomplete="current-password">
+      <button class="btn" type="submit">E-mail wijzigen</button>
+      <div class="success" id="emailOk" style="display:none">E-mailadres bijgewerkt. Check je inbox voor de bevestigingsmail.</div>
+      <div class="err" id="emailErr"></div>
+    </form>
+  </div>
+
+  <div class="card danger-card">
+    <h1>Account verwijderen</h1>
+    <div class="sub">Alle gegevens worden permanent verwijderd: account, gekoppelde watches, profiel. Match-history per PIN blijft bestaan (gekoppeld aan PIN, niet account).</div>
+    <form id="deleteForm">
+      <label for="curPwDel">Huidig wachtwoord</label>
+      <input type="password" id="curPwDel" required autocomplete="current-password">
+      <div class="checkbox-row">
+        <input type="checkbox" id="confirmDel" required>
+        <label for="confirmDel">Ja, ik weet het zeker — deze actie kan niet ongedaan worden gemaakt.</label>
+      </div>
+      <button class="btn danger" type="submit">Verwijder mijn account</button>
+      <div class="err" id="delErr"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.getElementById('pwForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const cur = document.getElementById('curPw').value;
+    const next = document.getElementById('newPw').value;
+    const errEl = document.getElementById('pwErr'), ok = document.getElementById('pwOk');
+    errEl.textContent = ''; ok.style.display = 'none';
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await fetch('/api/auth/change-password', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ current_password: cur, new_password: next }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent =
+          data.error === 'bad_current' ? 'Huidig wachtwoord klopt niet.' :
+          data.error === 'bad_password' ? 'Nieuw wachtwoord moet minstens 8 tekens zijn.' :
+          'Opslaan mislukt.';
+      } else {
+        ok.style.display = 'block';
+        e.target.reset();
+      }
+    } catch (_) { errEl.textContent = 'Netwerkfout.'; }
+    btn.disabled = false;
+  });
+
+  document.getElementById('emailForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const newEmail = document.getElementById('newEmail').value.trim();
+    const cur = document.getElementById('curPwEmail').value;
+    const errEl = document.getElementById('emailErr'), ok = document.getElementById('emailOk');
+    errEl.textContent = ''; ok.style.display = 'none';
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await fetch('/api/auth/change-email', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ new_email: newEmail, current_password: cur }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent =
+          data.error === 'bad_current' ? 'Wachtwoord klopt niet.' :
+          data.error === 'bad_email' ? 'Ongeldig e-mailadres.' :
+          data.error === 'email_taken' ? 'Dit e-mailadres is al in gebruik.' :
+          'Wijzigen mislukt.';
+      } else {
+        ok.style.display = 'block';
+        e.target.reset();
+      }
+    } catch (_) { errEl.textContent = 'Netwerkfout.'; }
+    btn.disabled = false;
+  });
+
+  document.getElementById('deleteForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!confirm('Weet je het zéker? Dit kan niet ongedaan worden gemaakt.')) return;
+    const cur = document.getElementById('curPwDel').value;
+    const errEl = document.getElementById('delErr');
+    errEl.textContent = '';
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await fetch('/api/auth/delete-account', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ current_password: cur }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent = data.error === 'bad_current' ? 'Wachtwoord klopt niet.' : 'Verwijderen mislukt.';
+        btn.disabled = false; return;
+      }
+      window.location = '/';
+    } catch (_) { errEl.textContent = 'Netwerkfout.'; btn.disabled = false; }
+  });
+</script>
+</body>
+</html>

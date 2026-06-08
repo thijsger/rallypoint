@@ -2,28 +2,36 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title data-i18n="pageTitle">RallyPoint Scoreboard</title>
 <link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RallyPoint">
+<link rel="apple-touch-icon" href="/img/logo.png">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
   :root {
-    --court: #050505;
-    --court-line: #1f1f1f;
+    --court: #0c0f12;
+    --court-line: #2a3038;
     --ball: #c4ff00;
     --us: #c4ff00;
-    --them: #ff5a3c;
+    --them: #ff6b54;
     --ink: #ffffff;
-    --muted: #7a7a7a;
-    --panel: #111111;
+    --muted: #8b95a3;
+    --panel: #1a1f25;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #000000;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(196,255,0,.04), transparent 60%),
+      #0c0f12;
     color: var(--ink);
     min-height: 100vh;
     display: flex;
@@ -69,15 +77,20 @@
   .pin-box:focus { outline: none; border-color: var(--ball); transform: translateY(-3px); }
 
   .btn {
-    background: var(--ball); color: #052017;
-    border: none; border-radius: 100px;
+    background: var(--ball); color: #0c0f12;
+    border: none; border-radius: 14px;
     font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700; font-size: 1.3rem;
-    letter-spacing: .08em; text-transform: uppercase;
-    padding: .9rem 3rem; cursor: pointer;
-    transition: transform .15s, box-shadow .15s;
+    font-weight: 700; font-size: 1.25rem;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 1.1rem 3rem; cursor: pointer; line-height: 1;
+    box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 6px 16px rgba(196,255,0,.18);
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
   }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212,255,0,.25); }
+  .btn:hover {
+    transform: translateY(-2px); background: #d4ff33;
+    box-shadow: 0 1px 0 rgba(255,255,255,.2) inset, 0 12px 32px rgba(196,255,0,.35);
+  }
+  .btn:active { transform: translateY(0); }
   .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
   .hint { color: var(--muted); margin-top: 1.6rem; font-size: .9rem; }
   .err { color: var(--them); margin-top: 1rem; font-size: .95rem; min-height: 1.2em; }
@@ -99,11 +112,24 @@
   .icon-btn {
     background: var(--panel); color: var(--ink);
     border: 1px solid var(--court-line); border-radius: 100px;
-    font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 500;
-    padding: .5rem 1rem; cursor: pointer; transition: border-color .2s, transform .1s;
+    font-family: 'Inter', sans-serif; font-size: .85rem; font-weight: 500;
+    padding: .5rem 1rem; cursor: pointer; text-decoration: none;
+    transition: border-color .15s, transform .12s, background .15s, color .15s;
   }
-  .icon-btn:hover { border-color: var(--ball); transform: translateY(-1px); }
-  .icon-btn.active { background: var(--ball); color: #052017; border-color: var(--ball); }
+  .icon-btn:hover {
+    border-color: var(--ball); transform: translateY(-1px);
+    background: #232830; color: var(--ball);
+  }
+  .icon-btn.active {
+    background: var(--ball); color: #0c0f12; border-color: var(--ball);
+    box-shadow: 0 4px 12px rgba(196,255,0,.25);
+  }
+  .icon-btn.icon-only { padding: .5rem .65rem; }
+  .icon-btn .avatar-mini {
+    display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+    background-size: cover; background-position: center;
+    vertical-align: middle; margin-right: .35rem;
+  }
   .voice-select {
     display: none; background: var(--panel); color: var(--ink);
     border: 1px solid var(--court-line); border-radius: 100px;
@@ -447,6 +473,7 @@
         <select class="voice-select" id="voiceSelect" data-i18n-title="voiceSelectTitle" title="Choose a voice"></select>
         <a class="icon-btn" id="historyLink" data-i18n="historyBtn" data-i18n-title="historyBtnTitle" title="Match history" href="/history">📋 History</a>
         <button class="icon-btn" id="fsBtn" data-i18n="fsEnter" data-i18n-title="fsEnterTitle" title="Fullscreen">⛶ Fullscreen</button>
+        <a class="icon-btn" id="profileLink" href="/account/profile" title="Mijn profiel"><span class="avatar-mini" id="profileAvatar"></span><span id="profileLabel">Profiel</span></a>
         <span class="live-dot"><span class="dot"></span> <span data-i18n="livePin">Live · PIN</span> <span id="boardPin"></span></span>
       </div>
     </div>
@@ -733,7 +760,30 @@ connectBtn.addEventListener('click', async () => {
   acquireWakeLock();
   applyState(match);   // ook taal-switch + render in één keer
   startLive();
+  hydrateProfileLink();
 });
+
+// Vult de profile-link rechtsboven met avatar + naam als user ingelogd is,
+// of stuurt 'm naar /account/login als niet. Fail-silent — link blijft
+// dan gewoon op /account/profile staan en server redirect zelf.
+async function hydrateProfileLink() {
+  try {
+    const r = await fetch('/api/account/profile');
+    if (r.status === 401) {
+      document.getElementById('profileLink').href = '/account/login?next=/account/profile';
+      document.getElementById('profileLabel').textContent = 'Inloggen';
+      return;
+    }
+    if (!r.ok) return;
+    const p = await r.json();
+    const avatar = document.getElementById('profileAvatar');
+    const label = document.getElementById('profileLabel');
+    const seed = encodeURIComponent(p.email || 'rp');
+    const fallback = `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=1a1f25&shape1Color=c4ff00&shape2Color=2a3038&shape3Color=ffffff`;
+    avatar.style.backgroundImage = `url('${p.avatar_url || fallback}')`;
+    if (p.display_name) { label.textContent = p.display_name; }
+  } catch (e) {}
+}
 
 // Live verbinding: elke 1,5s de stand ophalen van de server
 let prevState = null;

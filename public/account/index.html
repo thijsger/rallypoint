@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — RallyPoint</title>
 <link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
 </head>
 <body>
@@ -19,6 +22,7 @@
   <nav class="subnav">
     <a href="/account" class="active">Dashboard</a>
     <a href="/account/profile">Profiel</a>
+    <a href="/account/settings">Instellingen</a>
     <a href="/" style="margin-left:auto">Scoreboard →</a>
   </nav>
 
@@ -68,6 +72,9 @@
   if (q.get('verified') === '1') bannerSlot.innerHTML = '<div class="banner success">E-mail bevestigd. Welkom!</div>';
   else if (q.get('verified') === '0') bannerSlot.innerHTML = '<div class="banner err">Bevestiglink ongeldig of verlopen.</div>';
   else if (q.get('just_signed_up') === '1') bannerSlot.innerHTML = '<div class="banner">Account aangemaakt. Check je inbox voor de bevestigingsmail.</div>';
+  else if (q.get('onboarded') === '1') bannerSlot.innerHTML = '<div class="banner success">Je bent klaar — veel plezier!</div>';
+  else if (q.get('email_changed') === '1') bannerSlot.innerHTML = '<div class="banner success">E-mailadres bijgewerkt.</div>';
+  else if (q.get('pw_changed') === '1') bannerSlot.innerHTML = '<div class="banner success">Wachtwoord gewijzigd.</div>';
 
   async function load() {
     let me;
@@ -87,7 +94,12 @@
 
     pinList.innerHTML = '';
     if (!me.pins || !me.pins.length) {
-      pinList.innerHTML = '<li style="opacity:.6;justify-content:center"><span style="font-family:Inter;font-size:.85rem;letter-spacing:0;color:var(--muted)">Nog geen watches gekoppeld.</span></li>';
+      pinList.innerHTML = `
+        <li style="justify-content:center;padding:1.6rem 1rem;text-align:center;flex-direction:column;background:transparent;border-style:dashed">
+          <div style="font-size:2rem;line-height:1;margin-bottom:.6rem">⌚</div>
+          <div style="font-family:Inter;font-size:.95rem;letter-spacing:0;color:var(--ink);font-weight:500">Nog geen watches gekoppeld</div>
+          <div style="font-family:Inter;font-size:.8rem;letter-spacing:0;color:var(--muted);margin-top:.35rem;line-height:1.5">Open RallyPoint op je watch, kopieer <b style="color:var(--muted-hi)">PIN</b> en <b style="color:var(--muted-hi)">Code</b> uit het Setup-menu, en vul hieronder in.</div>
+        </li>`;
     } else {
       for (const pin of me.pins) {
         const li = document.createElement('li');

@@ -535,6 +535,51 @@ const server = http.createServer((req, res) => {
       res.writeHead(302, { 'Location': user ? '/account?verified=1' : '/account?verified=0' });
       return res.end();
     }
+    if (parts[2] === 'change-password' && req.method === 'POST') {
+      return readJsonBody(req).then(body => {
+        const user = getUserFromReq(req);
+        if (!user) return sendJSON(res, 401, { error: 'not_authenticated' });
+        const cur = String(body.current_password || '');
+        const next = String(body.new_password || '');
+        if (!validPassword(next)) return sendJSON(res, 400, { error: 'bad_password' });
+        if (!bcrypt.compareSync(cur, user.password_hash)) return sendJSON(res, 401, { error: 'bad_current' });
+        const hash = bcrypt.hashSync(next, BCRYPT_COST);
+        db.updatePassword(user.id, hash);
+        // Maak meteen een nieuwe sessie aan (updatePassword wist alle sessies)
+        const sess = db.createSession(user.id, 30);
+        setSessionCookie(res, sess.token, 30 * 24 * 60 * 60);
+        return sendJSON(res, 200, { ok: true });
+      }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
+    }
+    if (parts[2] === 'change-email' && req.method === 'POST') {
+      return readJsonBody(req).then(body => {
+        const user = getUserFromReq(req);
+        if (!user) return sendJSON(res, 401, { error: 'not_authenticated' });
+        const cur = String(body.current_password || '');
+        const newEmail = String(body.new_email || '').toLowerCase().trim();
+        if (!validEmail(newEmail)) return sendJSON(res, 400, { error: 'bad_email' });
+        if (!bcrypt.compareSync(cur, user.password_hash)) return sendJSON(res, 401, { error: 'bad_current' });
+        if (db.getUserByEmail(newEmail) && newEmail !== user.email) return sendJSON(res, 409, { error: 'email_taken' });
+        // Direct updaten + verify-mail naar nieuw adres sturen
+        try {
+          db.changeEmail(user.id, newEmail);
+        } catch (e) { return sendJSON(res, 500, { error: 'change_failed' }); }
+        const refreshed = db.getUserById(user.id);
+        emailer.sendVerifyEmail(newEmail, refreshed.verify_token).catch(e => console.error('[change-email] mail fail:', e && e.message));
+        return sendJSON(res, 200, { ok: true });
+      }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
+    }
+    if (parts[2] === 'delete-account' && req.method === 'POST') {
+      return readJsonBody(req).then(body => {
+        const user = getUserFromReq(req);
+        if (!user) return sendJSON(res, 401, { error: 'not_authenticated' });
+        const cur = String(body.current_password || '');
+        if (!bcrypt.compareSync(cur, user.password_hash)) return sendJSON(res, 401, { error: 'bad_current' });
+        db.deleteUser(user.id);   // cascades naar sessions, account_pins, licenses
+        clearSessionCookie(res);
+        return sendJSON(res, 200, { ok: true });
+      }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
+    }
     return sendJSON(res, 404, { error: 'Not found' });
   }
 
@@ -615,6 +660,18 @@ const server = http.createServer((req, res) => {
     return sendJSON(res, 404, { error: 'Not found' });
   }
 
+  // --- Legal pages (/about, /privacy, /terms)
+  if (parts[0] && !parts[1] && req.method === 'GET') {
+    const legal = { 'about': 'about.html', 'privacy': 'privacy.html', 'terms': 'terms.html' };
+    if (legal[parts[0]]) {
+      return fs.readFile(path.join(__dirname, 'public', 'legal', legal[parts[0]]), (err, data) => {
+        if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(data);
+      });
+    }
+  }
+
   // --- Account pages (/account, /account/login, /account/signup, etc.)
   // Verify-link en reset/:token zijn speciale paths; rest is static HTML serven.
   // CSS en andere assets vallen door naar de static handler onderaan.
@@ -636,7 +693,11 @@ const server = http.createServer((req, res) => {
       });
     }
     // Bekende page-namen → corresponderende HTML
-    const pages = { '': 'index.html', 'login': 'login.html', 'signup': 'signup.html', 'forgot': 'forgot.html', 'reset': 'reset.html', 'profile': 'profile.html' };
+    const pages = {
+      '': 'index.html', 'login': 'login.html', 'signup': 'signup.html',
+      'forgot': 'forgot.html', 'reset': 'reset.html', 'profile': 'profile.html',
+      'onboarding': 'onboarding.html', 'settings': 'settings.html',
+    };
     const pageKey = parts[1] || '';
     if (pages[pageKey] !== undefined && !parts[2]) {
       return fs.readFile(path.join(__dirname, 'public', 'account', pages[pageKey]), (err, data) => {

@@ -330,6 +330,21 @@ function updateProfile(userId, fields) {
   );
 }
 
+// Wijzig e-mailadres + reset verified-status + nieuwe verify-token zodat user
+// 't nieuwe adres moet bevestigen. Roept caller om de mail te versturen.
+function changeEmail(userId, newEmail) {
+  const verifyToken = randomHex(24);
+  db.prepare(`
+    UPDATE users SET email = ?, email_verified = 0, verify_token = ?, updated_at = ?
+    WHERE id = ?
+  `).run(String(newEmail).toLowerCase(), verifyToken, Date.now(), userId);
+}
+
+function deleteUser(userId) {
+  // FOREIGN KEYs in sessions/account_pins/licenses cascaden door ON DELETE CASCADE.
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+}
+
 module.exports = {
   randomHex,
   getUserById, getUserByEmail, createUser,
@@ -338,5 +353,5 @@ module.exports = {
   createSession, getSessionUser, deleteSession,
   pairPin, unpairPin, getPinOwner, getUserByPin, getPinsForUser,
   getLicense, upsertLicense, claimOrphansForUser,
-  updateProfile,
+  updateProfile, changeEmail, deleteUser,
 };

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welkom — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
+<link rel="stylesheet" href="/account/style.css">
+<style>
+  .steps-dots {
+    display: flex; justify-content: center; gap: .5rem; margin-bottom: 1.4rem;
+  }
+  .step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border-hi); transition: all .2s;
+  }
+  .step-dot.active { background: var(--ball); width: 28px; border-radius: 4px; }
+  .step-dot.done { background: var(--ball-dim); }
+  .step { display: none; animation: rise .3s ease both; }
+  .step.active { display: block; }
+  .step-num {
+    color: var(--ball); font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: .85rem; letter-spacing: .15em; text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+  .step-actions { display: flex; gap: .6rem; margin-top: 1rem; }
+  .step-actions .btn { flex: 1; }
+  .skip-link {
+    text-align: center; margin-top: 1rem; color: var(--muted); font-size: .85rem;
+  }
+  .skip-link a { color: var(--muted-hi); cursor: pointer; text-decoration: underline; }
+  .hero {
+    text-align: center; padding: 1rem 0;
+  }
+  .hero-logo { width: 96px; height: 96px; border-radius: 20px; margin-bottom: 1.2rem; }
+  .hero h1 {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+    font-size: 2rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1;
+    margin-bottom: .6rem;
+  }
+  .hero h1 span { color: var(--ball); }
+  .hero p { color: var(--muted-hi); margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="steps-dots">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+    </div>
+
+    <!-- Step 0: Welkom -->
+    <div class="step active" data-step-content="0">
+      <div class="hero">
+        <img src="/img/logo.png" class="hero-logo" alt="">
+        <h1>Welkom bij Rally<span>Point</span></h1>
+        <p>Twee snelle stappen om je account klaar te zetten.</p>
+      </div>
+      <div class="step-actions">
+        <button class="btn" id="startBtn">Aan de slag</button>
+      </div>
+      <div class="skip-link"><a id="skipAll">Overslaan, ga naar dashboard</a></div>
+    </div>
+
+    <!-- Step 1: Profiel -->
+    <div class="step" data-step-content="1">
+      <div class="step-num">Stap 1 van 2</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem">Je profiel</h1>
+      <div class="sub">Persoonlijke info — kun je later wijzigen.</div>
+
+      <label for="displayName">Hoe heet je?</label>
+      <input type="text" id="displayName" placeholder="Bijv. Thijs" maxlength="60">
+
+      <label for="sport">Favoriete sport</label>
+      <select id="sport">
+        <option value="">— Kies een sport —</option>
+        <option value="0">Padel</option>
+        <option value="1">Tennis</option>
+        <option value="2">Pickleball</option>
+        <option value="3">Tafeltennis</option>
+        <option value="4">Badminton</option>
+        <option value="5">Squash</option>
+      </select>
+
+      <div class="step-actions">
+        <button class="btn secondary" id="skipStep1">Overslaan</button>
+        <button class="btn" id="saveStep1">Volgende</button>
+      </div>
+      <div class="err" id="step1Err"></div>
+    </div>
+
+    <!-- Step 2: Watch koppelen -->
+    <div class="step" data-step-content="2">
+      <div class="step-num">Stap 2 van 2</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem">Koppel je watch</h1>
+      <div class="sub">Open de RallyPoint-app op je horloge en kopieer <b style="color:var(--ink)">PIN</b> en <b style="color:var(--ink)">Code</b> uit het Setup-menu.</div>
+
+      <label for="pin">PIN (4 cijfers)</label>
+      <input type="text" id="pin" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;letter-spacing:.3em;text-align:center">
+
+      <label for="code">Code (6 tekens)</label>
+      <input type="text" id="code" placeholder="------" maxlength="6" pattern="[0-9a-fA-F]{6}" style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;letter-spacing:.3em;text-align:center;text-transform:lowercase">
+
+      <div class="step-actions">
+        <button class="btn secondary" id="skipStep2">Sla over</button>
+        <button class="btn" id="saveStep2">Koppelen</button>
+      </div>
+      <div class="err" id="step2Err"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentStep = 0;
+  function setStep(n) {
+    currentStep = n;
+    document.querySelectorAll('.step').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.stepContent) === n);
+    });
+    document.querySelectorAll('.step-dot').forEach(el => {
+      const idx = Number(el.dataset.step);
+      el.classList.toggle('active', idx === n);
+      el.classList.toggle('done', idx < n);
+    });
+  }
+  function finish() { window.location = '/account?onboarded=1'; }
+
+  document.getElementById('startBtn').addEventListener('click', () => setStep(1));
+  document.getElementById('skipAll').addEventListener('click', finish);
+
+  document.getElementById('skipStep1').addEventListener('click', () => setStep(2));
+  document.getElementById('saveStep1').addEventListener('click', async () => {
+    const dn = document.getElementById('displayName').value.trim();
+    const sp = document.getElementById('sport').value;
+    const errEl = document.getElementById('step1Err');
+    errEl.textContent = '';
+    try {
+      const r = await fetch('/api/account/profile', {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          display_name: dn || null,
+          favorite_sport: sp === '' ? null : Number(sp),
+        }),
+      });
+      if (!r.ok) { errEl.textContent = 'Opslaan mislukt.'; return; }
+      setStep(2);
+    } catch (e) { errEl.textContent = 'Netwerkfout.'; }
+  });
+
+  document.getElementById('skipStep2').addEventListener('click', finish);
+  document.getElementById('saveStep2').addEventListener('click', async () => {
+    const pin = document.getElementById('pin').value.trim();
+    const code = (document.getElementById('code').value || '').trim().toLowerCase();
+    const errEl = document.getElementById('step2Err');
+    errEl.textContent = '';
+    if (!/^\d{4}$/.test(pin)) { errEl.textContent = 'PIN moet 4 cijfers zijn.'; return; }
+    if (!/^[0-9a-f]{6}$/.test(code)) { errEl.textContent = 'Code moet 6 tekens zijn (0-9, a-f).'; return; }
+    try {
+      const r = await fetch('/api/account/couple-pin', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ pin, code }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent =
+          data.error === 'pin_taken' ? 'Deze PIN is al gekoppeld aan een ander account.' :
+          data.error === 'bad_code' ? 'Code klopt niet — check de watch.' :
+          data.error === 'watch_not_active' ? 'Open de RallyPoint-app op je watch en probeer opnieuw.' :
+          'Koppelen mislukt.';
+        return;
+      }
+      finish();
+    } catch (e) { errEl.textContent = 'Netwerkfout.'; }
+  });
+</script>
+</body>
+</html>
