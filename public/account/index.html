@@ -59,6 +59,12 @@
     </div>
   </div>
 </div>
+
+<footer class="app-footer">
+  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+</footer>
+
+<script src="/account/toast.js"></script>
 <script>
   const bannerSlot = document.getElementById('bannerSlot');
   const content = document.getElementById('content');
@@ -69,12 +75,29 @@
   const pinErr = document.getElementById('pinErr');
 
   const q = new URLSearchParams(location.search);
-  if (q.get('verified') === '1') bannerSlot.innerHTML = '<div class="banner success">E-mail bevestigd. Welkom!</div>';
-  else if (q.get('verified') === '0') bannerSlot.innerHTML = '<div class="banner err">Bevestiglink ongeldig of verlopen.</div>';
-  else if (q.get('just_signed_up') === '1') bannerSlot.innerHTML = '<div class="banner">Account aangemaakt. Check je inbox voor de bevestigingsmail.</div>';
-  else if (q.get('onboarded') === '1') bannerSlot.innerHTML = '<div class="banner success">Je bent klaar — veel plezier!</div>';
-  else if (q.get('email_changed') === '1') bannerSlot.innerHTML = '<div class="banner success">E-mailadres bijgewerkt.</div>';
-  else if (q.get('pw_changed') === '1') bannerSlot.innerHTML = '<div class="banner success">Wachtwoord gewijzigd.</div>';
+  // Post-actie meldingen als toast — clean URL na 1× tonen
+  function flashFromQuery() {
+    const msgs = {
+      verified_1: ['E-mail bevestigd. Welkom!', 'success'],
+      verified_0: ['Bevestiglink ongeldig of verlopen.', 'err'],
+      just_signed_up: ['Account aangemaakt. Check je inbox voor de bevestigingsmail.', 'info'],
+      onboarded: ['Je bent klaar — veel plezier!', 'success'],
+      email_changed: ['E-mailadres bijgewerkt.', 'success'],
+      pw_changed: ['Wachtwoord gewijzigd.', 'success'],
+    };
+    const fired = [];
+    if (q.get('verified') === '1') fired.push('verified_1');
+    if (q.get('verified') === '0') fired.push('verified_0');
+    if (q.get('just_signed_up') === '1') fired.push('just_signed_up');
+    if (q.get('onboarded') === '1') fired.push('onboarded');
+    if (q.get('email_changed') === '1') fired.push('email_changed');
+    if (q.get('pw_changed') === '1') fired.push('pw_changed');
+    fired.forEach((k, i) => setTimeout(() => toast(msgs[k][0], msgs[k][1]), i * 150));
+    if (fired.length) {
+      history.replaceState({}, '', location.pathname);
+    }
+  }
+  setTimeout(flashFromQuery, 50);
 
   async function load() {
     let me;
@@ -129,6 +152,7 @@
       return;
     }
     pinInput.value = ''; document.getElementById('codeInput').value = '';
+    toast('Watch gekoppeld', 'success');
     load();
   });
 

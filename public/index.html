@@ -99,36 +99,73 @@
   .board { display: none; width: 100%; height: 100vh; flex-direction: column; padding: 2.5vh 3vw; }
   .board.live { display: flex; animation: rise .5s ease both; }
 
-  .board-top { display: flex; justify-content: space-between; align-items: center; }
-  .board-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: 1.6rem; }
+  .board-top {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .75rem; flex-wrap: wrap;
+  }
+  .board-title-wrap { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+  .board-logo {
+    width: 32px; height: 32px; border-radius: 7px;
+    background: url('/img/logo.png') center/cover;
+    flex-shrink: 0;
+  }
+  .board-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; font-size: 1.35rem;
+    line-height: 1; white-space: nowrap;
+  }
   .board-title span { color: var(--ball); }
   .board-sport {
-    color: var(--muted) !important; font-weight: 500; font-size: .7em;
-    letter-spacing: .15em; margin-left: .7rem; padding-left: .7rem;
+    color: var(--muted) !important; font-weight: 500; font-size: .68em;
+    letter-spacing: .15em; margin-left: .6rem; padding-left: .6rem;
     border-left: 1px solid var(--court-line);
   }
-  .live-dot { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .85rem; letter-spacing: .15em; text-transform: uppercase; }
-  .top-right { display: flex; align-items: center; gap: 1rem; }
+  .live-pin {
+    display: inline-flex; align-items: center; gap: .5rem;
+    color: var(--muted); font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+    padding: .35rem .7rem; background: var(--panel); border: 1px solid var(--court-line);
+    border-radius: 100px;
+  }
+  .live-pin .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ball);
+    box-shadow: 0 0 8px var(--ball); animation: pulse 2s ease-in-out infinite;
+  }
+  .live-pin b { color: var(--ink); font-weight: 600; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; letter-spacing: .1em; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .top-right { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
   .icon-btn {
     background: var(--panel); color: var(--ink);
-    border: 1px solid var(--court-line); border-radius: 100px;
-    font-family: 'Inter', sans-serif; font-size: .85rem; font-weight: 500;
-    padding: .5rem 1rem; cursor: pointer; text-decoration: none;
-    transition: border-color .15s, transform .12s, background .15s, color .15s;
+    border: 1px solid var(--court-line); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: .82rem; font-weight: 500;
+    padding: .55rem .75rem; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: .4rem; line-height: 1;
+    transition: border-color .15s, background .15s, color .15s, transform .12s;
   }
+  .icon-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
   .icon-btn:hover {
-    border-color: var(--ball); transform: translateY(-1px);
-    background: #232830; color: var(--ball);
+    border-color: var(--border-hi, #3a414c); background: var(--panel-hi, #232830);
+    transform: translateY(-1px);
   }
   .icon-btn.active {
     background: var(--ball); color: #0c0f12; border-color: var(--ball);
-    box-shadow: 0 4px 12px rgba(196,255,0,.25);
+    box-shadow: 0 4px 12px rgba(196,255,0,.22);
   }
-  .icon-btn.icon-only { padding: .5rem .65rem; }
+  .icon-btn.avatar-btn { padding: .35rem; padding-right: .65rem; }
   .icon-btn .avatar-mini {
-    display: inline-block; width: 18px; height: 18px; border-radius: 50%;
-    background-size: cover; background-position: center;
-    vertical-align: middle; margin-right: .35rem;
+    display: inline-block; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--ball-dim, #95c200) center/cover;
+    flex-shrink: 0;
+  }
+  .icon-btn .label-text { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .icon-btn .label-text { display: none; }
+    .icon-btn { padding: .5rem .6rem; }
+    .icon-btn.avatar-btn { padding: .3rem; }
+    .board-title { font-size: 1.1rem; }
+    .board-logo { width: 28px; height: 28px; }
+    .live-pin { font-size: .7rem; padding: .25rem .55rem; gap: .35rem; }
+    .live-pin b { font-size: .85rem; }
   }
   .voice-select {
     display: none; background: var(--panel); color: var(--ink);
@@ -467,14 +504,29 @@
   <!-- SCOREBORD -->
   <div class="board" id="board">
     <div class="board-top">
-      <div class="board-title">Rally<span>Point</span><span class="board-sport" id="boardSport"></span></div>
+      <div class="board-title-wrap">
+        <span class="board-logo" aria-hidden="true"></span>
+        <div class="board-title">Rally<span>Point</span><span class="board-sport" id="boardSport"></span></div>
+      </div>
       <div class="top-right">
-        <button class="icon-btn" id="voiceBtn" data-i18n="voiceBtn" data-i18n-title="voiceBtnTitle" title="Read score aloud on/off">🔊 Speak</button>
-        <select class="voice-select" id="voiceSelect" data-i18n-title="voiceSelectTitle" title="Choose a voice"></select>
-        <a class="icon-btn" id="historyLink" data-i18n="historyBtn" data-i18n-title="historyBtnTitle" title="Match history" href="/history">📋 History</a>
-        <button class="icon-btn" id="fsBtn" data-i18n="fsEnter" data-i18n-title="fsEnterTitle" title="Fullscreen">⛶ Fullscreen</button>
-        <a class="icon-btn" id="profileLink" href="/account/profile" title="Mijn profiel"><span class="avatar-mini" id="profileAvatar"></span><span id="profileLabel">Profiel</span></a>
-        <span class="live-dot"><span class="dot"></span> <span data-i18n="livePin">Live · PIN</span> <span id="boardPin"></span></span>
+        <button class="icon-btn" id="voiceBtn" data-i18n-title="voiceBtnTitle" title="Spraak aan/uit" aria-label="Spraak">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          <span class="label-text" data-i18n="voiceBtn">Speak</span>
+        </button>
+        <select class="voice-select" id="voiceSelect" data-i18n-title="voiceSelectTitle" title="Kies stem"></select>
+        <a class="icon-btn" id="historyLink" data-i18n-title="historyBtnTitle" title="Geschiedenis" aria-label="Geschiedenis" href="/history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          <span class="label-text" data-i18n="historyBtn">History</span>
+        </a>
+        <button class="icon-btn" id="fsBtn" data-i18n-title="fsEnterTitle" title="Volledig scherm" aria-label="Fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+          <span class="label-text" data-i18n="fsEnter">Fullscreen</span>
+        </button>
+        <a class="icon-btn avatar-btn" id="profileLink" href="/account/profile" title="Mijn profiel" aria-label="Profiel">
+          <span class="avatar-mini" id="profileAvatar"></span>
+          <span class="label-text" id="profileLabel">Profiel</span>
+        </a>
+        <span class="live-pin"><span class="dot"></span>PIN <b id="boardPin"></b></span>
       </div>
     </div>
 
@@ -636,9 +688,16 @@ function applyLanguage(lang) {
   // Update alle DOM-elementen met data-i18n / data-i18n-title
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    // Voorlees-knop heeft een aparte 'aan'-toestand
-    if (el.id === 'voiceBtn') { el.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn'); return; }
-    if (el.id === 'fsBtn')    { el.textContent = t(isFullscreen() ? 'fsExit' : 'fsEnter'); return; }
+    // Knoppen met SVG icons: data-i18n staat op de .label-text span binnen
+    // de knop. State-afhankelijke knoppen handelen we hier af door state in
+    // het label te verwerken (voiceBtn=aan/uit, fsBtn=full/exit).
+    const parentId = el.parentElement ? el.parentElement.id : '';
+    if (parentId === 'voiceBtn' || el.id === 'voiceBtn') {
+      el.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn'); return;
+    }
+    if (parentId === 'fsBtn' || el.id === 'fsBtn') {
+      el.textContent = t(isFullscreen() ? 'fsExit' : 'fsEnter'); return;
+    }
     if (el.id === 'connectBtn') { el.textContent = t(el.dataset.busy ? 'connecting' : 'connect'); return; }
     el.textContent = t(key);
   });
@@ -1077,7 +1136,7 @@ function leaveFullscreen() {
 function syncFsBtn() {
   const on = isFullscreen();
   document.body.classList.toggle('fs', on);
-  fsBtn.textContent = t(on ? 'fsExit' : 'fsEnter');
+  (fsBtn.querySelector('.label-text') || fsBtn).textContent = t(on ? 'fsExit' : 'fsEnter');
   fsBtn.classList.toggle('active', on);
 }
 fsBtn.addEventListener('click', () => { if (!isFullscreen()) { enterFullscreen(); } else { leaveFullscreen(); } });
@@ -1197,7 +1256,7 @@ voiceBtn.addEventListener('click', () => {
   localStorage.setItem('rallypointVoiceOn', voiceOn ? '1' : '0');
   audioUnlocked = true;     // klik telt als user-gesture
   voiceBtn.classList.toggle('active', voiceOn);
-  voiceBtn.textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn');
+  (voiceBtn.querySelector('.label-text') || voiceBtn).textContent = t(voiceOn ? 'voiceBtnOn' : 'voiceBtn');
   voiceSelect.classList.toggle('show', voiceOn);
   if (voiceOn) {
     speak(t('voiceOn'));   // eerste klik ontgrendelt spraak in de browser

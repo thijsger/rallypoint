@@ -86,6 +86,11 @@
   </div>
 </div>
 
+<footer class="app-footer">
+  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+</footer>
+
+<script src="/account/toast.js"></script>
 <script>
   document.getElementById('pwForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -101,12 +106,13 @@
       });
       const data = await r.json();
       if (!r.ok) {
-        errEl.textContent =
+        const msg =
           data.error === 'bad_current' ? 'Huidig wachtwoord klopt niet.' :
           data.error === 'bad_password' ? 'Nieuw wachtwoord moet minstens 8 tekens zijn.' :
           'Opslaan mislukt.';
+        errEl.textContent = msg;
       } else {
-        ok.style.display = 'block';
+        toast('Wachtwoord gewijzigd', 'success');
         e.target.reset();
       }
     } catch (_) { errEl.textContent = 'Netwerkfout.'; }
@@ -133,7 +139,7 @@
           data.error === 'email_taken' ? 'Dit e-mailadres is al in gebruik.' :
           'Wijzigen mislukt.';
       } else {
-        ok.style.display = 'block';
+        toast('E-mailadres bijgewerkt — check je inbox', 'success', 5000);
         e.target.reset();
       }
     } catch (_) { errEl.textContent = 'Netwerkfout.'; }

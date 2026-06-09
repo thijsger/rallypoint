@@ -89,6 +89,11 @@
     </div>
   </div>
 </div>
+<footer class="app-footer">
+  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+</footer>
+
+<script src="/account/toast.js"></script>
 <script>
   const SPORTS = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
   const loading = document.getElementById('loading');
@@ -178,13 +183,14 @@
       });
       const data = await r.json();
       if (!r.ok) {
-        saveErr.textContent =
+        const msg =
           data.error === 'bad_avatar' ? 'Avatar URL moet beginnen met http(s)://' :
           data.error === 'bad_sport' ? 'Ongeldige sport-keuze.' :
           'Opslaan mislukt.';
+        toast(msg, 'err');
         btn.disabled = false; return;
       }
-      saveMsg.style.display = 'block';
+      toast('Profiel opgeslagen', 'success');
       load();   // refresh header
     } catch (e) {
       saveErr.textContent = 'Netwerkfout.';
