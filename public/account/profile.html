@@ -12,16 +12,19 @@
 <link rel="stylesheet" href="/account/style.css">
 <style>
   .profile-head {
-    display: flex; align-items: center; gap: 1.2rem; margin-bottom: 1.6rem;
+    display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4);
   }
   .profile-head .meta { flex: 1; min-width: 0; }
   .profile-head .name {
     font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 1.6rem; line-height: 1.1; margin-bottom: .25rem;
+    font-size: 1.6rem; line-height: 1.1; margin-bottom: var(--sp-1);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .profile-head .email { color: var(--muted); font-size: .85rem; }
-  .save-row { margin-top: .4rem; }
+  .save-row { margin-top: var(--sp-2); display: flex; gap: var(--sp-3); align-items: center; }
+  .save-row .btn { width: auto; padding-left: var(--sp-6); padding-right: var(--sp-6); }
+  /* Avatar rond gemaakt door background, geen border-artifact */
+  .avatar { background-color: var(--bg-soft); }
 </style>
 </head>
 <body>
@@ -145,9 +148,9 @@
 
   function avatarUrlFor(email, custom) {
     if (custom) return custom;
-    // Dicebear-fallback: deterministische avatar uit email zonder Gravatar (privacy)
+    // Initials-based avatar uit eerste letter van email — clean en eenvoudig.
     const seed = encodeURIComponent(email || 'rallypoint');
-    return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=111111&shape1Color=c4ff00&shape2Color=2a2a2a&shape3Color=ffffff`;
+    return `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=181d24&textColor=c4ff00&fontWeight=700`;
   }
 
   function fmtDuration(min) {

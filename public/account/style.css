@@ -418,34 +418,34 @@ input::placeholder { color: #4a5663; }
 .toast.toast-err { color: var(--them); border-color: rgba(255,107,84,.4); background: rgba(255,107,84,.08); }
 .toast.toast-info { color: var(--ball); border-color: var(--ball-glow); background: var(--ball-soft); }
 
-/* ---- Theme picker ---- */
+/* ---- Theme picker — minimal row van swatches ---- */
 .theme-picker {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
-  gap: var(--sp-3);
+  display: flex; flex-wrap: wrap; gap: var(--sp-2);
 }
 .theme-swatch {
-  background: var(--bg-soft); border: 1.5px solid var(--border);
-  border-radius: var(--r-md); padding: var(--sp-4) var(--sp-3);
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
-  cursor: pointer; transition: all .15s;
+  position: relative; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: transparent;
+  transition: border-color .15s, background .15s;
 }
-.theme-swatch:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+.theme-swatch:hover { border-color: var(--border-hi); background: var(--bg-soft); }
 .theme-swatch.active {
-  border-color: var(--ball); background: var(--ball-soft);
-  box-shadow: 0 0 0 1px var(--ball);
+  border-color: var(--ink); background: var(--bg-soft);
 }
 .theme-swatch-circle {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: 2px solid var(--panel);
-  box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
 }
 .theme-swatch-name {
-  font-size: .72rem; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .06em; font-weight: 600;
-  text-align: center;
+  font-size: .8rem; color: var(--muted-hi); font-weight: 500;
 }
 .theme-swatch.active .theme-swatch-name { color: var(--ink); }
-.theme-swatch.active .theme-swatch-circle { box-shadow: 0 4px 18px currentColor; }
+.theme-swatch.active .theme-swatch-circle {
+  box-shadow: 0 0 0 2px var(--bg-soft), 0 0 0 4px currentColor;
+}
 
 /* ---- Footer ---- */
 .app-footer {
