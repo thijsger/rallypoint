@@ -40,7 +40,35 @@
   </nav>
 
   <div id="bannerSlot"></div>
-  <div class="loading" id="loading">Profiel laden…</div>
+
+  <div id="skeleton">
+    <div class="card">
+      <div class="profile-head">
+        <div class="skeleton skeleton-circle"></div>
+        <div class="meta" style="flex:1">
+          <div class="skeleton skeleton-text xl" style="margin-bottom:.5rem"></div>
+          <div class="skeleton skeleton-text sm"></div>
+        </div>
+      </div>
+      <div class="section">
+        <h2><div class="skeleton skeleton-text sm" style="width:130px;height:14px"></div></h2>
+        <div class="skeleton skeleton-text" style="margin:1rem 0 .8rem;height:36px"></div>
+        <div class="skeleton skeleton-text" style="margin-bottom:.8rem;height:36px"></div>
+        <div class="skeleton skeleton-text" style="margin-bottom:1rem;height:36px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section">
+        <h2><div class="skeleton skeleton-text sm" style="width:80px;height:14px"></div></h2>
+        <div class="stats-grid">
+          <div class="skeleton skeleton-tile"></div>
+          <div class="skeleton skeleton-tile"></div>
+          <div class="skeleton skeleton-tile"></div>
+          <div class="skeleton skeleton-tile"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="content" class="hidden">
     <div class="card">
@@ -96,7 +124,7 @@
 <script src="/account/toast.js"></script>
 <script>
   const SPORTS = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
-  const loading = document.getElementById('loading');
+  const skeleton = document.getElementById('skeleton');
   const content = document.getElementById('content');
   const avatarPreview = document.getElementById('avatarPreview');
   const displayName = document.getElementById('displayName');
@@ -128,10 +156,10 @@
       if (r.status === 401) { window.location = '/account/login?next=/account/profile'; return; }
       p = await r.json();
     } catch (e) {
-      loading.textContent = 'Profiel kon niet geladen worden.';
+      skeleton.innerHTML = '<div class="card"><p style="color:var(--them);text-align:center">Profiel kon niet geladen worden.</p></div>';
       return;
     }
-    loading.classList.add('hidden');
+    skeleton.classList.add('hidden');
     content.classList.remove('hidden');
 
     // Header
@@ -175,7 +203,7 @@
       favorite_sport: favoriteSportInput.value === '' ? null : Number(favoriteSportInput.value),
     };
     const btn = e.target.querySelector('button');
-    btn.disabled = true;
+    btnLoading(btn, true);
     try {
       const r = await fetch('/api/account/profile', {
         method: 'PATCH', headers: {'Content-Type':'application/json'},
@@ -188,14 +216,14 @@
           data.error === 'bad_sport' ? 'Ongeldige sport-keuze.' :
           'Opslaan mislukt.';
         toast(msg, 'err');
-        btn.disabled = false; return;
+        btnLoading(btn, false); return;
       }
       toast('Profiel opgeslagen', 'success');
       load();   // refresh header
     } catch (e) {
-      saveErr.textContent = 'Netwerkfout.';
+      toast('Netwerkfout.', 'err');
     }
-    btn.disabled = false;
+    btnLoading(btn, false);
   });
 
   load();

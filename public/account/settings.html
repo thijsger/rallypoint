@@ -148,11 +148,18 @@
 
   document.getElementById('deleteForm').addEventListener('submit', async e => {
     e.preventDefault();
-    if (!confirm('Weet je het zéker? Dit kan niet ongedaan worden gemaakt.')) return;
+    const ok = await confirmModal({
+      title: 'Account verwijderen?',
+      body: 'Alle gegevens worden permanent verwijderd. Dit kan <b style="color:var(--them)">niet</b> ongedaan worden gemaakt.',
+      confirmLabel: 'Verwijder definitief',
+      cancelLabel: 'Annuleren',
+      danger: true,
+    });
+    if (!ok) return;
     const cur = document.getElementById('curPwDel').value;
     const errEl = document.getElementById('delErr');
     errEl.textContent = '';
-    const btn = e.target.querySelector('button'); btn.disabled = true;
+    const btn = e.target.querySelector('button'); btnLoading(btn, true);
     try {
       const r = await fetch('/api/auth/delete-account', {
         method: 'POST', headers: {'Content-Type':'application/json'},
@@ -161,10 +168,10 @@
       const data = await r.json();
       if (!r.ok) {
         errEl.textContent = data.error === 'bad_current' ? 'Wachtwoord klopt niet.' : 'Verwijderen mislukt.';
-        btn.disabled = false; return;
+        btnLoading(btn, false); return;
       }
       window.location = '/';
-    } catch (_) { errEl.textContent = 'Netwerkfout.'; btn.disabled = false; }
+    } catch (_) { errEl.textContent = 'Netwerkfout.'; btnLoading(btn, false); }
   });
 </script>
 </body>

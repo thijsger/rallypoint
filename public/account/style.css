@@ -254,6 +254,72 @@ input::placeholder { color: #4a5663; }
 }
 .hidden { display: none !important; }
 
+/* ---- Skeleton loaders ---- */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-soft) 0%, var(--panel-hi) 50%, var(--bg-soft) 100%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.4s ease-in-out infinite;
+  display: inline-block; line-height: 1;
+}
+.skeleton-text { height: 12px; width: 100%; }
+.skeleton-text.sm { height: 10px; width: 60%; }
+.skeleton-text.lg { height: 22px; width: 70%; }
+.skeleton-text.xl { height: 28px; width: 50%; }
+.skeleton-pill { height: 22px; width: 90px; border-radius: 100px; }
+.skeleton-circle { width: 80px; height: 80px; border-radius: 50%; }
+.skeleton-tile {
+  height: 80px; width: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--bg-soft) 0%, var(--panel-hi) 50%, var(--bg-soft) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- Button loading state ---- */
+.btn[data-loading="1"] {
+  position: relative; color: transparent !important;
+  pointer-events: none;
+}
+.btn[data-loading="1"]::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  margin: -8px 0 0 -8px;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent;
+  color: #0c0f12;
+  animation: spin .7s linear infinite;
+}
+.btn.secondary[data-loading="1"]::after { color: var(--ink); }
+.btn.danger[data-loading="1"]::after { color: var(--them); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Custom confirm modal ---- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center;
+  padding: 1.25rem; opacity: 0; transition: opacity .2s;
+}
+.modal-overlay.show { display: flex; opacity: 1; }
+.modal-card {
+  background: var(--panel); border: 1px solid var(--border-hi); border-radius: 16px;
+  padding: 1.6rem; max-width: 380px; width: 100%;
+  box-shadow: 0 16px 60px rgba(0,0,0,.5);
+  transform: scale(.95); transition: transform .2s;
+}
+.modal-overlay.show .modal-card { transform: none; }
+.modal-card h3 {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+  font-size: 1.3rem; text-transform: uppercase; letter-spacing: .04em;
+  margin-bottom: .6rem; line-height: 1.1;
+}
+.modal-card p { color: var(--muted-hi); font-size: .9rem; margin-bottom: 1.2rem; line-height: 1.5; }
+.modal-actions { display: flex; gap: .6rem; }
+.modal-actions .btn { flex: 1; padding: .85rem 1rem; font-size: .95rem; }
+
 /* ---- Toast notifications ---- */
 .toast-container {
   position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);

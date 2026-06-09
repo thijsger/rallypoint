@@ -47,9 +47,15 @@
     animation: rise .6s ease both;
   }
   .logo-img {
-    width: 88px; height: 88px;
-    display: block; margin: 0 auto .6rem;
-    border-radius: 16px;
+    width: 96px; height: 96px;
+    display: block; margin: 0 auto .8rem;
+    border-radius: 20px;
+    animation: logoEnter .7s cubic-bezier(.22,1.2,.36,1) both;
+    box-shadow: 0 12px 40px rgba(196,255,0,.15);
+  }
+  @keyframes logoEnter {
+    from { opacity: 0; transform: scale(.6) rotate(-8deg); }
+    to { opacity: 1; transform: none; }
   }
   .logo {
     font-family: 'Barlow Condensed', sans-serif;
@@ -62,19 +68,34 @@
   .logo span { color: var(--ball); }
   .tagline { color: var(--muted); margin: .6rem 0 2.4rem; font-size: 1.1rem; letter-spacing: .12em; text-transform: uppercase; }
 
-  .pin-label { color: var(--muted); font-size: .85rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 1rem; }
-  .pin-boxes { display: flex; gap: .8rem; justify-content: center; margin-bottom: 2rem; }
+  .pin-label { color: var(--muted); font-size: .8rem; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 1.1rem; font-weight: 500; }
+  .pin-boxes { display: flex; gap: .7rem; justify-content: center; margin-bottom: 2.2rem; }
   .pin-box {
-    width: 64px; height: 84px;
+    width: 60px; height: 78px;
     background: var(--panel);
-    border: 2px solid var(--court-line);
+    border: 1.5px solid var(--court-line);
     border-radius: 14px;
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 3rem; font-weight: 700;
+    font-size: 2.6rem; font-weight: 700;
     text-align: center; color: var(--ink);
-    transition: border-color .2s, transform .1s;
+    transition: all .2s ease;
   }
-  .pin-box:focus { outline: none; border-color: var(--ball); transform: translateY(-3px); }
+  .pin-box:focus {
+    outline: none; border-color: var(--ball);
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 4px rgba(196,255,0,.12), 0 8px 24px rgba(0,0,0,.4);
+  }
+  .pin-box:not(:placeholder-shown) { border-color: var(--ball); color: var(--ball); }
+  @media (max-width: 480px) {
+    .pin-box { width: 52px; height: 68px; font-size: 2.2rem; }
+    .pin-boxes { gap: .5rem; }
+  }
+  .connect-footer {
+    position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    color: var(--muted); font-size: .75rem; text-align: center;
+  }
+  .connect-footer a { color: var(--muted); text-decoration: none; margin: 0 .5rem; transition: color .15s; }
+  .connect-footer a:hover { color: var(--ball); }
 
   .btn {
     background: var(--ball); color: #0c0f12;
@@ -496,6 +517,10 @@
     <div class="hint" data-i18n="pinHint">You can find the PIN in the RallyPoint app on your Garmin.</div>
   </div>
 
+  <footer class="connect-footer" id="connectFooter">
+    <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+  </footer>
+
   <!-- Persistent audio element voor TTS — iOS Safari speelt geen dynamisch
        gemaakte Audio() betrouwbaar af; één vast element in de DOM herbruiken
        werkt wél, mits 'ie 1× door een user-gesture is geactiveerd. -->
@@ -812,6 +837,7 @@ connectBtn.addEventListener('click', async () => {
   connectedPin = pin;
   localStorage.setItem('rallypointPin', pin);   // onthouden voor history-deeplink en pre-fill
   document.getElementById('connectScreen').style.display = 'none';
+  const fc = document.getElementById('connectFooter'); if (fc) fc.style.display = 'none';
   document.getElementById('board').classList.add('live');
   document.getElementById('boardPin').textContent = pin;
   document.getElementById('historyLink').href = '/history/' + pin;   // directe deeplink

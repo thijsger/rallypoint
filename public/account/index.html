@@ -159,8 +159,16 @@
   pinList.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-pin]');
     if (!btn) return;
-    if (!confirm(`PIN ${btn.dataset.pin} ontkoppelen van dit account?`)) return;
+    const ok = await confirmModal({
+      title: 'PIN ontkoppelen?',
+      body: `PIN <b style="color:var(--ink)">${btn.dataset.pin}</b> wordt ontkoppeld van je account. Je kunt 'm later weer koppelen.`,
+      confirmLabel: 'Ontkoppel',
+      danger: true,
+    });
+    if (!ok) return;
+    btnLoading(btn, true);
     await fetch('/api/account/pins/' + btn.dataset.pin, { method: 'DELETE' });
+    toast('PIN ontkoppeld', 'success');
     load();
   });
 
