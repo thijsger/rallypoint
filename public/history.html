@@ -23,15 +23,18 @@
     --amber: #c4ff00;
     --green: #4ade80;
     --ball: #c4ff00;
+    --bg-glow: rgba(196,255,0,.045);
   }
-  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --amber: #00d4ff; }
-  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --amber: #ff9533; }
-  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --amber: #ffffff; }
-  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --amber: #4ade80; }
+  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --amber: #00d4ff; --bg-glow: rgba(0,212,255,.045); }
+  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --amber: #ff9533; --bg-glow: rgba(255,149,51,.045); }
+  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --amber: #ffffff; --bg-glow: rgba(255,255,255,.03); }
+  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --amber: #4ade80; --bg-glow: rgba(74,222,128,.045); }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
-    background: var(--bg);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow), transparent 60%),
+      var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
