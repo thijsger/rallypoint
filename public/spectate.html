@@ -97,26 +97,32 @@
     margin: 0 .3rem;
   }
   .teams {
-    display: grid; grid-template-columns: 1fr auto 1fr;
-    gap: 1.5rem; align-items: center; width: 100%; max-width: 900px;
+    display: grid; grid-template-columns: 1fr 1.6fr 1fr;
+    gap: 1rem; align-items: center; width: 100%; max-width: 960px;
   }
   .team-side { text-align: center; }
   .team-name {
     font-family: 'Barlow Condensed', sans-serif; font-weight: 600;
-    font-size: clamp(1.2rem, 4vw, 1.8rem); text-transform: uppercase;
-    color: var(--muted-hi, #b8c1ce); margin-bottom: 1rem; letter-spacing: .04em;
+    font-size: clamp(1.1rem, 3.5vw, 1.7rem); text-transform: uppercase;
+    color: var(--muted-hi, #b8c1ce); letter-spacing: .04em;
   }
   .team-side.serving .team-name { color: var(--ball); }
+  .score-col {
+    display: flex; align-items: center; justify-content: center;
+  }
+  .score-wrap {
+    display: flex; align-items: baseline; gap: .15em; justify-content: center;
+  }
   .points {
     font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
-    font-size: clamp(6rem, 22vw, 12rem); line-height: .9;
+    font-size: clamp(5.5rem, 20vw, 11rem); line-height: .9;
     color: var(--ink);
   }
   .points.flash { animation: flash .4s ease; }
   @keyframes flash { 0% { color: var(--ball); transform: scale(1.05); } 100% { color: var(--ink); transform: none; } }
   .divider {
     color: var(--muted); font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700; font-size: clamp(3rem, 10vw, 5rem); line-height: 1;
+    font-weight: 700; font-size: clamp(2.5rem, 8vw, 4.5rem); line-height: 1;
   }
   .games-row {
     display: flex; gap: 2rem; justify-content: center;
@@ -173,12 +179,16 @@
     <div class="teams">
       <div class="team-side" id="teamUsSide">
         <div class="team-name" id="teamUsName">Us</div>
-        <div class="points" id="ptUs">0</div>
       </div>
-      <div class="divider">–</div>
+      <div class="score-col">
+        <div class="score-wrap">
+          <span class="points" id="ptUs">0</span>
+          <span class="divider">–</span>
+          <span class="points" id="ptThem">0</span>
+        </div>
+      </div>
       <div class="team-side" id="teamThemSide">
         <div class="team-name" id="teamThemName">Them</div>
-        <div class="points" id="ptThem">0</div>
       </div>
     </div>
     <div class="games-row">
@@ -204,13 +214,117 @@
   let voiceOn = localStorage.getItem('spectateVoice') === '1';
   let prevState = null;
   let currentLang = 'nl';
+  let audioUnlocked = false;
+  let ended = false;
 
   if (voiceOn) voiceBtn.classList.add('active');
   voiceBtn.addEventListener('click', () => {
     voiceOn = !voiceOn;
+    audioUnlocked = true;
     localStorage.setItem('spectateVoice', voiceOn ? '1' : '0');
     voiceBtn.classList.toggle('active', voiceOn);
+    if (voiceOn) speak(TR.voiceOn[currentLang] || TR.voiceOn.nl);
+    else { try { ttsPlayer.pause(); } catch (_) {} }
   });
+
+  document.addEventListener('click', function unlock() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    if (voiceOn) speak(TR.voiceOn[currentLang] || TR.voiceOn.nl);
+  }, { once: true, capture: true });
+
+  // --- Meertalige uitspraakreeksen (zelfde als index.html) ---
+  const TR = {
+    voiceOn:          { nl:'Voorlezen staat aan.',   en:'Reading is on.',        de:'Vorlesen ist ein.',       es:'Lectura activada.',             fr:'Lecture activée.' },
+    spokenMatchWon:   { nl:'{name} wint de wedstrijd, {a} tegen {b} in sets.', en:'{name} wins the match, {a} to {b} in sets.', de:'{name} gewinnt das Spiel, {a} zu {b} in Sätzen.', es:'{name} gana el partido, {a} a {b} en sets.', fr:'{name} remporte le match, {a} à {b} en sets.' },
+    spokenSetWon:     { nl:'Set gewonnen. Sets {a} tegen {b}.', en:'Set won. Sets {a} to {b}.', de:'Satz gewonnen. Sätze {a} zu {b}.', es:'Set ganado. Sets {a} a {b}.', fr:'Set gagné. Sets {a} à {b}.' },
+    spokenGameWon:    { nl:'Game. Games {a} tegen {b}.', en:'Game. Games {a} to {b}.', de:'Spiel. Spiele {a} zu {b}.', es:'Juego. Juegos {a} a {b}.', fr:'Jeu. Jeux {a} à {b}.' },
+    spokenDeuce:      { nl:'Deuce.',                 en:'Deuce.',                de:'Einstand.',               es:'Iguales.',                      fr:'Égalité.' },
+    spokenEqual:      { nl:'{n} gelijk.',            en:'{n} all.',              de:'{n} beide.',              es:'{n} iguales.',                  fr:'{n} partout.' },
+    spokenAdvServer:  { nl:'Voordeel.',              en:'Advantage in.',         de:'Vorteil Aufschläger.',    es:'Ventaja saque.',                fr:'Avantage service.' },
+    spokenAdvReceiver:{ nl:'Nadeel.',                en:'Advantage out.',        de:'Vorteil Rückschläger.',   es:'Ventaja resto.',                fr:'Avantage retour.' },
+  };
+
+  function tr(key, vars) {
+    let s = (TR[key] || {})[currentLang] || (TR[key] || {}).nl || key;
+    if (vars) Object.keys(vars).forEach(k => { s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]); });
+    return s;
+  }
+
+  const NUM_WORDS = {
+    nl: ['nul','een','twee','drie','vier','vijf','zes','zeven','acht','negen','tien','elf','twaalf','dertien','veertien','vijftien','zestien','zeventien','achttien','negentien','twintig','eenentwintig','tweeëntwintig','drieëntwintig','vierentwintig','vijfentwintig','zesentwintig','zevenentwintig','achtentwintig','negenentwintig','dertig'],
+    en: ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty','twenty-one','twenty-two','twenty-three','twenty-four','twenty-five','twenty-six','twenty-seven','twenty-eight','twenty-nine','thirty'],
+    de: ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn','zwanzig','einundzwanzig','zweiundzwanzig','dreiundzwanzig','vierundzwanzig','fünfundzwanzig','sechsundzwanzig','siebenundzwanzig','achtundzwanzig','neunundzwanzig','dreißig'],
+    es: ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve','treinta'],
+    fr: ['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf','vingt','vingt-et-un','vingt-deux','vingt-trois','vingt-quatre','vingt-cinq','vingt-six','vingt-sept','vingt-huit','vingt-neuf','trente'],
+  };
+  const TENNIS_POINTS_WORDS = {
+    nl: { '0':'nul', '15':'vijftien', '30':'dertig', '40':'veertig' },
+    en: { '0':'love', '15':'fifteen', '30':'thirty', '40':'forty' },
+    de: { '0':'null', '15':'fünfzehn', '30':'dreißig', '40':'vierzig' },
+    es: { '0':'cero', '15':'quince', '30':'treinta', '40':'cuarenta' },
+    fr: { '0':'zéro', '15':'quinze', '30':'trente', '40':'quarante' },
+  };
+
+  function numWord(n) {
+    const arr = NUM_WORDS[currentLang] || NUM_WORDS.en;
+    const i = Number(n);
+    if (Number.isInteger(i) && i >= 0 && i < arr.length) return arr[i];
+    return String(n);
+  }
+  function tennisWord(p) {
+    const d = TENNIS_POINTS_WORDS[currentLang] || TENNIS_POINTS_WORDS.en;
+    return d[p] || numWord(p);
+  }
+
+  function spokenScore(us, them, serveTeam) {
+    if (us === 'Adv') return tr(serveTeam === 0 ? 'spokenAdvServer' : 'spokenAdvReceiver');
+    if (them === 'Adv') return tr(serveTeam === 1 ? 'spokenAdvServer' : 'spokenAdvReceiver');
+    if (us === '40' && them === '40') return tr('spokenDeuce');
+    const usW = tennisWord(us), themW = tennisWord(them);
+    if (us === them) return tr('spokenEqual', { n: usW });
+    if (serveTeam === 1) return themW + ' ' + usW;
+    return usW + ' ' + themW;
+  }
+
+  function speak(text) {
+    if (!text) return;
+    try {
+      ttsPlayer.src = `/tts/${encodeURIComponent(currentLang)}/${encodeURIComponent(text)}?pin=${encodeURIComponent(PIN)}`;
+      const p = ttsPlayer.play();
+      if (p && p.catch) p.catch(() => speakViaBrowser(text));
+    } catch (_) { speakViaBrowser(text); }
+  }
+
+  function speakViaBrowser(text) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = currentLang + '-' + currentLang.toUpperCase();
+    u.rate = 1.0;
+    speechSynthesis.speak(u);
+  }
+
+  function announce(prev, cur) {
+    if (!voiceOn) return;
+    if (cur.over && !prev.over) {
+      const winner = cur.winner === 0 ? (cur.teamUs || 'Wij') : (cur.teamThem || 'Zij');
+      speak(tr('spokenMatchWon', { name: winner, a: numWord(cur.sets[0]), b: numWord(cur.sets[1]) }));
+      return;
+    }
+    if (cur.sets[0] !== prev.sets[0] || cur.sets[1] !== prev.sets[1]) {
+      speak(tr('spokenSetWon', { a: numWord(cur.sets[0]), b: numWord(cur.sets[1]) }));
+      return;
+    }
+    if (cur.games[0] !== prev.games[0] || cur.games[1] !== prev.games[1]) {
+      speak(tr('spokenGameWon', { a: numWord(cur.games[0]), b: numWord(cur.games[1]) }));
+      return;
+    }
+    const us = pointLabel(cur, 0), them = pointLabel(cur, 1);
+    if (us !== pointLabel(prev, 0) || them !== pointLabel(prev, 1)) {
+      speak(spokenScore(us, them, cur.serveTeam));
+    }
+  }
 
   function pointLabel(m, p) {
     const isRally = (typeof m.sport === 'number' && m.sport >= 2) || m.rally === true;
@@ -224,34 +338,46 @@
     return ['0','15','30','40','40'][Math.min(m.points[p], 4)];
   }
 
+  function showError(title, body) {
+    ended = true;
+    document.getElementById('liveContent').style.display = 'none';
+    const e = document.getElementById('errorState');
+    e.style.display = '';
+    if (title) document.getElementById('errTitle').textContent = title;
+    if (body) document.getElementById('errBody').textContent = body;
+  }
+
   function render(m) {
     if (!m) return;
+
+    if (m.discarded) {
+      showError('Match afgebroken', 'De eigenaar heeft de match weggegooid.');
+      return;
+    }
+    if (m.over && prevState && !prevState.over) {
+      // Laat de eindstand even zien, dan overschakelen naar "voorbij"
+      setTimeout(() => showError('Match voorbij', 'De wedstrijd is afgelopen.'), 4000);
+    }
+
     document.getElementById('liveContent').style.display = '';
     document.getElementById('errorState').style.display = 'none';
 
-    // Sport label
     document.getElementById('ownerSport').textContent = SPORTS[m.sport || 0] || 'Padel';
-
-    // Team names (van match-state of fallback)
     if (m.teamUs) document.getElementById('teamUsName').textContent = m.teamUs;
     if (m.teamThem) document.getElementById('teamThemName').textContent = m.teamThem;
 
-    // Sets
     document.getElementById('setsScore').textContent = `${m.sets[0]}–${m.sets[1]}`;
     document.getElementById('gameScore').textContent = `${m.games[0]}–${m.games[1]}`;
 
-    // Points
     const us = pointLabel(m, 0), them = pointLabel(m, 1);
     const ptUs = document.getElementById('ptUs');
     const ptThem = document.getElementById('ptThem');
     if (ptUs.textContent !== us) { ptUs.textContent = us; ptUs.classList.remove('flash'); void ptUs.offsetWidth; ptUs.classList.add('flash'); }
     if (ptThem.textContent !== them) { ptThem.textContent = them; ptThem.classList.remove('flash'); void ptThem.offsetWidth; ptThem.classList.add('flash'); }
 
-    // Server highlight (which team is serving)
     document.getElementById('teamUsSide').classList.toggle('serving', m.serveTeam === 0);
     document.getElementById('teamThemSide').classList.toggle('serving', m.serveTeam === 1);
 
-    // Tags
     const tags = [];
     if (m.tiebreak) tags.push('<span class="tag accent">Tiebreak</span>');
     if (m.golden) tags.push('<span class="tag">Golden</span>');
@@ -260,33 +386,11 @@
 
     if (m.lang) currentLang = m.lang;
 
-    if (voiceOn && prevState) {
-      announce(prevState, m);
-    }
-    prevState = JSON.parse(JSON.stringify({ points: m.points, games: m.games, sets: m.sets, over: m.over }));
-  }
-
-  async function announce(prev, cur) {
-    // Speak whenever points/games/sets change
-    if (JSON.stringify(prev) === JSON.stringify({ points: cur.points, games: cur.games, sets: cur.sets, over: cur.over })) return;
-    const us = pointLabel(cur, 0), them = pointLabel(cur, 1);
-    try {
-      ttsPlayer.src = `/tts/${currentLang}/${encodeURIComponent(us + ' ' + them)}?pin=${PIN}`;
-      const p = ttsPlayer.play();
-      if (p && p.catch) p.catch(() => {});
-    } catch (_) {}
-  }
-
-  function showError(title, body) {
-    document.getElementById('liveContent').style.display = 'none';
-    const e = document.getElementById('errorState');
-    e.style.display = '';
-    if (title) document.getElementById('errTitle').textContent = title;
-    if (body) document.getElementById('errBody').textContent = body;
+    if (prevState) announce(prevState, m);
+    prevState = { points: m.points.slice(), games: m.games.slice(), sets: m.sets.slice(), over: m.over, teamUs: m.teamUs, teamThem: m.teamThem };
   }
 
   async function loadOwner() {
-    // Owner-info komt uit spectator list (filter op pin)
     try {
       const r = await fetch('/api/account/spectator/active');
       const list = await r.json();
@@ -294,8 +398,9 @@
       if (me) {
         document.getElementById('ownerName').textContent = me.owner_name;
         document.getElementById('ownerAvatar').textContent = me.owner_initial;
+        return true;
       } else {
-        showError('Match niet (meer) publiek', 'De eigenaar heeft de match privé gemaakt, of er is geen actieve match meer.');
+        if (!ended) showError('Match niet (meer) actief', 'De eigenaar heeft de match gestopt of privé gemaakt.');
         return false;
       }
     } catch (_) {}
@@ -306,12 +411,14 @@
     const ok = await loadOwner();
     if (!ok) return;
 
-    // Live connect via SSE
     const ev = new EventSource(`/match/${PIN}/events`);
     ev.onmessage = (e) => {
       try { render(JSON.parse(e.data)); } catch (_) {}
     };
-    ev.onerror = () => { /* SSE auto-reconnects */ };
+    ev.onerror = () => {};
+
+    // Periodiek controleren of match nog actief is (detecteert discard via app-exit)
+    setInterval(() => { if (!ended) loadOwner(); }, 60000);
   }
   init();
 </script>

@@ -617,7 +617,7 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'spectator' && parts[3] === 'active' && req.method === 'GET') {
       // Publieke lijst van actieve matches — geen auth nodig.
       // Alleen pins waarvan eigenaar is_public=1 heeft staan + match is recent.
-      const RECENT_MS = 60 * 60 * 1000;
+      const RECENT_MS = 10 * 60 * 1000;
       const now = Date.now();
       const result = [];
       for (const pin of Object.keys(matches)) {
@@ -851,7 +851,7 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'reset' && req.method === 'POST') {
       const state = freshMatch();
       matches[pin] = { state, updated: Date.now(), wasOver: false, autoArchived: false };
-      broadcast(pin, state);
+      broadcast(pin, { ...state, discarded: true });
       return sendJSON(res, 200, { ok: true });
     }
 

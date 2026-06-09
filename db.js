@@ -106,6 +106,9 @@ addColumnIfMissing('users', 'avatar_url', 'TEXT');
 addColumnIfMissing('users', 'favorite_sport', 'INTEGER');
 addColumnIfMissing('users', 'is_public', 'INTEGER NOT NULL DEFAULT 0');
 
+// Zet bestaande gebruikers op is_public=1 als standaard
+db.prepare('UPDATE users SET is_public = 1 WHERE is_public = 0').run();
+
 // --- Eenmalige migratie: licenses.json → orphan_licenses ---
 function migrateLicensesJsonIfNeeded() {
   const done = db.prepare('SELECT value FROM settings WHERE key = ?').get('migrated_json');
@@ -151,8 +154,8 @@ const stmts = {
   getUserById: db.prepare('SELECT * FROM users WHERE id = ?'),
   getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
   createUser: db.prepare(`
-    INSERT INTO users (email, password_hash, verify_token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO users (email, password_hash, verify_token, created_at, updated_at, is_public)
+    VALUES (?, ?, ?, ?, ?, 1)
   `),
   setEmailVerified: db.prepare('UPDATE users SET email_verified = 1, verify_token = NULL, updated_at = ? WHERE id = ?'),
   setVerifyToken: db.prepare('UPDATE users SET verify_token = ?, updated_at = ? WHERE id = ?'),
