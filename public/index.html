@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title data-i18n="pageTitle">RallyPoint Scoreboard</title>
 <link rel="icon" href="/img/logo.png">
-<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
+<script src="/js/theme-init.js"></script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,11 +26,13 @@
     --panel: #181d24;
     --bg-glow: rgba(196,255,0,.045);
     --bg-glow-strong: rgba(196,255,0,.09);
+    --ball-glow: rgba(196,255,0,.15);
+    --ball-soft: rgba(196,255,0,.06);
   }
-  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --bg-glow: rgba(0,212,255,.045); --bg-glow-strong: rgba(0,212,255,.09); }
-  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --bg-glow: rgba(255,149,51,.045); --bg-glow-strong: rgba(255,149,51,.10); }
-  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --bg-glow: rgba(255,255,255,.03); --bg-glow-strong: rgba(255,255,255,.06); }
-  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --bg-glow: rgba(74,222,128,.045); --bg-glow-strong: rgba(74,222,128,.09); }
+  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --bg-glow: rgba(0,212,255,.045); --bg-glow-strong: rgba(0,212,255,.09); --ball-glow: rgba(0,212,255,.15); --ball-soft: rgba(0,212,255,.06); }
+  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --bg-glow: rgba(255,149,51,.045); --bg-glow-strong: rgba(255,149,51,.10); --ball-glow: rgba(255,149,51,.15); --ball-soft: rgba(255,149,51,.06); }
+  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --bg-glow: rgba(255,255,255,.03); --bg-glow-strong: rgba(255,255,255,.06); --ball-glow: rgba(255,255,255,.12); --ball-soft: rgba(255,255,255,.05); }
+  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --bg-glow: rgba(74,222,128,.045); --bg-glow-strong: rgba(74,222,128,.09); --ball-glow: rgba(74,222,128,.15); --ball-soft: rgba(74,222,128,.06); }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -848,9 +850,10 @@ boxes.forEach((box, i) => {
 boxes[0].focus();
 
 // Pre-fill + auto-connect priority:
-//   1. ?pin=X URL-param (explicit) → connect direct
-//   2. Ingelogde user met actieve match op gekoppelde watch → connect direct
-//   3. localStorage cached PIN → prefill only
+//   1. ?pin=X URL-param → connect direct
+//   2. Ingelogd + 1 gekoppeld horloge → auto connect (nooit PIN typen)
+//   2b. Ingelogd + meerdere horloges → toon picker
+//   3. localStorage cached PIN → prefill only (spectator)
 (async () => {
   const urlPin = new URLSearchParams(location.search).get('pin') || '';
   if (/^\d{4}$/.test(urlPin)) {
@@ -860,62 +863,73 @@ boxes[0].focus();
     return;
   }
 
-  // Try logged-in user's actieve watch
+  // Ingelogde gebruiker: haal alle gekoppelde PINs op
   try {
-    const r = await fetch('/api/account/active-pin');
+    const r = await fetch('/api/auth/me');
     if (r.ok) {
-      const data = await r.json();
-      if (data && data.pin && /^\d{4}$/.test(data.pin)) {
-        for (let i = 0; i < 4; i++) { boxes[i].value = data.pin[i]; }
+      const me = await r.json();
+      const pins = (me.pins || []).filter(p => /^\d{4}$/.test(p));
+      if (pins.length === 1) {
+        // Precies 1 horloge → direct verbinden, nooit PIN typen
+        for (let i = 0; i < 4; i++) { boxes[i].value = pins[0][i]; }
         connectBtn.disabled = false;
         setTimeout(() => connectBtn.click(), 50);
         return;
       }
+      if (pins.length > 1) {
+        // Meerdere horloges → toon kiezer
+        showWatchPicker(pins, me);
+        return;
+      }
+      // Ingelogd maar geen horloges gekoppeld → pas CTAs aan
+      personalizeLandingLoggedIn(me);
+      return;
     }
   } catch (_) {}
 
-  // Fall back to cached PIN — alleen prefill, geen auto-click
+  // Niet ingelogd: cached PIN prefill (spectator-modus)
   const memPin = localStorage.getItem('rallypointPin') || '';
   if (/^\d{4}$/.test(memPin)) {
     for (let i = 0; i < 4; i++) { boxes[i].value = memPin[i]; }
     connectBtn.disabled = false;
   }
-  // Personaliseer landing CTAs als ingelogd (geen actieve match)
-  personalizeLanding();
 })();
 
-async function personalizeLanding() {
-  try {
-    const r = await fetch('/api/auth/me');
-    if (!r.ok) return;
-    const me = await r.json();
-    const pCta = document.getElementById('primaryCta');
-    const sCta = document.getElementById('secondaryCta');
-    if (pCta) { pCta.textContent = 'Mijn dashboard'; pCta.href = '/account'; }
-    if (sCta) {
-      sCta.textContent = 'Scoreboard';
-      sCta.href = '#';
-      sCta.addEventListener('click', async (e) => {
-        e.preventDefault();
-        // Probeer active-pin direct te verbinden
-        try {
-          const ar = await fetch('/api/account/active-pin');
-          if (ar.ok) {
-            const data = await ar.json();
-            if (data && data.pin && /^\d{4}$/.test(data.pin)) {
-              for (let i = 0; i < 4; i++) { boxes[i].value = data.pin[i]; }
-              connectBtn.disabled = false;
-              connectBtn.click();
-              return;
-            }
-          }
-        } catch (_) {}
-        // Geen actieve match → toon PIN-form
-        const tog = document.getElementById('pinToggle');
-        if (tog) { tog.open = true; tog.scrollIntoView({behavior:'smooth'}); boxes[0] && boxes[0].focus(); }
-      });
-    }
-  } catch (_) {}
+// Toon een horlogekiezer voor accounts met meerdere gekoppelde watches.
+function showWatchPicker(pins, me) {
+  const cta = document.getElementById('landingCta');
+  const tog = document.getElementById('pinToggle');
+  if (!cta) return;
+  cta.innerHTML = `
+    <div style="color:var(--muted);font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:.9rem;font-weight:500">Kies een horloge</div>
+    ${pins.map(p => `
+      <button class="btn secondary" style="font-size:1rem;gap:.6rem" data-pick="${p}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;opacity:.7"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h4"/></svg>
+        PIN ${p}
+      </button>
+    `).join('')}
+    <a class="btn secondary" href="/account" style="font-size:1rem;opacity:.7">Dashboard</a>
+  `;
+  cta.querySelectorAll('[data-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.pick;
+      for (let i = 0; i < 4; i++) { boxes[i].value = p[i]; }
+      connectBtn.disabled = false;
+      connectBtn.click();
+    });
+  });
+  if (tog) tog.style.display = 'none';   // verberg spectator PIN-invoer voor account-users
+}
+
+// Pas de landing-CTAs aan voor ingelogde user zonder gekoppeld horloge.
+function personalizeLandingLoggedIn(me) {
+  const pCta = document.getElementById('primaryCta');
+  const sCta = document.getElementById('secondaryCta');
+  if (pCta) { pCta.textContent = 'Mijn dashboard'; pCta.href = '/account'; }
+  if (sCta) {
+    sCta.textContent = 'Horloge koppelen';
+    sCta.href = '/couple';
+  }
 }
 
 connectBtn.addEventListener('click', async () => {

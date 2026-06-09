@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e1216">
 <link rel="icon" href="/img/logo.png">
-<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
+<script src="/js/theme-init.js"></script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
@@ -24,11 +24,13 @@
     --green: #4ade80;
     --ball: #c4ff00;
     --bg-glow: rgba(196,255,0,.045);
+    --ball-glow: rgba(196,255,0,.15);
+    --ball-soft: rgba(196,255,0,.06);
   }
-  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --amber: #00d4ff; --bg-glow: rgba(0,212,255,.045); }
-  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --amber: #ff9533; --bg-glow: rgba(255,149,51,.045); }
-  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --amber: #ffffff; --bg-glow: rgba(255,255,255,.03); }
-  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --amber: #4ade80; --bg-glow: rgba(74,222,128,.045); }
+  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --amber: #00d4ff; --bg-glow: rgba(0,212,255,.045); --ball-glow: rgba(0,212,255,.15); --ball-soft: rgba(0,212,255,.06); }
+  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --amber: #ff9533; --bg-glow: rgba(255,149,51,.045); --ball-glow: rgba(255,149,51,.15); --ball-soft: rgba(255,149,51,.06); }
+  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --amber: #ffffff; --bg-glow: rgba(255,255,255,.03); --ball-glow: rgba(255,255,255,.12); --ball-soft: rgba(255,255,255,.05); }
+  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --amber: #4ade80; --bg-glow: rgba(74,222,128,.045); --ball-glow: rgba(74,222,128,.15); --ball-soft: rgba(74,222,128,.06); }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
@@ -42,16 +44,18 @@
     min-height: 100vh;
   }
   header {
-    padding: 24px 20px 16px;
+    padding: 18px 20px 14px;
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 12px;
-    background: var(--bg);
+    flex-wrap: wrap; gap: 10px;
+    background: var(--user-bg, var(--bg));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     position: sticky; top: 0; z-index: 10;
   }
   h1 {
     margin: 0;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.01em;
   }
@@ -114,27 +118,30 @@
   .match {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
-    transition: background 0.15s;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: background 0.15s, border-color .15s;
   }
+  .match:hover { background: var(--bg-card-hover); }
+  .match.win  { border-left: 3px solid var(--green); }
+  .match.loss { border-left: 3px solid var(--them); }
   .match.over { border-left: 3px solid var(--green); }
   .match.in-progress { border-left: 3px solid var(--amber); }
   .match-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 12px; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 10px;
   }
+  .match-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .match-sport {
-    font-size: 13px;
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--text-dim);
     font-weight: 600;
   }
-  .match-sport .icon { margin-right: 6px; }
   .match-date {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
   }
@@ -143,27 +150,30 @@
     grid-template-columns: 1fr auto 1fr;
     gap: 12px;
     align-items: center;
-    margin: 10px 0 12px;
+    margin: 8px 0 10px;
   }
   .team {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
   }
   .team.us { color: var(--us); text-align: right; }
   .team.them { color: var(--them); text-align: left; }
-  .team.winner::after {
-    content: " 🏆";
-    font-size: 14px;
-  }
+  .team.winner { font-weight: 700; }
+  .team.winner.us::before { content: "🏆 "; font-size: 13px; }
+  .team.winner.them::after { content: " 🏆"; font-size: 13px; }
   .sets {
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
     text-align: center;
     white-space: nowrap;
     color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: .02em;
   }
-  .sets .sep { color: var(--text-dim); margin: 0 6px; font-weight: 400; }
+  .sets.us-won { color: var(--us); }
+  .sets.them-won { color: var(--them); }
+  .sets .sep { color: var(--text-dim); margin: 0 5px; font-weight: 400; font-size: 22px; }
   .set-history {
     text-align: center;
     color: var(--text-dim);
@@ -556,6 +566,7 @@
     </div>
   </div>
   <div class="header-actions">
+    <a class="back-link" id="liveBtn" href="/" style="border-color:var(--ball);color:var(--ball);display:none">Live →</a>
     <a class="back-link" id="backBtn" href="/">← Back</a>
     <select class="lang-select" id="langSelect">
       <option value="en">English</option>
@@ -798,16 +809,27 @@ function renderSummary(matches) {
     `;
   }
 
+  const losses = finished.length - wins;
+  const winCirclePct = finished.length > 0 ? Math.round((wins / finished.length) * 100) : 0;
+
   summary.innerHTML = `
     <div class="summary-head">
       <div class="summary-title">${t('overallTitle')}</div>
-      <div class="summary-window">${last7} · ${t('last7days')}</div>
+      <div class="summary-window">${last7 > 0 ? `${last7} · ${t('last7days')}` : ''}</div>
     </div>
-    <div class="summary-grid">
-      <div class="summary-stat"><div class="num">${total}</div><div class="lbl">${t('totalMatches')}</div></div>
-      <div class="summary-stat"><div class="num ${winRateCls}">${winRateStr}</div><div class="lbl">${t('totalWinRate')}</div></div>
-      <div class="summary-stat"><div class="num">${timeStr}</div><div class="lbl">${t('totalTime')}</div></div>
-      <div class="summary-stat"><div class="num amber">${bestStreak || '—'}</div><div class="lbl">${t('bestStreak')}</div></div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:16px 20px;align-items:center;margin-bottom:16px">
+      <div style="text-align:center">
+        <div style="font-size:38px;font-weight:800;line-height:1;color:${winRate !== null && winRate >= 50 ? 'var(--green)' : 'var(--text)'};font-variant-numeric:tabular-nums">${winRateStr}</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-top:4px">${t('totalWinRate')}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+        <div class="summary-stat"><div class="num">${total}</div><div class="lbl">${t('totalMatches')}</div></div>
+        <div class="summary-stat"><div class="num" style="color:var(--us)">${wins}</div><div class="lbl">Winst</div></div>
+        <div class="summary-stat"><div class="num">${timeStr}</div><div class="lbl">${t('totalTime')}</div></div>
+        <div class="summary-stat"><div class="num amber">${bestStreak || '—'}</div><div class="lbl">${t('bestStreak')}</div></div>
+      </div>
+    </div>
+    <div class="summary-grid" style="grid-template-columns:repeat(auto-fit,minmax(90px,1fr))">
       <div class="summary-stat"><div class="num">${totalPoints || '—'}</div><div class="lbl">${t('totalPointsScored')}</div></div>
       <div class="summary-stat"><div class="num">${avgDuration ? avgDuration + ' ' + t('minutes') : '—'}</div><div class="lbl">${t('avgDuration')}</div></div>
       <div class="summary-stat"><div class="num ${bestComeback ? 'green' : ''}">${bestComeback ? '+' + bestComeback : '—'}</div><div class="lbl">${t('bestComeback')}</div></div>
@@ -1201,12 +1223,15 @@ function render(matches) {
 function renderMatchList(list, matches) {
 
   list.innerHTML = matches.map(m => {
-    const cls = m.over ? 'over' : (m.inProgress ? 'in-progress' : '');
     const teamUs = m.teamUs || t('teamUs');
     const teamThem = m.teamThem || t('teamThem');
     const realWin = m.over && m.winner !== -1 && !m.manuallySaved;
     const usWin = realWin && m.winner === 0;
     const themWin = realWin && m.winner === 1;
+    const cls = [
+      m.over ? 'over' : (m.inProgress ? 'in-progress' : ''),
+      usWin ? 'win' : (themWin ? 'loss' : '')
+    ].filter(Boolean).join(' ');
     let badge;
     if (m.manuallySaved) {
       badge = '<span class="badge saved">' + t('saved') + '</span>';
@@ -1268,15 +1293,15 @@ function renderMatchList(list, matches) {
     return `
       <div class="match ${cls}">
         <div class="match-head">
-          <div>
-            <div class="match-sport">${sportLabel(m.sport)}</div>
-            ${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}
+          <div class="match-meta">
+            <span class="match-sport">${sportLabel(m.sport)}</span>
+            ${meta.map(x => x).join('')}
           </div>
           <div class="match-date">${formatDate(m.savedAt)} · ${badge}</div>
         </div>
         <div class="match-score">
           <div class="team us ${usWin ? 'winner' : ''}">${esc(teamUs)}</div>
-          <div class="sets">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
+          <div class="sets ${usWin ? 'us-won' : themWin ? 'them-won' : ''}">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
           <div class="team them ${themWin ? 'winner' : ''}">${esc(teamThem)}</div>
         </div>
         ${history ? `<div class="set-history">${history}</div>` : ''}
@@ -1442,11 +1467,30 @@ function mergeMatches(server, local) {
 
 async function load() {
   if (!PIN) {
+    // Ingelogde user: automatisch naar zijn/haar PIN sturen
+    try {
+      const r = await fetch('/api/auth/me');
+      if (r.ok) {
+        const me = await r.json();
+        const pins = (me.pins || []).filter(p => /^\d{4}$/.test(p));
+        if (pins.length === 1) {
+          location.replace('/history/' + pins[0]);
+          return;
+        }
+        if (pins.length > 1) {
+          showWatchPickerHistory(pins);
+          return;
+        }
+      }
+    } catch (_) {}
     showPinForm();
     return;
   }
   localStorage.setItem('rallypointPin', PIN);
   document.getElementById('pinValue').textContent = PIN;
+  document.getElementById('backBtn').href = '/';
+  const lb = document.getElementById('liveBtn');
+  if (lb) { lb.href = '/?pin=' + PIN; lb.style.display = 'inline-flex'; }
 
   const cached = loadCached(PIN);
   if (cached.length) { render(cached); }  // direct iets tonen terwijl server laadt
@@ -1461,6 +1505,24 @@ async function load() {
   const merged = mergeMatches(server, cached);
   saveCached(PIN, merged);
   render(merged);
+}
+
+function showWatchPickerHistory(pins) {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div style="text-align:center;padding:60px 20px">
+      <div style="font-size:2rem;margin-bottom:1rem">⌚</div>
+      <div style="font-size:17px;font-weight:600;margin-bottom:8px;color:var(--text)">Kies een horloge</div>
+      <div style="color:var(--text-dim);font-size:14px;margin-bottom:24px">Je hebt meerdere horloges gekoppeld</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:240px;margin:0 auto">
+        ${pins.map(p => `
+          <a href="/history/${p}" class="btn" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border);padding:12px 20px;border-radius:10px;text-decoration:none;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color .15s">
+            PIN ${p}
+          </a>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 document.getElementById('langSelect').addEventListener('change', e => {
