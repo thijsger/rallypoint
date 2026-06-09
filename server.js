@@ -197,6 +197,38 @@ function broadcast(pin, state) {
   for (const res of list) { try { res.write(data); } catch (e) {} }
 }
 
+// Normaliseert korte sleutels (geheugenbesparend formaat van FR55) naar lange sleutels.
+// Accepteert zowel oud formaat (points/games/sets als arrays) als nieuw (p0,p1,g0,g1,...).
+function normalizeState(s) {
+  if (!s || typeof s !== 'object') return s;
+  // Alleen converteren als we de korte variant zien
+  if ('p0' in s || 'g0' in s || 's0' in s) {
+    const n = {
+      points:  [s.p0 || 0, s.p1 || 0],
+      games:   [s.g0 || 0, s.g1 || 0],
+      sets:    [s.s0 || 0, s.s1 || 0],
+      over:    !!s.over, winner: s.win !== undefined ? s.win : -1,
+      tiebreak: !!s.tb, serveTeam: s.srv || 0, serveSide: s.side || 0,
+      servePlayer: s.plr || 0, serveNo: s.sno || 0,
+      switchSides: !!s.sw, fmt: s.fmt || 1, sport: s.spt || 0,
+      golden: !!s.gld, rally: !!s.rl,
+      teamUs: s.tu || 'Us', teamThem: s.tt || 'Them',
+      lang: s.lg || 'en', setupCode: s.sc || '', saved: !!s.saved, saveId: s.sid || '',
+      // Stats (alleen bij saved=true aanwezig)
+      totalPoints: s.tp || 0, durationMin: s.dm || 0,
+      tiebreaks: s.tb2 || 0, deuceGames: s.dg || 0, sideSwitches: s.ss || 0,
+      ptsPerMin: s.ppm || 0, avgPtsGame: s.apg || 0,
+      pointsByTeam: [s.ptb0 || 0, s.ptb1 || 0],
+      longestStreak: [s.ls0 || 0, s.ls1 || 0],
+      history: Array.isArray(s.log) ? s.log : [],
+      setHistory: Array.isArray(s.sh) ? s.sh : [],
+      setStats: Array.isArray(s.sst) ? s.sst : [],
+    };
+    return n;
+  }
+  return s;
+}
+
 function freshMatch() {
   return { points:[0,0], games:[0,0], sets:[0,0], over:false, winner:-1, history:[], golden:false, fmt:1, lang:'en' };
 }
@@ -861,7 +893,7 @@ const server = http.createServer((req, res) => {
       req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
       req.on('end', () => {
         try {
-          const state = JSON.parse(body || '{}');
+          const state = normalizeState(JSON.parse(body || '{}'));
           const prev = matches[pin] || { wasOver: false, autoArchived: false };
 
           // Nieuwe match begonnen (over flip true→false): auto-archive flag resetten

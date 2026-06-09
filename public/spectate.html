@@ -398,18 +398,13 @@
       if (me) {
         document.getElementById('ownerName').textContent = me.owner_name;
         document.getElementById('ownerAvatar').textContent = me.owner_initial;
-        return true;
-      } else {
-        if (!ended) showError('Match niet (meer) actief', 'De eigenaar heeft de match gestopt of privé gemaakt.');
-        return false;
       }
+      // Geen owner gevonden = pin niet gekoppeld of privé — toch door laten
     } catch (_) {}
-    return true;
   }
 
   async function init() {
-    const ok = await loadOwner();
-    if (!ok) return;
+    await loadOwner();   // cosmetisch — blokkeert spectating niet meer
 
     const ev = new EventSource(`/match/${PIN}/events`);
     ev.onmessage = (e) => {
@@ -417,7 +412,7 @@
     };
     ev.onerror = () => {};
 
-    // Periodiek controleren of match nog actief is (detecteert discard via app-exit)
+    // Periodiek owner-info verversen (cosmetisch, geen fout bij mislukken)
     setInterval(() => { if (!ended) loadOwner(); }, 60000);
   }
   init();
