@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Profiel — RallyPoint</title>
 <link rel="icon" href="/img/logo.png">
-<script>document.documentElement.dataset.theme=localStorage.getItem('rallypointTheme')||'lime'</script>
+<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
@@ -87,6 +87,15 @@
       <div class="section">
         <h2>Thema</h2>
         <div class="theme-picker" id="themePicker"></div>
+      </div>
+
+      <div class="section">
+        <h2>Achtergrond</h2>
+        <div class="theme-picker" id="bgPicker"></div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-4)">
+          <label for="bgCustom" style="margin:0;letter-spacing:.1em">Eigen kleur</label>
+          <input type="color" id="bgCustom" value="#0a0d10" style="width:48px;height:36px;padding:0;margin:0;border-radius:var(--r-sm);border:1px solid var(--border-hi);background:transparent;cursor:pointer">
+        </div>
       </div>
 
       <div class="section">
@@ -198,6 +207,7 @@
     ).join('');
 
     renderThemePicker();
+    renderBgPicker();
   }
 
   function renderThemePicker() {
@@ -214,8 +224,49 @@
       s.addEventListener('click', () => {
         setTheme(s.dataset.theme);
         renderThemePicker();
-        toast('Thema: ' + s.querySelector('.theme-swatch-name').textContent, 'success', 1800);
+        toast('Thema: ' + s.querySelector('.theme-swatch-name').textContent, 'success', 1500);
       });
+    });
+  }
+
+  function renderBgPicker() {
+    const el = document.getElementById('bgPicker');
+    if (!el) return;
+    const current = getBg();
+    // 'auto' preset toont een mini themed gradient; presets zonder hex tonen solid color
+    el.innerHTML = BG_PRESETS.map(p => {
+      const isCustom = !BG_PRESETS.find(x => x.id === current) && current !== 'auto' && p.id === 'custom';
+      const active = (p.id === current || (p.id === 'auto' && current === 'auto')) ? 'active' : '';
+      const dot = p.color
+        ? `background:${p.color}`
+        : `background:radial-gradient(circle at 30% 30%, var(--ball), transparent 70%), #0a0d10`;
+      return `<div class="theme-swatch ${active}" data-bg="${p.id}">
+        <span class="theme-swatch-circle" style="${dot};color:${p.color || 'var(--ball)'}"></span>
+        <span class="theme-swatch-name">${p.name}</span>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.theme-swatch').forEach(s => {
+      s.addEventListener('click', () => {
+        setBg(s.dataset.bg);
+        renderBgPicker();
+        toast('Achtergrond: ' + s.querySelector('.theme-swatch-name').textContent, 'success', 1500);
+      });
+    });
+    // Sync color-input naar huidig (als hex)
+    const ci = document.getElementById('bgCustom');
+    if (ci && current && current.startsWith('#')) ci.value = current.length === 4
+      ? '#' + current.slice(1).split('').map(c => c+c).join('') : current;
+  }
+
+  // Custom color picker — live preview tijdens slepen
+  const bgCustom = document.getElementById('bgCustom');
+  if (bgCustom) {
+    bgCustom.addEventListener('input', (e) => {
+      setBg(e.target.value);
+    });
+    bgCustom.addEventListener('change', () => {
+      renderBgPicker();
+      toast('Achtergrond aangepast', 'success', 1200);
     });
   }
 

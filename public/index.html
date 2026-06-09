@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title data-i18n="pageTitle">RallyPoint Scoreboard</title>
 <link rel="icon" href="/img/logo.png">
-<script>document.documentElement.dataset.theme=localStorage.getItem('rallypointTheme')||'lime'</script>
+<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -36,10 +36,11 @@
 
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background:
+    background-color: var(--user-bg, #0a0d10);
+    background-image: var(--user-bg-image,
       radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow-strong), transparent 60%),
-      radial-gradient(circle 60% at 50% 100%, var(--bg-glow), transparent 70%),
-      #0a0d10;
+      radial-gradient(ellipse 70% 40% at 50% 100%, var(--bg-glow), transparent 70%)
+    );
     color: var(--ink);
     min-height: 100vh;
     display: flex;

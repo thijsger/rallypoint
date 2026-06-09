@@ -75,9 +75,10 @@ html { font-size: 16px; }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, var(--ball-soft), transparent 60%),
-    var(--bg);
+  background-color: var(--user-bg, var(--bg));
+  background-image: var(--user-bg-image,
+    radial-gradient(ellipse 80% 60% at 50% 0%, var(--ball-soft), transparent 60%)
+  );
   color: var(--ink);
   min-height: 100dvh;
   display: flex;
