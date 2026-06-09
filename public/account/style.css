@@ -475,8 +475,9 @@ input::placeholder { color: #4a5663; }
 
 /* ---- Footer ---- */
 .app-footer {
-  margin-top: var(--sp-6); text-align: center;
-  color: var(--muted); font-size: .78rem; padding: var(--sp-4) 0;
+  margin-top: auto; padding-top: var(--sp-6); text-align: center;
+  color: var(--muted); font-size: .78rem; padding-bottom: var(--sp-4);
+  width: 100%;
 }
 .app-footer a {
   color: var(--muted-hi); text-decoration: none; margin: 0 var(--sp-2);
