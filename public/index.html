@@ -804,16 +804,39 @@ boxes.forEach((box, i) => {
 });
 boxes[0].focus();
 
-// Pre-fill PIN op load: ?pin=1234 URL-param wint, anders localStorage.
-// Bij URL-param meteen auto-connecten — dat is het pad vanuit /history terug.
-(() => {
+// Pre-fill + auto-connect priority:
+//   1. ?pin=X URL-param (explicit) → connect direct
+//   2. Ingelogde user met actieve match op gekoppelde watch → connect direct
+//   3. localStorage cached PIN → prefill only
+(async () => {
   const urlPin = new URLSearchParams(location.search).get('pin') || '';
+  if (/^\d{4}$/.test(urlPin)) {
+    for (let i = 0; i < 4; i++) { boxes[i].value = urlPin[i]; }
+    connectBtn.disabled = false;
+    setTimeout(() => connectBtn.click(), 50);
+    return;
+  }
+
+  // Try logged-in user's actieve watch
+  try {
+    const r = await fetch('/api/account/active-pin');
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.pin && /^\d{4}$/.test(data.pin)) {
+        for (let i = 0; i < 4; i++) { boxes[i].value = data.pin[i]; }
+        connectBtn.disabled = false;
+        setTimeout(() => connectBtn.click(), 50);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  // Fall back to cached PIN — alleen prefill, geen auto-click
   const memPin = localStorage.getItem('rallypointPin') || '';
-  const pin = /^\d{4}$/.test(urlPin) ? urlPin : (/^\d{4}$/.test(memPin) ? memPin : '');
-  if (!pin) return;
-  for (let i = 0; i < 4; i++) { boxes[i].value = pin[i]; }
-  connectBtn.disabled = false;
-  if (urlPin) { setTimeout(() => connectBtn.click(), 50); }   // alleen via URL → direct
+  if (/^\d{4}$/.test(memPin)) {
+    for (let i = 0; i < 4; i++) { boxes[i].value = memPin[i]; }
+    connectBtn.disabled = false;
+  }
 })();
 
 connectBtn.addEventListener('click', async () => {

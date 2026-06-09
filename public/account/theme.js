@@ -27,18 +27,26 @@
   // '#hex'   = custom solid kleur
   window.BG_PRESETS = [
     { id: 'auto',     name: 'Thema',    color: null,       image: null,
-      preview: 'radial-gradient(circle at 30% 30%, var(--ball), transparent 70%), #0a0d10' },
+      preview: 'radial-gradient(circle at 30% 30%, var(--ball), transparent 70%), #181d24' },
+    // Light → dark (zodat lichtere opties bovenaan staan)
+    { id: 'pewter',   name: 'Pewter',   color: '#3a414c' },
+    { id: 'slate',    name: 'Slate',    color: '#2a3038' },
+    { id: 'steel',    name: 'Steel',    color: '#1f2630' },
+    { id: 'glow',     name: 'Glow',     color: '#1a1f28',
+      image: 'radial-gradient(ellipse 70% 60% at 50% 0%, var(--ball-glow), transparent 60%), radial-gradient(ellipse 80% 50% at 50% 100%, var(--ball-soft), transparent 60%), #1a1f28' },
     { id: 'dark',     name: 'Donker',   color: '#0a0d10' },
-    { id: 'black',    name: 'Zwart',    color: '#000000' },
     { id: 'darker',   name: 'Diep',     color: '#050608' },
-    { id: 'midnight', name: 'Midnight', color: '#0c1929',
-      image: 'linear-gradient(135deg, #0c1929 0%, #050608 100%)' },
-    { id: 'cosmic',   name: 'Cosmic',   color: '#1a0d2e',
-      image: 'linear-gradient(135deg, #1a0d2e 0%, #050608 100%)' },
-    { id: 'dawn',     name: 'Dawn',     color: '#2d1810',
-      image: 'linear-gradient(180deg, #2d1810 0%, #0a0d10 60%)' },
-    { id: 'ocean',    name: 'Ocean',    color: '#0a2a35',
-      image: 'linear-gradient(180deg, #0a2a35 0%, #050608 80%)' },
+    { id: 'black',    name: 'Zwart',    color: '#000000' },
+    { id: 'midnight', name: 'Midnight', color: '#163556',
+      image: 'linear-gradient(135deg, #163556 0%, #0a1828 100%)' },
+    { id: 'cosmic',   name: 'Cosmic',   color: '#33184f',
+      image: 'linear-gradient(135deg, #33184f 0%, #1a0d2a 100%)' },
+    { id: 'dawn',     name: 'Dawn',     color: '#4a2812',
+      image: 'linear-gradient(180deg, #4a2812 0%, #1a0e08 70%)' },
+    { id: 'ocean',    name: 'Ocean',    color: '#0d4358',
+      image: 'linear-gradient(180deg, #0d4358 0%, #061e26 80%)' },
+    { id: 'forest',   name: 'Forest',   color: '#15402c',
+      image: 'linear-gradient(180deg, #15402c 0%, #081a12 80%)' },
   ];
 
   function applyBg(bg) {

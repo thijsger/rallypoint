@@ -614,6 +614,22 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'pins' && !parts[3] && req.method === 'GET') {
       return sendJSON(res, 200, db.getPinsForUser(user.id).map(p => p.pin));
     }
+    if (parts[2] === 'active-pin' && req.method === 'GET') {
+      // Geeft de PIN van deze user waarvan de watch het meest recent heeft
+      // geüpload (binnen het laatste uur). Voor auto-connect op scoreboard.
+      const pins = db.getPinsForUser(user.id).map(p => p.pin);
+      const now = Date.now();
+      const RECENT_MS = 60 * 60 * 1000;
+      let best = null;
+      for (const pin of pins) {
+        const m = matches[pin];
+        if (!m || (now - m.updated) > RECENT_MS) continue;
+        if (!best || m.updated > best.updated) {
+          best = { pin, updated: m.updated, over: !!(m.state && m.state.over) };
+        }
+      }
+      return sendJSON(res, 200, { pin: best ? best.pin : null, info: best });
+    }
     if (parts[2] === 'pins' && parts[3] && req.method === 'DELETE') {
       const pin = parts[3];
       if (!validPin(pin)) return sendJSON(res, 400, { error: 'bad_pin' });
