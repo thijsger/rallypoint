@@ -771,12 +771,8 @@ const server = http.createServer((req, res) => {
   if (parts[0] === 'spectate' && parts[1] && req.method === 'GET') {
     const pin = parts[1];
     if (!validPin(pin)) { res.writeHead(404); return res.end('Pin niet geldig'); }
-    return fs.readFile(path.join(__dirname, 'public', 'spectate.html'), (err, data) => {
-      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
-      const html = data.toString('utf8').replace(/__PIN__/g, pin);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-    });
+    res.writeHead(302, { 'Location': `/?pin=${pin}` });
+    return res.end();
   }
 
   // --- Account pages (/account, /account/login, /account/signup, etc.)
