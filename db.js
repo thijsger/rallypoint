@@ -104,6 +104,7 @@ function addColumnIfMissing(table, col, def) {
 addColumnIfMissing('users', 'display_name', 'TEXT');
 addColumnIfMissing('users', 'avatar_url', 'TEXT');
 addColumnIfMissing('users', 'favorite_sport', 'INTEGER');
+addColumnIfMissing('users', 'is_public', 'INTEGER NOT NULL DEFAULT 0');
 
 // --- Eenmalige migratie: licenses.json → orphan_licenses ---
 function migrateLicensesJsonIfNeeded() {
@@ -195,6 +196,7 @@ const stmts = {
       display_name = COALESCE(?, display_name),
       avatar_url = COALESCE(?, avatar_url),
       favorite_sport = COALESCE(?, favorite_sport),
+      is_public = COALESCE(?, is_public),
       updated_at = ?
     WHERE id = ?
   `),
@@ -325,6 +327,7 @@ function updateProfile(userId, fields) {
     fields.display_name === undefined ? null : (fields.display_name || null),
     fields.avatar_url === undefined ? null : (fields.avatar_url || null),
     fields.favorite_sport === undefined ? null : (fields.favorite_sport == null ? null : Number(fields.favorite_sport)),
+    fields.is_public === undefined ? null : (fields.is_public ? 1 : 0),
     Date.now(),
     userId
   );

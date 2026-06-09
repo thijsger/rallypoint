@@ -118,6 +118,17 @@
             <option value="5">Squash</option>
           </select>
 
+          <div class="row" style="border-top:1px solid var(--border);padding-top:var(--sp-4);margin-top:var(--sp-3);align-items:flex-start">
+            <div style="flex:1;min-width:0">
+              <div class="row-label" style="margin-bottom:4px">Openbare matches</div>
+              <div style="color:var(--muted);font-size:.8rem;line-height:1.4">Toon je lopende matches op de Live Spectator lijst. Anderen zien je naam + score, geen PIN of geschiedenis.</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="isPublicInput">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
           <div class="save-row">
             <button class="btn" type="submit">Opslaan</button>
             <div class="success" id="saveMsg" style="display:none;margin-top:.6rem">Opgeslagen.</div>
@@ -190,6 +201,7 @@
     displayNameInput.value = p.display_name || '';
     avatarUrlInput.value = p.avatar_url || '';
     favoriteSportInput.value = p.favorite_sport == null ? '' : String(p.favorite_sport);
+    document.getElementById('isPublicInput').checked = !!p.is_public;
 
     // Stats
     const s = p.stats || {};
@@ -279,6 +291,7 @@
       display_name: displayNameInput.value.trim(),
       avatar_url: avatarUrlInput.value.trim(),
       favorite_sport: favoriteSportInput.value === '' ? null : Number(favoriteSportInput.value),
+      is_public: document.getElementById('isPublicInput').checked,
     };
     const btn = e.target.querySelector('button');
     btnLoading(btn, true);

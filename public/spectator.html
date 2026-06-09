@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Spectator — RallyPoint</title>
+<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
+<link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
+<link rel="stylesheet" href="/account/style.css">
+<style>
+  body { align-items: flex-start; }
+  .wrap-wide { max-width: 720px; }
+  .match-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
+    padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-3);
+    display: flex; align-items: center; gap: var(--sp-4);
+    text-decoration: none; color: inherit;
+    transition: border-color .15s, transform .15s, background .15s;
+  }
+  .match-card:hover {
+    border-color: var(--ball); transform: translateY(-2px);
+    background: var(--panel-hi);
+  }
+  .match-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--bg-soft); border: 1px solid var(--border-hi);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+    font-size: 1.2rem; color: var(--ball);
+    flex-shrink: 0;
+  }
+  .match-meta { flex: 1; min-width: 0; }
+  .match-name {
+    font-weight: 600; font-size: 1rem; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .match-sport {
+    color: var(--muted); font-size: .78rem; margin-top: 2px;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .match-score {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
+    font-size: 1.4rem; letter-spacing: .05em; color: var(--ink);
+    text-align: right; line-height: 1.1;
+  }
+  .match-score small {
+    display: block; color: var(--muted); font-size: .65rem;
+    text-transform: uppercase; letter-spacing: .14em; font-weight: 500;
+    margin-top: 2px;
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--ball); font-size: .65rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .14em;
+  }
+  .live-badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ball); box-shadow: 0 0 8px var(--ball);
+    animation: pulseBeat 1.5s ease-in-out infinite;
+  }
+  @keyframes pulseBeat { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+  .back-link {
+    color: var(--muted); text-decoration: none; font-size: .85rem;
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-bottom: var(--sp-4);
+  }
+  .back-link:hover { color: var(--ball); }
+</style>
+</head>
+<body>
+<div class="wrap-wide">
+  <a href="/" class="back-link">← Terug</a>
+  <div class="brand">
+    <span class="brand-logo"></span>
+    <div class="brand-name">Live <span>Spectator</span></div>
+    <div class="brand-tagline">Kijk mee met openbare matches</div>
+  </div>
+
+  <div id="content">
+    <div class="loading" id="loading">Actieve matches laden…</div>
+    <div id="matchList"></div>
+    <div id="empty" class="hidden">
+      <div class="card" style="text-align:center">
+        <div style="font-size:2.5rem;line-height:1;margin-bottom:var(--sp-3)">👀</div>
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.3rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:var(--sp-3)">Geen openbare matches</h2>
+        <p style="color:var(--muted-hi);font-size:.92rem;line-height:1.5">Niemand is op dit moment publiek aan het spelen. Kom later terug, of maak je eigen matches publiek in <a href="/account/profile" style="color:var(--ball)">je profiel</a>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="app-footer">
+  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+</footer>
+
+<script>
+  const SPORTS = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+
+  async function load() {
+    try {
+      const r = await fetch('/api/account/spectator/active');
+      const list = await r.json();
+      document.getElementById('loading').classList.add('hidden');
+      if (!list || !list.length) {
+        document.getElementById('empty').classList.remove('hidden');
+        return;
+      }
+      const ml = document.getElementById('matchList');
+      ml.innerHTML = list.map(m => `
+        <a class="match-card" href="/spectate/${m.pin}">
+          <div class="match-avatar">${esc(m.owner_initial)}</div>
+          <div class="match-meta">
+            <div class="match-name">${esc(m.owner_name)}</div>
+            <div class="match-sport">${SPORTS[m.sport] || 'Padel'} · <span class="live-badge">Live</span></div>
+          </div>
+          <div class="match-score">
+            ${m.sets[0]}–${m.sets[1]}
+            <small>Sets · ${m.games[0]}–${m.games[1]} games</small>
+          </div>
+        </a>
+      `).join('');
+    } catch (e) {
+      document.getElementById('loading').textContent = 'Kon matches niet laden.';
+    }
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  load();
+  // Refresh every 15s
+  setInterval(load, 15000);
+</script>
+</body>
+</html>

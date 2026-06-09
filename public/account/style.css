@@ -419,6 +419,31 @@ input::placeholder { color: #4a5663; }
 .toast.toast-err { color: var(--them); border-color: rgba(255,107,84,.4); background: rgba(255,107,84,.08); }
 .toast.toast-info { color: var(--ball); border-color: var(--ball-glow); background: var(--ball-soft); }
 
+/* ---- Toggle switch ---- */
+.toggle {
+  display: inline-flex; align-items: center;
+  width: 44px; height: 24px; position: relative;
+  cursor: pointer; vertical-align: middle;
+}
+.toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--bg-soft); border: 1px solid var(--border-hi);
+  border-radius: 100px; transition: background .2s, border-color .2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; left: 2px; top: 2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--muted);
+  transition: transform .2s, background .2s;
+}
+.toggle input:checked + .toggle-slider {
+  background: var(--ball-soft); border-color: var(--ball);
+}
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px); background: var(--ball);
+}
+
 /* ---- Theme picker — minimal row van swatches ---- */
 .theme-picker {
   display: flex; flex-wrap: wrap; gap: var(--sp-2);

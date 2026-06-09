@@ -106,6 +106,35 @@
   .connect-footer a { color: var(--muted); text-decoration: none; margin: 0 .5rem; transition: color .15s; }
   .connect-footer a:hover { color: var(--ball); }
 
+  /* Landing CTAs */
+  .landing-cta {
+    display: flex; flex-direction: column; gap: .7rem;
+    max-width: 320px; margin: 0 auto 1.8rem;
+  }
+  .landing-cta .btn {
+    width: 100%; padding: 1rem 1.4rem; font-size: 1.05rem;
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  }
+  .landing-cta .btn.secondary {
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--court-line);
+  }
+  .landing-cta .btn.secondary:hover {
+    background: #232830; border-color: var(--ball); color: var(--ball);
+  }
+  /* Collapsible PIN section */
+  .pin-toggle { max-width: 340px; margin: 0 auto; }
+  .pin-toggle summary {
+    color: var(--muted); font-size: .85rem; cursor: pointer;
+    list-style: none; padding: .7rem; text-align: center;
+    border-radius: 10px; transition: color .15s, background .15s;
+  }
+  .pin-toggle summary::-webkit-details-marker { display: none; }
+  .pin-toggle summary::after { content: ' ▾'; opacity: .7; }
+  .pin-toggle[open] summary::after { content: ' ▴'; }
+  .pin-toggle summary:hover { color: var(--ink); background: rgba(255,255,255,.04); }
+  .pin-toggle .pin-form { padding: 1rem 0 0; animation: rise .3s ease both; }
+
   .btn {
     background: var(--ball); color: #0c0f12;
     border: none; border-radius: 14px;
@@ -518,21 +547,35 @@
 </head>
 <body>
 
-  <!-- VERBIND-SCHERM -->
+  <!-- LANDING / VERBIND-SCHERM -->
   <div class="connect" id="connectScreen">
     <img class="logo-img" src="/img/logo.png" alt="">
     <div class="logo">Rally<span>Point</span></div>
     <div class="tagline" data-i18n="tagline">Live Scoreboard</div>
-    <div class="pin-label" data-i18n="pinLabel">Enter the PIN from your watch</div>
-    <div class="pin-boxes" id="pinBoxes">
-      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="0">
-      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="1">
-      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="2">
-      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="3">
+
+    <div class="landing-cta" id="landingCta">
+      <a class="btn" id="primaryCta" href="/account/signup">Account aanmaken</a>
+      <a class="btn secondary" id="secondaryCta" href="/account/login">Inloggen</a>
+      <a class="btn secondary" href="/spectator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;margin-right:6px;vertical-align:-3px"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7"/></svg>
+        Live spectator
+      </a>
     </div>
-    <button class="btn" id="connectBtn" data-i18n="connect" disabled>Connect</button>
-    <div class="err" id="err"></div>
-    <div class="hint" data-i18n="pinHint">You can find the PIN in the RallyPoint app on your Garmin.</div>
+
+    <details class="pin-toggle" id="pinToggle">
+      <summary>Direct verbinden met PIN</summary>
+      <div class="pin-form">
+        <div class="pin-label" data-i18n="pinLabel">Enter the PIN from your watch</div>
+        <div class="pin-boxes" id="pinBoxes">
+          <input class="pin-box" maxlength="1" inputmode="numeric" data-i="0">
+          <input class="pin-box" maxlength="1" inputmode="numeric" data-i="1">
+          <input class="pin-box" maxlength="1" inputmode="numeric" data-i="2">
+          <input class="pin-box" maxlength="1" inputmode="numeric" data-i="3">
+        </div>
+        <button class="btn" id="connectBtn" data-i18n="connect" disabled>Connect</button>
+        <div class="err" id="err"></div>
+      </div>
+    </details>
   </div>
 
   <footer class="connect-footer" id="connectFooter">
@@ -837,7 +880,21 @@ boxes[0].focus();
     for (let i = 0; i < 4; i++) { boxes[i].value = memPin[i]; }
     connectBtn.disabled = false;
   }
+  // Personaliseer landing CTAs als ingelogd (geen actieve match)
+  personalizeLanding();
 })();
+
+async function personalizeLanding() {
+  try {
+    const r = await fetch('/api/auth/me');
+    if (!r.ok) return;
+    const me = await r.json();
+    const pCta = document.getElementById('primaryCta');
+    const sCta = document.getElementById('secondaryCta');
+    if (pCta) { pCta.textContent = 'Mijn dashboard'; pCta.href = '/account'; }
+    if (sCta) { sCta.textContent = 'Mijn profiel'; sCta.href = '/account/profile'; }
+  } catch (_) {}
+}
 
 connectBtn.addEventListener('click', async () => {
   const pin = boxes.map(b => b.value).join('');

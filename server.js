@@ -614,6 +614,33 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'pins' && !parts[3] && req.method === 'GET') {
       return sendJSON(res, 200, db.getPinsForUser(user.id).map(p => p.pin));
     }
+    if (parts[2] === 'spectator' && parts[3] === 'active' && req.method === 'GET') {
+      // Publieke lijst van actieve matches — geen auth nodig.
+      // Alleen pins waarvan eigenaar is_public=1 heeft staan + match is recent.
+      const RECENT_MS = 60 * 60 * 1000;
+      const now = Date.now();
+      const result = [];
+      for (const pin of Object.keys(matches)) {
+        const m = matches[pin];
+        if (!m || (now - m.updated) > RECENT_MS) continue;
+        if (m.state && m.state.over) continue;   // alleen lopende
+        const owner = db.getPinOwner(pin);
+        if (!owner) continue;
+        const u = db.getUserById(owner.user_id);
+        if (!u || !u.is_public) continue;
+        result.push({
+          pin,
+          owner_name: u.display_name || u.email.split('@')[0],
+          owner_initial: (u.display_name || u.email).charAt(0).toUpperCase(),
+          sport: (m.state && m.state.sport) || 0,
+          sets: (m.state && m.state.sets) || [0,0],
+          games: (m.state && m.state.games) || [0,0],
+          updated_at: m.updated,
+        });
+      }
+      result.sort((a, b) => b.updated_at - a.updated_at);
+      return sendJSON(res, 200, result);
+    }
     if (parts[2] === 'active-pin' && req.method === 'GET') {
       // Geeft de PIN van deze user waarvan de watch het meest recent heeft
       // geüpload (binnen het laatste uur). Voor auto-connect op scoreboard.
@@ -645,6 +672,7 @@ const server = http.createServer((req, res) => {
         display_name: user.display_name || null,
         avatar_url: user.avatar_url || null,
         favorite_sport: user.favorite_sport == null ? null : Number(user.favorite_sport),
+        is_public: !!user.is_public,
         created_at: user.created_at,
         pins,
         stats: statsForUser(user.id),
@@ -669,6 +697,9 @@ const server = http.createServer((req, res) => {
           }
           fields.favorite_sport = fs;
         }
+        if (body.is_public !== undefined) {
+          fields.is_public = !!body.is_public;
+        }
         db.updateProfile(user.id, fields);
         return sendJSON(res, 200, { ok: true });
       }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
@@ -686,6 +717,25 @@ const server = http.createServer((req, res) => {
         res.end(data);
       });
     }
+  }
+
+  // --- Spectator: list page + viewer
+  if (parts[0] === 'spectator' && !parts[1] && req.method === 'GET') {
+    return fs.readFile(path.join(__dirname, 'public', 'spectator.html'), (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+  }
+  if (parts[0] === 'spectate' && parts[1] && req.method === 'GET') {
+    const pin = parts[1];
+    if (!validPin(pin)) { res.writeHead(404); return res.end('Pin niet geldig'); }
+    return fs.readFile(path.join(__dirname, 'public', 'spectate.html'), (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+      const html = data.toString('utf8').replace(/__PIN__/g, pin);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    });
   }
 
   // --- Account pages (/account, /account/login, /account/signup, etc.)
