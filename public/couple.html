@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch koppelen — RallyPoint</title>
+<script>(function(d){d.dataset.theme=localStorage.getItem('rallypointTheme')||'lime';var b=localStorage.getItem('rallypointBg');if(b&&b!=='auto'){var c=b==='black'?'#000':b==='darker'?'#050608':b==='dark'?'#0a0d10':b;d.style.setProperty('--user-bg',c);d.style.setProperty('--user-bg-image','none');}})(document.documentElement)</script>
+<link rel="icon" href="/img/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0f12">
+<link rel="apple-touch-icon" href="/img/logo.png">
+<link rel="stylesheet" href="/account/style.css">
+<style>
+  .watch-icon {
+    width: 64px; height: 64px; border-radius: var(--r-lg);
+    background: var(--bg-soft); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto var(--sp-4);
+  }
+  .pin-display {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: var(--sp-4);
+    text-align: center; margin-bottom: var(--sp-5);
+  }
+  .pin-display .lbl {
+    color: var(--muted); font-size: .7rem; letter-spacing: .15em;
+    text-transform: uppercase; margin-bottom: var(--sp-2); font-weight: 600;
+  }
+  .pin-display .val {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+    font-size: 2.2rem; color: var(--ball); letter-spacing: .15em;
+  }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <span class="brand-logo"></span>
+    <div class="brand-name">Watch <span>koppelen</span></div>
+  </div>
+
+  <div class="card" id="content">
+    <div class="loading" id="loadingState">Even checken…</div>
+  </div>
+</div>
+
+<footer class="app-footer">
+  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+</footer>
+
+<script src="/account/theme.js"></script>
+<script src="/account/toast.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const pin = params.get('pin') || '';
+  const code = (params.get('code') || '').toLowerCase();
+  const content = document.getElementById('content');
+
+  function renderError(title, body) {
+    content.innerHTML = `
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.4rem;text-transform:uppercase;margin-bottom:var(--sp-3)">${title}</h1>
+      <p style="color:var(--muted-hi);margin-bottom:var(--sp-5);line-height:1.5">${body}</p>
+      <a class="btn secondary" href="/account">Terug naar dashboard</a>
+    `;
+  }
+
+  function renderInvalidParams() {
+    renderError('Geen PIN of code',
+      'Scan de QR-code op je RallyPoint-watch (Setup → Koppel account) of vul handmatig PIN+code in op je <a href="/account" style="color:var(--ball)">dashboard</a>.');
+  }
+
+  function renderConfirm(email) {
+    content.innerHTML = `
+      <div class="watch-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;color:var(--ball)"><rect x="6" y="5" width="12" height="14" rx="2"/><path d="M9 2h6l-1 3h-4z"/><path d="M9 19l-1 3h8l-1-3"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <h1 class="center" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.5rem;text-transform:uppercase;margin-bottom:var(--sp-3);line-height:1.1">Koppel deze watch</h1>
+      <p class="center" style="color:var(--muted-hi);margin-bottom:var(--sp-5);line-height:1.5">Aan account <b style="color:var(--ink)">${esc(email)}</b>.</p>
+      <div class="pin-display">
+        <div class="lbl">Watch PIN</div>
+        <div class="val">${esc(pin)}</div>
+      </div>
+      <button class="btn" id="confirmBtn">Koppelen</button>
+      <a class="btn secondary" href="/account">Annuleren</a>
+      <div class="err" id="err"></div>
+    `;
+    document.getElementById('confirmBtn').addEventListener('click', doCouple);
+  }
+
+  async function doCouple() {
+    const btn = document.getElementById('confirmBtn');
+    btnLoading(btn, true);
+    try {
+      const r = await fetch('/api/account/couple-pin', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ pin, code }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        document.getElementById('err').textContent =
+          data.error === 'pin_taken' ? 'Deze PIN is al gekoppeld aan een ander account.' :
+          data.error === 'bad_code' ? 'Code klopt niet — open je watch-app opnieuw en scan QR.' :
+          data.error === 'watch_not_active' ? 'Open je RallyPoint-app op de watch en probeer opnieuw.' :
+          'Koppelen mislukt.';
+        btnLoading(btn, false);
+        return;
+      }
+      // Success
+      window.location = '/account?just_coupled=1';
+    } catch (e) {
+      document.getElementById('err').textContent = 'Netwerkfout.';
+      btnLoading(btn, false);
+    }
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  async function init() {
+    if (!/^\d{4}$/.test(pin) || !/^[0-9a-f]{6}$/.test(code)) {
+      renderInvalidParams();
+      return;
+    }
+    // Check auth status
+    try {
+      const r = await fetch('/api/auth/me');
+      if (r.status === 401) {
+        // Niet ingelogd → redirect naar login + return naar deze pagina
+        const next = encodeURIComponent('/couple?pin=' + pin + '&code=' + code);
+        window.location = '/account/login?next=' + next;
+        return;
+      }
+      const me = await r.json();
+      renderConfirm(me.email);
+    } catch (e) {
+      renderError('Server niet bereikbaar', 'Probeer de pagina opnieuw te laden.');
+    }
+  }
+  init();
+</script>
+</body>
+</html>

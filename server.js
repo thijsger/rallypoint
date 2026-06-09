@@ -719,6 +719,15 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // --- /couple — QR/manual coupling landing
+  if (parts[0] === 'couple' && !parts[1] && req.method === 'GET') {
+    return fs.readFile(path.join(__dirname, 'public', 'couple.html'), (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+  }
+
   // --- Spectator: list page + viewer
   if (parts[0] === 'spectator' && !parts[1] && req.method === 'GET') {
     return fs.readFile(path.join(__dirname, 'public', 'spectator.html'), (err, data) => {

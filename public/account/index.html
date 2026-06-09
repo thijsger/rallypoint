@@ -112,6 +112,7 @@
       onboarded: ['Je bent klaar — veel plezier!', 'success'],
       email_changed: ['E-mailadres bijgewerkt.', 'success'],
       pw_changed: ['Wachtwoord gewijzigd.', 'success'],
+      just_coupled: ['Watch gekoppeld aan je account!', 'success'],
     };
     const fired = [];
     if (q.get('verified') === '1') fired.push('verified_1');
@@ -120,6 +121,7 @@
     if (q.get('onboarded') === '1') fired.push('onboarded');
     if (q.get('email_changed') === '1') fired.push('email_changed');
     if (q.get('pw_changed') === '1') fired.push('pw_changed');
+    if (q.get('just_coupled') === '1') fired.push('just_coupled');
     fired.forEach((k, i) => setTimeout(() => toast(msgs[k][0], msgs[k][1]), i * 150));
     if (fired.length) {
       history.replaceState({}, '', location.pathname);

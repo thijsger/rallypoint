@@ -892,7 +892,29 @@ async function personalizeLanding() {
     const pCta = document.getElementById('primaryCta');
     const sCta = document.getElementById('secondaryCta');
     if (pCta) { pCta.textContent = 'Mijn dashboard'; pCta.href = '/account'; }
-    if (sCta) { sCta.textContent = 'Mijn profiel'; sCta.href = '/account/profile'; }
+    if (sCta) {
+      sCta.textContent = 'Scoreboard';
+      sCta.href = '#';
+      sCta.addEventListener('click', async (e) => {
+        e.preventDefault();
+        // Probeer active-pin direct te verbinden
+        try {
+          const ar = await fetch('/api/account/active-pin');
+          if (ar.ok) {
+            const data = await ar.json();
+            if (data && data.pin && /^\d{4}$/.test(data.pin)) {
+              for (let i = 0; i < 4; i++) { boxes[i].value = data.pin[i]; }
+              connectBtn.disabled = false;
+              connectBtn.click();
+              return;
+            }
+          }
+        } catch (_) {}
+        // Geen actieve match → toon PIN-form
+        const tog = document.getElementById('pinToggle');
+        if (tog) { tog.open = true; tog.scrollIntoView({behavior:'smooth'}); boxes[0] && boxes[0].focus(); }
+      });
+    }
   } catch (_) {}
 }
 
