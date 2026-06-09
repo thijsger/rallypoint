@@ -29,12 +29,39 @@
 
   <div id="bannerSlot"></div>
 
+  <div id="skeleton">
+    <div class="card">
+      <div class="section">
+        <h2><span class="skeleton skeleton-text sm" style="width:80px;height:12px"></span></h2>
+        <div class="row"><span class="skeleton skeleton-text sm" style="width:60px"></span><span class="skeleton skeleton-text" style="width:200px;height:14px"></span></div>
+        <div class="row"><span class="skeleton skeleton-text sm" style="width:50px"></span><span class="skeleton skeleton-pill" style="width:110px"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section">
+        <h2><span class="skeleton skeleton-text sm" style="width:60px;height:12px"></span></h2>
+        <div class="stats-grid">
+          <div class="skeleton skeleton-tile"></div>
+          <div class="skeleton skeleton-tile"></div>
+          <div class="skeleton skeleton-tile"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="content" class="hidden">
     <div class="card">
       <div class="section">
         <h2>Account</h2>
         <div class="row"><span class="row-label">E-mail</span><span class="row-value" id="userEmail"></span></div>
         <div class="row"><span class="row-label">Status</span><span class="row-value" id="userVerified"></span></div>
+      </div>
+    </div>
+
+    <div class="card" id="quickStatsCard" style="display:none">
+      <div class="section">
+        <h2>Snel overzicht</h2>
+        <div class="stats-grid" id="quickStats"></div>
       </div>
     </div>
 
@@ -100,21 +127,46 @@
   }
   setTimeout(flashFromQuery, 50);
 
+  const skeleton = document.getElementById('skeleton');
+  const quickStatsCard = document.getElementById('quickStatsCard');
+  const quickStats = document.getElementById('quickStats');
+
+  function fmtDuration(min) {
+    if (!min) return '0 min';
+    const h = Math.floor(min / 60), m = Math.round(min % 60);
+    return h > 0 ? `${h}u ${m}m` : `${m} min`;
+  }
+
   async function load() {
-    let me;
+    let me, profile;
     try {
       const r = await fetch('/api/auth/me');
       if (r.status === 401) { window.location = '/account/login'; return; }
       me = await r.json();
+      // Profile is needed for stats — fetch in parallel ideally but minimal pages here
+      const p = await fetch('/api/account/profile');
+      if (p.ok) profile = await p.json();
     } catch (e) {
       bannerSlot.innerHTML = '<div class="banner err">Kon account niet laden.</div>';
       return;
     }
+    skeleton.classList.add('hidden');
     content.classList.remove('hidden');
     userEmail.textContent = me.email;
     userVerified.innerHTML = me.email_verified
       ? '<span class="status-pill active">Geverifieerd</span>'
       : '<span class="status-pill expired">Niet geverifieerd</span>';
+
+    // Quick stats — alleen tonen als er minstens 1 match is
+    const s = (profile && profile.stats) || {};
+    if (s.total_matches > 0) {
+      quickStatsCard.style.display = '';
+      quickStats.innerHTML = `
+        <div class="stat-tile"><div class="num">${s.total_matches}</div><div class="lbl">Matches</div></div>
+        <div class="stat-tile"><div class="num accent">${s.win_rate != null ? s.win_rate + '%' : '—'}</div><div class="lbl">Win-rate</div></div>
+        <div class="stat-tile"><div class="num">${fmtDuration(s.total_duration_min || 0)}</div><div class="lbl">Speeltijd</div></div>
+      `;
+    }
 
     pinList.innerHTML = '';
     if (!me.pins || !me.pins.length) {

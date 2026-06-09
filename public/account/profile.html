@@ -233,15 +233,11 @@
     const el = document.getElementById('bgPicker');
     if (!el) return;
     const current = getBg();
-    // 'auto' preset toont een mini themed gradient; presets zonder hex tonen solid color
     el.innerHTML = BG_PRESETS.map(p => {
-      const isCustom = !BG_PRESETS.find(x => x.id === current) && current !== 'auto' && p.id === 'custom';
-      const active = (p.id === current || (p.id === 'auto' && current === 'auto')) ? 'active' : '';
-      const dot = p.color
-        ? `background:${p.color}`
-        : `background:radial-gradient(circle at 30% 30%, var(--ball), transparent 70%), #0a0d10`;
+      const active = p.id === current ? 'active' : '';
+      const dotBg = p.image || p.preview || p.color || '#0a0d10';
       return `<div class="theme-swatch ${active}" data-bg="${p.id}">
-        <span class="theme-swatch-circle" style="${dot};color:${p.color || 'var(--ball)'}"></span>
+        <span class="theme-swatch-circle" style="background:${dotBg};color:${p.color || 'var(--ball)'}"></span>
         <span class="theme-swatch-name">${p.name}</span>
       </div>`;
     }).join('');
@@ -252,7 +248,7 @@
         toast('Achtergrond: ' + s.querySelector('.theme-swatch-name').textContent, 'success', 1500);
       });
     });
-    // Sync color-input naar huidig (als hex)
+    // Sync color-input naar huidig (als hex custom)
     const ci = document.getElementById('bgCustom');
     if (ci && current && current.startsWith('#')) ci.value = current.length === 4
       ? '#' + current.slice(1).split('').map(c => c+c).join('') : current;

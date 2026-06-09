@@ -1333,8 +1333,20 @@ function drawFlowChart(canvas) {
   const xAt = (i) => padX + (i / (pts.length - 1)) * innerW;
   const yAt = (v) => midY - (v / maxAbs) * (innerH / 2);
 
-  // Subtle area fill
-  ctx.fillStyle = 'rgba(212,255,0,.08)';
+  // Theme accent uit CSS-variable lezen (zo respecteert chart de gekozen theme)
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const accent = cssVar('--ball') || '#c4ff00';
+  const them = cssVar('--them') || '#ff5a3c';
+  function hexToRgba(h, a) {
+    const c = h.replace('#','');
+    const r = parseInt(c.length === 3 ? c[0]+c[0] : c.slice(0,2), 16);
+    const g = parseInt(c.length === 3 ? c[1]+c[1] : c.slice(2,4), 16);
+    const b = parseInt(c.length === 3 ? c[2]+c[2] : c.slice(4,6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  // Subtle area fill in accent color
+  ctx.fillStyle = hexToRgba(accent, .08);
   ctx.beginPath();
   ctx.moveTo(xAt(0), midY);
   pts.forEach((v, i) => { ctx.lineTo(xAt(i), yAt(v)); });
@@ -1343,7 +1355,7 @@ function drawFlowChart(canvas) {
   ctx.fill();
 
   // Flow line
-  ctx.strokeStyle = '#d4ff00';
+  ctx.strokeStyle = accent;
   ctx.lineWidth = 1.8;
   ctx.lineJoin = 'round';
   ctx.beginPath();
@@ -1356,7 +1368,7 @@ function drawFlowChart(canvas) {
 
   // Eindmarker
   const lastV = pts[pts.length - 1];
-  ctx.fillStyle = lastV >= 0 ? '#d4ff00' : '#ff5a3c';
+  ctx.fillStyle = lastV >= 0 ? accent : them;
   ctx.beginPath();
   ctx.arc(xAt(pts.length - 1), yAt(lastV), 3, 0, Math.PI * 2);
   ctx.fill();
