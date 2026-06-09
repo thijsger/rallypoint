@@ -467,6 +467,15 @@
   .winner-banner.show { display: flex; }
   .winner-banner h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(3rem,12vw,9rem); text-transform: uppercase; }
   .winner-banner .sub { color: var(--muted); letter-spacing: .2em; text-transform: uppercase; margin-top: 1rem; }
+  .winner-close {
+    position: absolute; top: 1.2rem; right: 1.2rem;
+    background: transparent; border: 1px solid rgba(255,255,255,.2);
+    color: rgba(255,255,255,.5); font-size: 1.1rem; line-height: 1;
+    width: 2.4rem; height: 2.4rem; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .winner-close:hover { border-color: rgba(255,255,255,.7); color: #fff; }
 
   /* ---- Tester (nep-horloge) ---- */
   .tester {
@@ -674,6 +683,7 @@
 
   <!-- WINNAAR -->
   <div class="winner-banner" id="winnerBanner">
+    <button class="winner-close" id="winnerClose" title="Sluiten">✕</button>
     <h1 id="winnerName">Us</h1>
     <div class="sub" id="winnerScore" data-i18n="winnerSub">wins the match</div>
     <div class="winner-sets" id="winnerSets"></div>
@@ -1006,6 +1016,11 @@ async function hydrateProfileLink() {
 
 // Live verbinding: elke 1,5s de stand ophalen van de server
 let prevState = null;
+let bannerDismissed = false;
+document.getElementById('winnerClose').addEventListener('click', () => {
+  bannerDismissed = true;
+  document.getElementById('winnerBanner').classList.remove('show');
+});
 let pollTimer = null;
 let evtSource = null;
 function snapshot(m) {
@@ -1126,8 +1141,9 @@ function render(m) {
     if (tp !== null) lines.push(`${tp} ${t('pointsPlayed')}`);
     if (ls) lines.push(`${t('longestRun')} — ${teamUs}: ${ls[0]}, ${teamThem}: ${ls[1]}`);
     stats.innerHTML = lines.join('<br>');
-    banner.classList.add('show');
+    if (!bannerDismissed) banner.classList.add('show');
   } else {
+    bannerDismissed = false;
     banner.classList.remove('show');
   }
 
