@@ -6,15 +6,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e1216">
 <link rel="icon" href="/img/logo.png">
+<script>document.documentElement.dataset.theme=localStorage.getItem('rallypointTheme')||'lime'</script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <style>
   :root {
-    --bg: #0c0f12;
-    --bg-card: #1a1f25;
+    --bg: #0a0d10;
+    --bg-card: #181d24;
     --bg-card-hover: #232830;
-    --border: #2a3038;
+    --border: #232a33;
     --text: #ffffff;
     --text-dim: #8b95a3;
     --us: #c4ff00;
@@ -23,6 +24,10 @@
     --green: #4ade80;
     --ball: #c4ff00;
   }
+  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; --amber: #00d4ff; }
+  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; --amber: #ff9533; }
+  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; --amber: #ffffff; }
+  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; --amber: #4ade80; }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;

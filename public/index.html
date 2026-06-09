@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title data-i18n="pageTitle">RallyPoint Scoreboard</title>
 <link rel="icon" href="/img/logo.png">
+<script>document.documentElement.dataset.theme=localStorage.getItem('rallypointTheme')||'lime'</script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,15 +16,19 @@
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
   :root {
-    --court: #0c0f12;
+    --court: #0a0d10;
     --court-line: #2a3038;
     --ball: #c4ff00;
     --us: #c4ff00;
     --them: #ff6b54;
     --ink: #ffffff;
     --muted: #8b95a3;
-    --panel: #1a1f25;
+    --panel: #181d24;
   }
+  html[data-theme="ice"]    { --ball: #00d4ff; --us: #00d4ff; }
+  html[data-theme="sunset"] { --ball: #ff9533; --us: #ff9533; }
+  html[data-theme="mono"]   { --ball: #ffffff; --us: #ffffff; }
+  html[data-theme="court"]  { --ball: #4ade80; --us: #4ade80; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 

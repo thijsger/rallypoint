@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Profiel — RallyPoint</title>
 <link rel="icon" href="/img/logo.png">
+<script>document.documentElement.dataset.theme=localStorage.getItem('rallypointTheme')||'lime'</script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
@@ -81,6 +82,11 @@
       </div>
 
       <div class="section">
+        <h2>Thema</h2>
+        <div class="theme-picker" id="themePicker"></div>
+      </div>
+
+      <div class="section">
         <h2>Persoonlijke gegevens</h2>
         <form id="profileForm">
           <label for="displayNameInput">Weergavenaam</label>
@@ -121,6 +127,7 @@
   <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
 </footer>
 
+<script src="/account/theme.js"></script>
 <script src="/account/toast.js"></script>
 <script>
   const SPORTS = ['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
@@ -186,6 +193,27 @@
     statsGrid.innerHTML = tiles.map(t =>
       `<div class="stat-tile"><div class="num ${t.accent?'accent':''}">${t.num}</div><div class="lbl">${t.lbl}</div></div>`
     ).join('');
+
+    renderThemePicker();
+  }
+
+  function renderThemePicker() {
+    const el = document.getElementById('themePicker');
+    if (!el) return;
+    const current = getTheme();
+    el.innerHTML = THEMES_META.map(t => `
+      <div class="theme-swatch ${t.id === current ? 'active' : ''}" data-theme="${t.id}">
+        <span class="theme-swatch-circle" style="background:${t.color};color:${t.color}"></span>
+        <span class="theme-swatch-name">${t.name}</span>
+      </div>
+    `).join('');
+    el.querySelectorAll('.theme-swatch').forEach(s => {
+      s.addEventListener('click', () => {
+        setTheme(s.dataset.theme);
+        renderThemePicker();
+        toast('Thema: ' + s.querySelector('.theme-swatch-name').textContent, 'success', 1800);
+      });
+    });
   }
 
   // Live avatar preview when URL changes
