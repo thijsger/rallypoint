@@ -560,7 +560,7 @@
 
   <!-- LANDING / VERBIND-SCHERM -->
   <div class="connect" id="connectScreen">
-    <a href="/" style="display:contents;text-decoration:none;color:inherit">
+    <a href="/?stay=1" style="display:contents;text-decoration:none;color:inherit">
       <img class="logo-img" src="/img/logo.png" alt="RallyPoint">
       <div class="logo">Rally<span>Point</span></div>
     </a>
@@ -604,7 +604,7 @@
   <div class="board" id="board">
     <div class="board-top">
       <div class="board-title-wrap">
-        <a href="/" style="display:contents;text-decoration:none;color:inherit">
+        <a href="/?stay=1" style="display:contents;text-decoration:none;color:inherit">
           <span class="board-logo" aria-hidden="true"></span>
           <div class="board-title">Rally<span>Point</span></div>
         </a>
@@ -870,13 +870,17 @@ boxes[0].focus();
 //   2b. Ingelogd + meerdere horloges → toon picker
 //   3. localStorage cached PIN → prefill only (spectator)
 (async () => {
-  const urlPin = new URLSearchParams(location.search).get('pin') || '';
+  const params = new URLSearchParams(location.search);
+  const urlPin = params.get('pin') || '';
   if (/^\d{4}$/.test(urlPin)) {
     for (let i = 0; i < 4; i++) { boxes[i].value = urlPin[i]; }
     connectBtn.disabled = false;
     setTimeout(() => connectBtn.click(), 50);
     return;
   }
+
+  // ?stay=1 betekent: gebruiker navigeerde bewust naar home — niet auto-connecten
+  if (params.get('stay') === '1') return;
 
   // Ingelogde gebruiker: haal alle gekoppelde PINs op
   try {
