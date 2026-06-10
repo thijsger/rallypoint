@@ -9,33 +9,48 @@
   h1 { font-size:1.1rem; margin:0 0 .25rem; }
   .meta { color:#8b95a3; font-size:.85rem; margin-bottom:1rem; }
   .meta b { color:#c4ff00; }
-  canvas { width:100%; height:320px; background:#11161c; border:1px solid #2a3038; border-radius:8px; display:block; }
-  .legend { font-size:.8rem; color:#8b95a3; margin:.5rem 0 1.5rem; }
+  canvas { width:100%; height:260px; background:#11161c; border:1px solid #2a3038; border-radius:8px; display:block; margin-bottom:.5rem; }
+  .legend { font-size:.8rem; color:#8b95a3; margin:0 0 1.2rem; }
   .legend span { margin-right:1.2rem; }
   .dot { display:inline-block; width:10px; height:3px; vertical-align:middle; margin-right:4px; }
   button { background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:8px; padding:.5rem .9rem; font-size:.85rem; cursor:pointer; }
   button:hover { border-color:#c4ff00; }
+  label { font-size:.85rem; color:#8b95a3; margin-left:1rem; }
+  h2 { font-size:.8rem; color:#8b95a3; margin:.6rem 0 .2rem; font-weight:500; }
 </style>
 </head>
 <body>
-<h1>Swing-log</h1>
-<div class="meta">PIN <b id="pin">—</b> · sensor <b id="mode">—</b> · slagen totaal <b id="total">0</b> · bins <b id="bins">0</b> · <span id="upd"></span></div>
-<canvas id="c" width="2000" height="320"></canvas>
+<h1>Swing-log (ruwe per-as data)</h1>
+<div class="meta">PIN <b id="pin">—</b> · sensor <b id="mode">—</b> · ~<b id="hz">?</b>Hz · slagen <b id="total">0</b> · samples <b id="samples">0</b> · <span id="upd"></span></div>
+
+<h2>Gyroscoop — rotatiesnelheid per as (forehand/backhand/smash verschillen hier)</h2>
+<canvas id="cg" width="2000" height="260"></canvas>
 <div class="legend">
-  <span><i class="dot" style="background:#c4ff00"></i>gyro (rotatie)</span>
-  <span><i class="dot" style="background:#ff6b54"></i>jerk (scherpte)</span>
-  <span><i class="dot" style="background:#4aa8ff;height:14px;width:2px"></i>geteld als slag</span>
+  <span><i class="dot" style="background:#c4ff00"></i>gx</span>
+  <span><i class="dot" style="background:#4aa8ff"></i>gy</span>
+  <span><i class="dot" style="background:#ff6b54"></i>gz</span>
+  <span><i class="dot" style="background:#fff;height:14px;width:2px"></i>geteld als slag</span>
 </div>
+
+<h2>Versnelling — per as</h2>
+<canvas id="ca" width="2000" height="260"></canvas>
+<div class="legend">
+  <span><i class="dot" style="background:#c4ff00"></i>ax</span>
+  <span><i class="dot" style="background:#4aa8ff"></i>ay</span>
+  <span><i class="dot" style="background:#ff6b54"></i>az</span>
+</div>
+
 <button onclick="load()">Ververs</button>
 <button onclick="wipe()">Wis log</button>
-<label style="margin-left:1rem;font-size:.85rem;color:#8b95a3"><input type="checkbox" id="auto" checked> auto-refresh 5s</label>
+<label><input type="checkbox" id="auto" checked> auto-refresh 5s</label>
+<label><input type="checkbox" id="tail" checked> alleen laatste 60s</label>
 
 <script>
 const PIN = location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
 document.getElementById('pin').textContent = PIN;
 
-let bins = [];   // [[pg,pj,sw],...] geconcateneerd
+let A = {ax:[],ay:[],az:[],gx:[],gy:[],gz:[],sw:[]};
 
 async function load() {
   try {
@@ -43,18 +58,28 @@ async function load() {
     if (!r.ok) { document.getElementById('upd').textContent = 'geen toegang'; return; }
     const j = await r.json();
     const batches = (j.batches || []).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
-    bins = [];
-    let gyro = false, total = 0;
+    A = {ax:[],ay:[],az:[],gx:[],gy:[],gz:[],sw:[]};
+    let gyro = false, hz = '?';
     for (const b of batches) {
       if (b.g) gyro = true;
-      for (const row of (b.d || [])) { bins.push(row); total += (row[2]||0); }
+      if (b.hz) hz = b.hz;
+      const base = A.ax.length;
+      // nieuw per-as formaat
+      if (Array.isArray(b.ax)) {
+        for (let i=0;i<b.ax.length;i++) {
+          A.ax.push(b.ax[i]); A.ay.push(b.ay[i]); A.az.push(b.az[i]);
+          A.gx.push((b.gx&&b.gx[i])||0); A.gy.push((b.gy&&b.gy[i])||0); A.gz.push((b.gz&&b.gz[i])||0);
+        }
+        for (const m of (b.sw||[])) A.sw.push(base + m);
+      }
     }
     document.getElementById('mode').textContent = gyro ? 'gyro+accel' : 'accel';
-    document.getElementById('total').textContent = total;
-    document.getElementById('bins').textContent = bins.length;
+    document.getElementById('hz').textContent = hz;
+    document.getElementById('total').textContent = A.sw.length;
+    document.getElementById('samples').textContent = A.ax.length;
     document.getElementById('upd').textContent = 'bijgewerkt ' + new Date().toLocaleTimeString('nl-NL');
     draw();
-  } catch (e) { document.getElementById('upd').textContent = 'fout'; }
+  } catch (e) { document.getElementById('upd').textContent = 'fout: ' + e.message; }
 }
 
 async function wipe() {
@@ -63,43 +88,52 @@ async function wipe() {
   load();
 }
 
+function viewRange() {
+  const hz = parseInt(document.getElementById('hz').textContent) || 50;
+  if (document.getElementById('tail').checked) {
+    const start = Math.max(0, A.ax.length - hz*60);
+    return [start, A.ax.length];
+  }
+  return [0, A.ax.length];
+}
+
 function draw() {
-  const cv = document.getElementById('c');
+  drawCanvas('cg', ['gx','gy','gz'], true);
+  drawCanvas('ca', ['ax','ay','az'], false);
+}
+
+function drawCanvas(id, keys, showMarks) {
+  const cv = document.getElementById(id);
   const ctx = cv.getContext('2d');
   const W = cv.width, H = cv.height;
   ctx.clearRect(0,0,W,H);
-  if (bins.length < 2) return;
+  const [s,e] = viewRange();
+  const n = e - s;
+  if (n < 2) return;
 
-  // toon de laatste ~600 bins (60s) zodat recente slagen leesbaar blijven
-  const view = bins.slice(Math.max(0, bins.length - 600));
-  const n = view.length;
-  let maxG = 1, maxJ = 1;
-  for (const r of view) { if (r[0]>maxG) maxG=r[0]; if (r[1]>maxJ) maxJ=r[1]; }
-  const pad = 10, h = H - pad*2;
-  const x = i => (i/(n-1))*W;
+  // symmetrisch schalen rond 0
+  let max = 1;
+  for (const k of keys) for (let i=s;i<e;i++){ const v=Math.abs(A[k][i]||0); if(v>max)max=v; }
+  const mid = H/2, amp = (H/2 - 8);
+  const x = i => ((i-s)/(n-1))*W;
+  const y = v => mid - (v/max)*amp;
 
-  // slag-markers eerst (verticale lijnen)
-  ctx.strokeStyle = '#4aa8ff';
-  for (let i=0;i<n;i++) {
-    if (view[i][2] > 0) {
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x(i),0); ctx.lineTo(x(i),H); ctx.stroke();
-      if (view[i][2] > 1) { ctx.fillStyle='#4aa8ff'; ctx.font='11px system-ui'; ctx.fillText('×'+view[i][2], x(i)+2, 12); }
-    }
+  // nullijn
+  ctx.strokeStyle='#2a3038'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(W,mid); ctx.stroke();
+
+  // slag-markers
+  if (showMarks) {
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+    for (const m of A.sw) { if (m>=s && m<e) { ctx.beginPath(); ctx.moveTo(x(m),0); ctx.lineTo(x(m),H); ctx.stroke(); } }
   }
-  // gyro
-  line(ctx, view, 0, maxG, '#c4ff00', pad, h, x);
-  // jerk
-  line(ctx, view, 1, maxJ, '#ff6b54', pad, h, x);
-}
 
-function line(ctx, view, idx, max, color, pad, h, x) {
-  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
-  for (let i=0;i<view.length;i++) {
-    const y = pad + h - (view[i][idx]/max)*h;
-    if (i===0) ctx.moveTo(x(i),y); else ctx.lineTo(x(i),y);
+  const colors = {gx:'#c4ff00',gy:'#4aa8ff',gz:'#ff6b54',ax:'#c4ff00',ay:'#4aa8ff',az:'#ff6b54'};
+  for (const k of keys) {
+    ctx.strokeStyle=colors[k]; ctx.lineWidth=1.3; ctx.beginPath();
+    for (let i=s;i<e;i++){ const xx=x(i), yy=y(A[k][i]||0); if(i===s)ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy); }
+    ctx.stroke();
   }
-  ctx.stroke();
 }
 
 load();
