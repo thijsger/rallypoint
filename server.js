@@ -47,6 +47,17 @@ const clients = {}; // pin -> [res, ...]  (live SSE-verbindingen)
 let history = {};   // pin -> [match, ...]  (afgesloten wedstrijden)
 const seenSaveIds = {}; // pin -> Set(saveId)  voorkomt dubbele archivering bij retries
 
+// --- Analytics ---
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'thijsjwger@gmail.com';
+const pageViews = []; // { ts, page, ipHash }
+const MAX_VIEWS = 20000;
+function trackVisit(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || (req.socket && req.socket.remoteAddress) || '';
+  const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 12);
+  pageViews.push({ ts: Date.now(), page: req.url.split('?')[0], ipHash });
+  if (pageViews.length > MAX_VIEWS) pageViews.splice(0, pageViews.length - MAX_VIEWS);
+}
+
 try {
   if (fs.existsSync(HISTORY_FILE)) {
     history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8') || '{}');
@@ -950,6 +961,31 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // --- Admin stats ---
+  if (url.pathname === '/api/admin/stats' && req.method === 'GET') {
+    const user = getUserFromReq(req);
+    if (!user || user.email !== ADMIN_EMAIL) { res.writeHead(403); return res.end('Geen toegang'); }
+    const now = Date.now();
+    const v24 = pageViews.filter(v => v.ts > now - 86400000);
+    const v1h  = pageViews.filter(v => v.ts > now - 3600000);
+    const pages = {};
+    for (const v of v24) { pages[v.page] = (pages[v.page] || 0) + 1; }
+    const viewers = Object.entries(clients)
+      .filter(([, l]) => l.length > 0)
+      .map(([pin, l]) => ({ pin, count: l.length }));
+    return sendJSON(res, 200, {
+      now,
+      activeMatches: Object.keys(matches).length,
+      viewers,
+      viewersTotal: viewers.reduce((s, v) => s + v.count, 0),
+      visits24h: v24.length,
+      unique24h: new Set(v24.map(v => v.ipHash)).size,
+      visits1h: v1h.length,
+      unique1h: new Set(v1h.map(v => v.ipHash)).size,
+      topPages: Object.entries(pages).sort((a, b) => b[1] - a[1]).slice(0, 15),
+    });
+  }
+
   // --- Statische bestanden (het scorebord) ---
   let file = url.pathname === '/' ? '/index.html' : url.pathname;
   const filePath = path.join(__dirname, 'public', path.normalize(file).replace(/^(\.\.[\/\\])+/, ''));
@@ -957,6 +993,7 @@ const server = http.createServer((req, res) => {
     if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
     const ext = path.extname(filePath);
     const types = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css' };
+    if (ext === '.html' && req.method === 'GET') trackVisit(req);
     res.writeHead(200, { 'Content-Type': types[ext] || 'text/plain' });
     res.end(data);
   });
