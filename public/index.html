@@ -908,7 +908,7 @@ boxes[0].focus();
         return;
       }
       // ?stay=1 of geen horloges: toon home maar pas CTAs aan voor ingelogde user
-      personalizeLandingLoggedIn(me);
+      personalizeLandingLoggedIn(me, pins);
       return;
     }
   } catch (_) {}
@@ -947,14 +947,21 @@ function showWatchPicker(pins, me) {
   if (tog) tog.style.display = 'none';   // verberg spectator PIN-invoer voor account-users
 }
 
-// Pas de landing-CTAs aan voor ingelogde user zonder gekoppeld horloge.
-function personalizeLandingLoggedIn(me) {
+// Pas de landing-CTAs aan voor een ingelogde user.
+// Heeft de user al een gekoppeld horloge (bv. via logo naar home), dan
+// "Scoreboard" tonen i.p.v. "Horloge koppelen".
+function personalizeLandingLoggedIn(me, pins) {
   const pCta = document.getElementById('primaryCta');
   const sCta = document.getElementById('secondaryCta');
   if (pCta) { pCta.textContent = 'Mijn dashboard'; pCta.href = '/account'; }
   if (sCta) {
-    sCta.textContent = 'Horloge koppelen';
-    sCta.href = '/couple';
+    if (pins && pins.length > 0) {
+      sCta.textContent = 'Scoreboard';
+      sCta.href = pins.length === 1 ? ('/?pin=' + pins[0]) : '/';
+    } else {
+      sCta.textContent = 'Horloge koppelen';
+      sCta.href = '/couple';
+    }
   }
 }
 
