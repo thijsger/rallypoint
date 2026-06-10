@@ -785,7 +785,8 @@ const server = http.createServer((req, res) => {
   // POST /beta/log/:pin  -> watch stuurt batch {t0,bin,g,d:[[pg,pj,sw],...]}
   // GET  /beta/log/:pin  -> JSON van alle batches (voor analyse)
   // GET  /beta/view/:pin -> simpele grafiek-viewer
-  if (parts[0] === 'beta' && (parts[1] === 'log' || parts[1] === 'view') && parts[2]) {
+  // GET  /beta/stats/:pin -> slag-stats dashboard
+  if (parts[0] === 'beta' && (parts[1] === 'log' || parts[1] === 'view' || parts[1] === 'stats') && parts[2]) {
     if (url.searchParams.get('beta') !== BETA_KEY) { res.writeHead(403); return res.end('nope'); }
     const pin = parts[2];
     if (!validPin(pin)) { res.writeHead(404); return res.end('pin'); }
@@ -813,9 +814,10 @@ const server = http.createServer((req, res) => {
       betaLogs[pin] = [];
       return sendJSON(res, 200, { ok: true });
     }
-    if (parts[1] === 'view' && req.method === 'GET') {
-      return fs.readFile(path.join(__dirname, 'public', 'beta', 'view.html'), (err, data) => {
-        if (err) { res.writeHead(404); return res.end('viewer ontbreekt'); }
+    if ((parts[1] === 'view' || parts[1] === 'stats') && req.method === 'GET') {
+      const file = parts[1] === 'stats' ? 'stats.html' : 'view.html';
+      return fs.readFile(path.join(__dirname, 'public', 'beta', file), (err, data) => {
+        if (err) { res.writeHead(404); return res.end('pagina ontbreekt'); }
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(data);
       });

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mijn slag-stats — RallyPoint beta</title>
+<style>
+  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.2rem 4rem; -webkit-font-smoothing:antialiased; }
+  h1 { font-size:1.2rem; margin:0 0 .2rem; }
+  h1 span { color:#c4ff00; }
+  .meta { color:#8b95a3; font-size:.85rem; margin-bottom:1.5rem; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.8rem; margin-bottom:1.8rem; }
+  .card { background:#181d24; border:1px solid #2a3038; border-radius:12px; padding:1rem 1.1rem; }
+  .card .l { color:#8b95a3; font-size:.7rem; text-transform:uppercase; letter-spacing:.14em; margin-bottom:.35rem; }
+  .card .v { font-size:1.9rem; font-weight:700; line-height:1; }
+  .card .v.accent { color:#c4ff00; }
+  h2 { font-size:.8rem; color:#8b95a3; text-transform:uppercase; letter-spacing:.14em; margin:1.6rem 0 .6rem; font-weight:600; }
+  canvas { width:100%; background:#11161c; border:1px solid #2a3038; border-radius:10px; display:block; }
+  .note { color:#5d6470; font-size:.75rem; margin-top:.4rem; }
+  button { background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:8px; padding:.5rem .9rem; font-size:.85rem; cursor:pointer; margin-right:.5rem; }
+  button:hover { border-color:#c4ff00; }
+  #err { color:#ff6b54; padding:1rem 0; }
+</style>
+</head>
+<body>
+<h1>Mijn <span>slag-stats</span></h1>
+<div class="meta">PIN <b id="pin">—</b> · <span id="upd">laden…</span></div>
+<div id="err"></div>
+
+<div class="cards" id="cards"></div>
+
+<h2>Slagmix</h2>
+<canvas id="mix" height="240"></canvas>
+
+<h2>Kracht per slagtype</h2>
+<canvas id="power" height="240"></canvas>
+<div class="note">Kracht = piek-zwaaiversnelling (maat voor zwaaisnelheid, niet balsnelheid). Goed om je eigen slagen te vergelijken.</div>
+
+<h2>Slagen door de wedstrijd</h2>
+<canvas id="timeline" height="180"></canvas>
+<div class="note">Elke stip = een slag. Hoogte = kracht. Zie je ritme en of je inzakt tegen het eind.</div>
+
+<h2>Krachtverdeling</h2>
+<canvas id="hist" height="200"></canvas>
+
+<div style="margin-top:2rem">
+  <button onclick="load()">Ververs</button>
+  <label style="font-size:.85rem;color:#8b95a3"><input type="checkbox" id="auto"> auto 10s</label>
+</div>
+
+<script>
+const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
+const KEY = new URLSearchParams(location.search).get('beta') || '';
+document.getElementById('pin').textContent = PIN;
+
+const COLORS = {
+  forehand:'#c4ff00', forehand_frontspin:'#a6e000', forehand_slice:'#d9ff66',
+  backhand:'#4aa8ff', backhand_frontspin:'#2b86e0', backhand_slice:'#86c8ff',
+  smash:'#ff6b54', volley_forehand:'#ffb14a', volley_forehand_slice:'#ffd08a'
+};
+
+let MODEL=null, swings=[];
+
+async function load() {
+  try {
+    if (!MODEL) MODEL = await (await fetch('/beta/model.json')).json();
+    const r = await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`);
+    if (!r.ok) { document.getElementById('err').textContent='Geen toegang.'; return; }
+    const j = await r.json();
+    const batches = (j.batches||[]).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
+
+    // concat ruwe data + verzamel slag-markers (van de watch = rennen-veilig)
+    let AX=[],AY=[],AZ=[],GX=[],GY=[],GZ=[],SW=[];
+    for (const b of batches) {
+      if (!Array.isArray(b.ax)) continue;
+      const base=AX.length;
+      for (let i=0;i<b.ax.length;i++){
+        AX.push(b.ax[i]);AY.push(b.ay[i]);AZ.push(b.az[i]);
+        GX.push((b.gx&&b.gx[i])||0);GY.push((b.gy&&b.gy[i])||0);GZ.push((b.gz&&b.gz[i])||0);
+      }
+      for (const m of (b.sw||[])) SW.push(base+m);
+    }
+    // features + classificatie per slag
+    swings = SW.map(c => {
+      const f = feats(AX,AY,AZ,GX,GY,GZ,c);
+      return { t:c/50, type:classify(f), power:f[7], spin:Math.hypot(f[0],f[1],f[2]) };
+    });
+    document.getElementById('upd').textContent =
+      `${swings.length} slagen · bijgewerkt ${new Date().toLocaleTimeString('nl-NL')}`;
+    document.getElementById('err').textContent='';
+    render();
+  } catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
+}
+
+function feats(AX,AY,AZ,GX,GY,GZ,c){
+  const n=AX.length, s=Math.max(0,c-12), e=Math.min(n,c+14);
+  const pk=a=>{let p=0;for(let i=s;i<e;i++)if(Math.abs(a[i])>Math.abs(p))p=a[i];return p;};
+  let dur=0; for(let i=Math.max(0,c-15);i<Math.min(n,c+15);i++){const g=Math.hypot(GX[i],GY[i],GZ[i]);if(g>250)dur++;}
+  let amag=0; for(let i=s;i<e;i++){const a=Math.hypot(AX[i],AY[i],AZ[i]);if(a>amag)amag=a;}
+  return [pk(GX),pk(GY),pk(GZ),pk(AX),pk(AY),pk(AZ),dur,amag];
+}
+function classify(f){
+  let best=null,bd=1e18;
+  for(const k in MODEL.classes){
+    const c=MODEL.classes[k].centroid; let d=0;
+    for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}
+    if(d<bd){bd=d;best=k;}
+  }
+  return best;
+}
+
+function render(){
+  // kaarten
+  const n=swings.length;
+  const avgP = n? Math.round(swings.reduce((s,x)=>s+x.power,0)/n):0;
+  const maxP = n? Math.round(Math.max(...swings.map(x=>x.power))):0;
+  const dur = n? (swings[n-1].t/60):0;
+  const spm = dur>0.1? Math.round(n/dur):0;
+  card([['Slagen',n,1],['Gem. kracht',avgP,0],['Piek kracht',maxP,1],['Slagen/min',spm,0]]);
+
+  // tellingen per type
+  const counts={}; for(const s of swings) counts[s.type]=(counts[s.type]||0)+1;
+  const powByType={}; for(const s of swings){(powByType[s.type]=powByType[s.type]||[]).push(s.power);}
+
+  drawBars('mix', Object.keys(MODEL.classes).map(k=>({
+    label:MODEL.classes[k].label, val:counts[k]||0, color:COLORS[k]
+  })).filter(x=>x.val>0).sort((a,b)=>b.val-a.val), v=>v);
+
+  drawBars('power', Object.keys(MODEL.classes).map(k=>({
+    label:MODEL.classes[k].label,
+    val: powByType[k]? Math.round(powByType[k].reduce((a,b)=>a+b,0)/powByType[k].length):0,
+    color:COLORS[k]
+  })).filter(x=>x.val>0).sort((a,b)=>b.val-a.val), v=>v);
+
+  drawTimeline();
+  drawHist();
+}
+
+function card(items){
+  document.getElementById('cards').innerHTML = items.map(([l,v,acc])=>
+    `<div class="card"><div class="l">${l}</div><div class="v ${acc?'accent':''}">${v}</div></div>`).join('');
+}
+
+function setup(id){
+  const cv=document.getElementById(id); const ctx=cv.getContext('2d');
+  cv.width=cv.clientWidth*2; // retina
+  const W=cv.width, H=cv.height*2; cv.style.height=(H/2)+'px'; cv.height=H;
+  ctx.clearRect(0,0,W,H); return {ctx,W,H};
+}
+
+function drawBars(id, data, fmt){
+  const {ctx,W,H}=setup(id);
+  if(!data.length){ctx.fillStyle='#5d6470';ctx.font='24px system-ui';ctx.fillText('nog geen data',20,H/2);return;}
+  const max=Math.max(...data.map(d=>d.val))||1;
+  const padL=20,padR=20,padT=20,padB=70, bw=(W-padL-padR)/data.length*0.6, gap=(W-padL-padR)/data.length;
+  data.forEach((d,i)=>{
+    const x=padL+i*gap+(gap-bw)/2, h=(d.val/max)*(H-padT-padB), y=H-padB-h;
+    ctx.fillStyle=d.color; ctx.fillRect(x,y,bw,h);
+    ctx.fillStyle='#fff'; ctx.font='bold 24px system-ui'; ctx.textAlign='center';
+    ctx.fillText(fmt(d.val), x+bw/2, y-8);
+    ctx.fillStyle='#8b95a3'; ctx.font='18px system-ui';
+    ctx.save(); ctx.translate(x+bw/2,H-padB+14); ctx.rotate(-0.5);
+    ctx.textAlign='right'; ctx.fillText(d.label, 0,0); ctx.restore();
+  });
+}
+
+function drawTimeline(){
+  const {ctx,W,H}=setup('timeline');
+  if(!swings.length)return;
+  const T=swings[swings.length-1].t||1, maxP=Math.max(...swings.map(s=>s.power))||1;
+  const padL=20,padR=20,padB=24,padT=14;
+  ctx.strokeStyle='#2a3038';ctx.beginPath();ctx.moveTo(padL,H-padB);ctx.lineTo(W-padR,H-padB);ctx.stroke();
+  for(const s of swings){
+    const x=padL+(s.t/T)*(W-padL-padR), h=(s.power/maxP)*(H-padT-padB);
+    ctx.strokeStyle=COLORS[s.type]||'#888'; ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x,H-padB);ctx.lineTo(x,H-padB-h);ctx.stroke();
+    ctx.fillStyle=COLORS[s.type]||'#888'; ctx.beginPath();ctx.arc(x,H-padB-h,3,0,7);ctx.fill();
+  }
+  ctx.fillStyle='#8b95a3';ctx.font='18px system-ui';ctx.textAlign='left';ctx.fillText('0 min',padL,H-6);
+  ctx.textAlign='right';ctx.fillText((T/60).toFixed(0)+' min',W-padR,H-6);
+}
+
+function drawHist(){
+  const {ctx,W,H}=setup('hist');
+  if(!swings.length)return;
+  const ps=swings.map(s=>s.power), mn=Math.min(...ps), mx=Math.max(...ps)||1;
+  const bins=12, counts=new Array(bins).fill(0);
+  for(const p of ps){let b=Math.floor((p-mn)/(mx-mn+1)*bins);if(b>=bins)b=bins-1;counts[b]++;}
+  const max=Math.max(...counts)||1, padL=20,padR=20,padB=30,padT=14, bw=(W-padL-padR)/bins;
+  counts.forEach((c,i)=>{
+    const h=(c/max)*(H-padT-padB), x=padL+i*bw;
+    ctx.fillStyle='#c4ff00';ctx.fillRect(x+2,H-padB-h,bw-4,h);
+  });
+  ctx.fillStyle='#8b95a3';ctx.font='18px system-ui';ctx.textAlign='left';ctx.fillText('zacht',padL,H-8);
+  ctx.textAlign='right';ctx.fillText('hard',W-padR,H-8);
+}
+
+load();
+setInterval(()=>{if(document.getElementById('auto').checked)load();},10000);
+window.addEventListener('resize',()=>{if(swings.length)render();});
+</script>
+</body>
+</html>
