@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swing-log — RallyPoint beta</title>
+<style>
+  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem; }
+  h1 { font-size:1.1rem; margin:0 0 .25rem; }
+  .meta { color:#8b95a3; font-size:.85rem; margin-bottom:1rem; }
+  .meta b { color:#c4ff00; }
+  canvas { width:100%; height:320px; background:#11161c; border:1px solid #2a3038; border-radius:8px; display:block; }
+  .legend { font-size:.8rem; color:#8b95a3; margin:.5rem 0 1.5rem; }
+  .legend span { margin-right:1.2rem; }
+  .dot { display:inline-block; width:10px; height:3px; vertical-align:middle; margin-right:4px; }
+  button { background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:8px; padding:.5rem .9rem; font-size:.85rem; cursor:pointer; }
+  button:hover { border-color:#c4ff00; }
+</style>
+</head>
+<body>
+<h1>Swing-log</h1>
+<div class="meta">PIN <b id="pin">—</b> · sensor <b id="mode">—</b> · slagen totaal <b id="total">0</b> · bins <b id="bins">0</b> · <span id="upd"></span></div>
+<canvas id="c" width="2000" height="320"></canvas>
+<div class="legend">
+  <span><i class="dot" style="background:#c4ff00"></i>gyro (rotatie)</span>
+  <span><i class="dot" style="background:#ff6b54"></i>jerk (scherpte)</span>
+  <span><i class="dot" style="background:#4aa8ff;height:14px;width:2px"></i>geteld als slag</span>
+</div>
+<button onclick="load()">Ververs</button>
+<button onclick="wipe()">Wis log</button>
+<label style="margin-left:1rem;font-size:.85rem;color:#8b95a3"><input type="checkbox" id="auto" checked> auto-refresh 5s</label>
+
+<script>
+const PIN = location.pathname.split('/')[3] || '';
+const KEY = new URLSearchParams(location.search).get('beta') || '';
+document.getElementById('pin').textContent = PIN;
+
+let bins = [];   // [[pg,pj,sw],...] geconcateneerd
+
+async function load() {
+  try {
+    const r = await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`);
+    if (!r.ok) { document.getElementById('upd').textContent = 'geen toegang'; return; }
+    const j = await r.json();
+    const batches = (j.batches || []).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
+    bins = [];
+    let gyro = false, total = 0;
+    for (const b of batches) {
+      if (b.g) gyro = true;
+      for (const row of (b.d || [])) { bins.push(row); total += (row[2]||0); }
+    }
+    document.getElementById('mode').textContent = gyro ? 'gyro+accel' : 'accel';
+    document.getElementById('total').textContent = total;
+    document.getElementById('bins').textContent = bins.length;
+    document.getElementById('upd').textContent = 'bijgewerkt ' + new Date().toLocaleTimeString('nl-NL');
+    draw();
+  } catch (e) { document.getElementById('upd').textContent = 'fout'; }
+}
+
+async function wipe() {
+  if (!confirm('Log wissen?')) return;
+  await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`, { method:'DELETE' });
+  load();
+}
+
+function draw() {
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  if (bins.length < 2) return;
+
+  // toon de laatste ~600 bins (60s) zodat recente slagen leesbaar blijven
+  const view = bins.slice(Math.max(0, bins.length - 600));
+  const n = view.length;
+  let maxG = 1, maxJ = 1;
+  for (const r of view) { if (r[0]>maxG) maxG=r[0]; if (r[1]>maxJ) maxJ=r[1]; }
+  const pad = 10, h = H - pad*2;
+  const x = i => (i/(n-1))*W;
+
+  // slag-markers eerst (verticale lijnen)
+  ctx.strokeStyle = '#4aa8ff';
+  for (let i=0;i<n;i++) {
+    if (view[i][2] > 0) {
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x(i),0); ctx.lineTo(x(i),H); ctx.stroke();
+      if (view[i][2] > 1) { ctx.fillStyle='#4aa8ff'; ctx.font='11px system-ui'; ctx.fillText('×'+view[i][2], x(i)+2, 12); }
+    }
+  }
+  // gyro
+  line(ctx, view, 0, maxG, '#c4ff00', pad, h, x);
+  // jerk
+  line(ctx, view, 1, maxJ, '#ff6b54', pad, h, x);
+}
+
+function line(ctx, view, idx, max, color, pad, h, x) {
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
+  for (let i=0;i<view.length;i++) {
+    const y = pad + h - (view[i][idx]/max)*h;
+    if (i===0) ctx.moveTo(x(i),y); else ctx.lineTo(x(i),y);
+  }
+  ctx.stroke();
+}
+
+load();
+setInterval(() => { if (document.getElementById('auto').checked) load(); }, 5000);
+</script>
+</body>
+</html>

@@ -47,6 +47,11 @@ const clients = {}; // pin -> [res, ...]  (live SSE-verbindingen)
 let history = {};   // pin -> [match, ...]  (afgesloten wedstrijden)
 const seenSaveIds = {}; // pin -> Set(saveId)  voorkomt dubbele archivering bij retries
 
+// --- BETA swing-log (privé diagnose) ---
+const BETA_KEY = process.env.BETA_KEY || 'rp-swing-9f3a2c';
+const BETA_LOG_FILE = path.join(DATA_DIR, 'beta-swing.jsonl');
+const betaLogs = {}; // pin -> [batch, ...]  (in geheugen, file als backup)
+
 
 try {
   if (fs.existsSync(HISTORY_FILE)) {
@@ -774,6 +779,48 @@ const server = http.createServer((req, res) => {
     if (!validPin(pin)) { res.writeHead(404); return res.end('Pin niet geldig'); }
     res.writeHead(302, { 'Location': `/?pin=${pin}` });
     return res.end();
+  }
+
+  // --- BETA swing-log (privé, achter ?beta=<sleutel>) ---
+  // POST /beta/log/:pin  -> watch stuurt batch {t0,bin,g,d:[[pg,pj,sw],...]}
+  // GET  /beta/log/:pin  -> JSON van alle batches (voor analyse)
+  // GET  /beta/view/:pin -> simpele grafiek-viewer
+  if (parts[0] === 'beta' && (parts[1] === 'log' || parts[1] === 'view') && parts[2]) {
+    if (url.searchParams.get('beta') !== BETA_KEY) { res.writeHead(403); return res.end('nope'); }
+    const pin = parts[2];
+    if (!validPin(pin)) { res.writeHead(404); return res.end('pin'); }
+
+    if (parts[1] === 'log' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 1e6) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const batch = JSON.parse(body || '{}');
+          batch.recv = Date.now();
+          if (!betaLogs[pin]) { betaLogs[pin] = []; }
+          betaLogs[pin].push(batch);
+          if (betaLogs[pin].length > 5000) { betaLogs[pin].shift(); }
+          try { fs.appendFileSync(BETA_LOG_FILE, JSON.stringify({ pin, ...batch }) + '\n'); } catch (e) {}
+          sendJSON(res, 200, { ok: true });
+        } catch (e) { sendJSON(res, 400, { error: 'bad json' }); }
+      });
+      return;
+    }
+    if (parts[1] === 'log' && req.method === 'GET') {
+      return sendJSON(res, 200, { pin, batches: betaLogs[pin] || [] });
+    }
+    if (parts[1] === 'log' && req.method === 'DELETE') {
+      betaLogs[pin] = [];
+      return sendJSON(res, 200, { ok: true });
+    }
+    if (parts[1] === 'view' && req.method === 'GET') {
+      return fs.readFile(path.join(__dirname, 'public', 'beta', 'view.html'), (err, data) => {
+        if (err) { res.writeHead(404); return res.end('viewer ontbreekt'); }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(data);
+      });
+    }
+    res.writeHead(405); return res.end('method');
   }
 
   // --- Account pages (/account, /account/login, /account/signup, etc.)
