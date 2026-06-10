@@ -879,8 +879,7 @@ boxes[0].focus();
     return;
   }
 
-  // ?stay=1 betekent: gebruiker navigeerde bewust naar home — niet auto-connecten
-  if (params.get('stay') === '1') return;
+  const stay = params.get('stay') === '1';
 
   // Ingelogde gebruiker: haal alle gekoppelde PINs op
   try {
@@ -888,19 +887,19 @@ boxes[0].focus();
     if (r.ok) {
       const me = await r.json();
       const pins = (me.pins || []).filter(p => /^\d{4}$/.test(p));
-      if (pins.length === 1) {
+      if (!stay && pins.length === 1) {
         // Precies 1 horloge → direct verbinden, nooit PIN typen
         for (let i = 0; i < 4; i++) { boxes[i].value = pins[0][i]; }
         connectBtn.disabled = false;
         setTimeout(() => connectBtn.click(), 50);
         return;
       }
-      if (pins.length > 1) {
+      if (!stay && pins.length > 1) {
         // Meerdere horloges → toon kiezer
         showWatchPicker(pins, me);
         return;
       }
-      // Ingelogd maar geen horloges gekoppeld → pas CTAs aan
+      // ?stay=1 of geen horloges: toon home maar pas CTAs aan voor ingelogde user
       personalizeLandingLoggedIn(me);
       return;
     }
