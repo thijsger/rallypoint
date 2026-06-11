@@ -5,97 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Coach — RallyPoint beta</title>
 <style>
-  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.2rem 4rem; -webkit-font-smoothing:antialiased; }
-  .head { display:flex; align-items:center; gap:.9rem; margin-bottom:.3rem; }
-  .coach-badge { width:46px; height:46px; border-radius:50%; flex-shrink:0;
-    background:linear-gradient(135deg,#c4ff00,#7aa800); display:flex; align-items:center; justify-content:center; font-size:1.5rem; }
-  h1 { font-size:1.25rem; margin:0; }
-  h1 span { color:#c4ff00; }
-  .meta { color:#8b95a3; font-size:.82rem; margin:.1rem 0 1.4rem; }
-  .verdict { background:#181d24; border:1px solid #2a3038; border-left:3px solid #c4ff00; border-radius:12px; padding:1.1rem 1.3rem; margin-bottom:1.4rem; font-size:1rem; line-height:1.5; }
-  h2 { font-size:.78rem; color:#8b95a3; text-transform:uppercase; letter-spacing:.14em; margin:1.6rem 0 .7rem; font-weight:600; }
-  .tip { background:#11161c; border:1px solid #2a3038; border-radius:12px; padding:1rem 1.1rem; margin-bottom:.7rem; display:flex; gap:.85rem; align-items:flex-start; }
-  .tip .ic { font-size:1.3rem; line-height:1.2; flex-shrink:0; }
-  .tip .body { flex:1; }
-  .tip .t { font-weight:600; margin-bottom:.2rem; }
-  .tip .d { color:#b8c1ce; font-size:.88rem; line-height:1.45; }
-  .tip.good { border-left:3px solid #c4ff00; }
-  .tip.work { border-left:3px solid #ffb14a; }
-  .tip.info { border-left:3px solid #4aa8ff; }
-  .bars { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
-  .bar-row { display:flex; align-items:center; gap:.6rem; font-size:.85rem; }
-  .bar-row .lbl { width:120px; color:#b8c1ce; flex-shrink:0; }
-  .bar-track { flex:1; background:#1b212a; border-radius:6px; height:18px; overflow:hidden; }
+  :root{ --ball:#c4ff00; --fh:#c4ff00; --bh:#4aa8ff; --vol:#ffb14a; --sm:#ff6b54; --lob:#b07aff; }
+  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.1rem 5rem; -webkit-font-smoothing:antialiased; }
+  .head { display:flex; align-items:center; gap:.9rem; margin-bottom:.2rem; }
+  .coach-badge { width:46px; height:46px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#c4ff00,#7aa800); display:flex; align-items:center; justify-content:center; font-size:1.5rem; }
+  h1 { font-size:1.25rem; margin:0; } h1 span { color:var(--ball); }
+  .meta { color:#8b95a3; font-size:.82rem; margin:.1rem 0 1.2rem; }
+  h2 { font-size:.74rem; color:#8b95a3; text-transform:uppercase; letter-spacing:.14em; margin:1.7rem 0 .7rem; font-weight:600; }
+  .verdict { background:#181d24; border:1px solid #2a3038; border-left:3px solid var(--ball); border-radius:12px; padding:1.05rem 1.25rem; margin-bottom:.4rem; font-size:.98rem; line-height:1.5; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:.6rem; margin-bottom:.4rem; }
+  .card { background:#181d24; border:1px solid #2a3038; border-radius:11px; padding:.75rem .8rem; }
+  .card .l { color:#8b95a3; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.3rem; }
+  .card .v { font-size:1.5rem; font-weight:700; line-height:1; } .card .v.accent{ color:var(--ball); }
+  .card .v small{ font-size:.7rem; color:#8b95a3; font-weight:500; }
+  .bars { display:flex; flex-direction:column; gap:.45rem; }
+  .bar-row { display:flex; align-items:center; gap:.55rem; font-size:.83rem; }
+  .bar-row .lbl { width:104px; color:#cfd6df; flex-shrink:0; }
+  .bar-track { flex:1; background:#1b212a; border-radius:6px; height:16px; overflow:hidden; }
   .bar-fill { height:100%; border-radius:6px; }
-  .bar-row .val { width:46px; text-align:right; font-variant-numeric:tabular-nums; color:#8b95a3; flex-shrink:0; }
-  button { background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:8px; padding:.5rem .9rem; font-size:.85rem; cursor:pointer; margin-top:1rem; }
-  button:hover { border-color:#c4ff00; }
-  a.statslink { color:#4aa8ff; font-size:.85rem; }
-  #err { color:#ff6b54; padding:1rem 0; }
-  .empty { color:#5d6470; padding:2rem 0; text-align:center; }
+  .bar-row .val { width:64px; text-align:right; font-variant-numeric:tabular-nums; color:#8b95a3; flex-shrink:0; }
+  canvas { width:100%; background:#11161c; border:1px solid #2a3038; border-radius:10px; display:block; }
+  .note { color:#5d6470; font-size:.74rem; margin-top:.35rem; }
+  .tip { background:#11161c; border:1px solid #2a3038; border-radius:11px; padding:.85rem 1rem; margin-bottom:.6rem; display:flex; gap:.8rem; align-items:flex-start; }
+  .tip .ic{ font-size:1.25rem; flex-shrink:0; } .tip .t{ font-weight:600; margin-bottom:.15rem; } .tip .d{ color:#b8c1ce; font-size:.86rem; line-height:1.4; }
+  .tip.good{ border-left:3px solid var(--ball);} .tip.work{ border-left:3px solid var(--vol);} .tip.info{ border-left:3px solid var(--bh);}
+  .legend{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.76rem; color:#8b95a3; margin-top:.4rem;}
+  .legend span{ display:inline-flex; align-items:center; gap:5px;}
+  .dot{ width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .btnbar{ position:fixed; left:0; right:0; bottom:0; background:#0d1116; border-top:1px solid #2a3038; padding:.7rem 1rem; display:flex; gap:.6rem; }
+  button{ background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:9px; padding:.6rem 1rem; font-size:.9rem; cursor:pointer; }
+  button.primary{ background:var(--ball); color:#0a0d10; border-color:var(--ball); font-weight:600; flex:1; }
+  button:hover{ border-color:var(--ball); }
+  #err { color:#ff6b54; padding:1rem 0; } .empty{ color:#5d6470; padding:2rem 0; text-align:center; }
+  table.types{ width:100%; border-collapse:collapse; font-size:.84rem; }
+  table.types td{ padding:.3rem .2rem; border-bottom:1px solid #1b212a; }
+  table.types td:last-child{ text-align:right; color:#8b95a3; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
 <div class="head">
   <div class="coach-badge">🎾</div>
-  <div>
-    <h1>AI <span>Coach</span></h1>
-    <div class="meta" id="meta">analyseren…</div>
-  </div>
+  <div><h1>AI <span>Coach</span></h1><div class="meta" id="meta">analyseren…</div></div>
 </div>
 <div id="err"></div>
 <div id="root"></div>
 
+<div class="btnbar" id="btnbar" style="display:none">
+  <button class="primary" id="saveBtn">Bewaar deze sessie</button>
+  <button id="refreshBtn">Ververs</button>
+</div>
+
 <script>
 const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
-let MODEL=null;
+let MODEL=null, SUMMARY=null;
 
-const GROUND = ['forehand','forehand_frontspin','forehand_slice','backhand','backhand_frontspin','backhand_slice'];
-const FH = ['forehand','forehand_frontspin','forehand_slice'];
-const BH = ['backhand','backhand_frontspin','backhand_slice'];
-const SPIN = ['forehand_frontspin','forehand_slice','backhand_frontspin','backhand_slice','volley_forehand_slice','volley_backhand_slice'];
-const VOLLEY = ['volley_forehand','volley_forehand_slice','volley_backhand','volley_backhand_slice'];
-
-function comingSoon(){
-  document.getElementById('meta').textContent = 'binnenkort beschikbaar';
-  document.getElementById('root').innerHTML =
-    `<div class="verdict" style="border-left-color:#4aa8ff">
-       <div style="font-size:2.2rem;margin-bottom:.4rem">🚧</div>
-       <div style="font-weight:600;font-size:1.15rem;margin-bottom:.5rem">Coming soon</div>
-       <div style="color:#b8c1ce">De AI-coach analyseert je slagen — forehand, backhand, smash, volley, spin —
-       en geeft je na elk potje persoonlijke tips. We zijn 'm aan het finetunen. Binnenkort hier.</div>
-     </div>
-     <div class="tip info"><span class="ic">🎾</span><div class="body">
-       <div class="t">Wat de coach straks doet</div>
-       <div class="d">Slagverdeling, kracht per slag, je sterke en zwakke kant, vermoeidheid door de wedstrijd,
-       en concrete oefenpunten — automatisch uit je horloge-data.</div></div></div>`;
-}
-
-async function load(){
-  try{
-    if(!KEY){ comingSoon(); return; }
-    if(!MODEL) MODEL = await (await fetch('/beta/model.json')).json();
-    const r = await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`);
-    if(r.status === 403){ comingSoon(); return; }
-    if(!r.ok){ document.getElementById('err').textContent='Geen toegang.'; return; }
-    const j = await r.json();
-    const batches = (j.batches||[]).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
-    let AX=[],AY=[],AZ=[],GX=[],GY=[],GZ=[],SW=[];
-    for(const b of batches){
-      if(!Array.isArray(b.ax)) continue;
-      const base=AX.length;
-      for(let i=0;i<b.ax.length;i++){ AX.push(b.ax[i]);AY.push(b.ay[i]);AZ.push(b.az[i]);
-        GX.push((b.gx&&b.gx[i])||0);GY.push((b.gy&&b.gy[i])||0);GZ.push((b.gz&&b.gz[i])||0); }
-      for(const m of (b.sw||[])) SW.push(base+m);
-    }
-    const swings = SW.map(c=>{ const f=feats(AX,AY,AZ,GX,GY,GZ,c);
-      return { t:c/50, type:classify(f), power:f[7] }; });
-    document.getElementById('meta').textContent =
-      `${swings.length} slagen geanalyseerd · ${new Date().toLocaleTimeString('nl-NL')}`;
-    render(swings);
-  }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
-}
+const LABELS={forehand:'Forehand',forehand_frontspin:'Forehand topspin',forehand_slice:'Forehand slice',backhand:'Backhand',backhand_frontspin:'Backhand topspin',backhand_slice:'Backhand slice',smash:'Smash',volley_forehand:'Volley FH',volley_forehand_slice:'Volley FH slice',volley_backhand:'Volley BH',volley_backhand_slice:'Volley BH slice',lob:'Lob'};
+const FH=['forehand','forehand_frontspin','forehand_slice'], BH=['backhand','backhand_frontspin','backhand_slice'];
+const VOL=['volley_forehand','volley_forehand_slice','volley_backhand','volley_backhand_slice'];
+const TOPSPIN=['forehand_frontspin','backhand_frontspin'], SLICE=['forehand_slice','backhand_slice','volley_forehand_slice','volley_backhand_slice'];
+const FAMCOL={Forehand:'var(--fh)',Backhand:'var(--bh)',Volley:'var(--vol)',Smash:'var(--sm)',Lob:'var(--lob)'};
+function fam(t){ if(t==='smash')return 'Smash'; if(t==='lob')return 'Lob'; if(t.indexOf('volley')>=0)return 'Volley'; if(t.indexOf('forehand')===0)return 'Forehand'; return 'Backhand'; }
+function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
+function std(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(avg(a.map(x=>(x-m)**2)));}
+function pct(n,d){return d?Math.round(100*n/d):0;}
 
 function feats(AX,AY,AZ,GX,GY,GZ,c){
   const n=AX.length,s=Math.max(0,c-12),e=Math.min(n,c+14);
@@ -104,98 +77,197 @@ function feats(AX,AY,AZ,GX,GY,GZ,c){
   let amag=0; for(let i=s;i<e;i++){const a=Math.hypot(AX[i],AY[i],AZ[i]);if(a>amag)amag=a;}
   return [pk(GX),pk(GY),pk(GZ),pk(AX),pk(AY),pk(AZ),dur,amag];
 }
-function classify(f){ let best=null,bd=1e18;
-  for(const k in MODEL.classes){ const c=MODEL.classes[k].centroid; let d=0;
-    for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}
-    if(d<bd){bd=d;best=k;} } return best; }
+function classify(f){let best=null,bd=1e18;for(const k in MODEL.classes){const c=MODEL.classes[k].centroid;let d=0;for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}if(d<bd){bd=d;best=k;}}return best;}
 
-function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : 0; }
-function std(a){ if(a.length<2) return 0; const m=avg(a); return Math.sqrt(avg(a.map(x=>(x-m)**2))); }
-function pct(n,d){ return d? Math.round(100*n/d) : 0; }
-
-function render(sw){
-  const root=document.getElementById('root');
-  if(sw.length < 8){
-    root.innerHTML = '<div class="empty">Nog te weinig slagen voor een analyse.<br>Speel een potje met de app actief en kom terug.</div>';
-    return;
-  }
-  const N=sw.length;
-  const count=t=>sw.filter(s=>s.type===t).length;
-  const inSet=(s,arr)=>arr.indexOf(s.type)>=0;
-  const fh=sw.filter(s=>inSet(s,FH)).length;
-  const bh=sw.filter(s=>inSet(s,BH)).length;
-  const ground=fh+bh;
-  const volleys=sw.filter(s=>inSet(s,VOLLEY)).length;
-  const spins=sw.filter(s=>inSet(s,SPIN)).length;
-  const smashes=count('smash');
-
-  // kracht per slagfamilie
-  const powAll=sw.map(s=>s.power);
-  const fhPow=avg(sw.filter(s=>inSet(s,FH)).map(s=>s.power));
-  const bhPow=avg(sw.filter(s=>inSet(s,BH)).map(s=>s.power));
-
-  // vermoeidheid: kracht eerste vs laatste derde
-  const third=Math.floor(N/3);
-  const early=avg(sw.slice(0,third).map(s=>s.power));
-  const late=avg(sw.slice(N-third).map(s=>s.power));
-  const fatigue=early? Math.round(100*(late-early)/early) : 0;
-
-  // consistentie: spreiding kracht (lager=consistenter)
-  const cv = avg(powAll)? std(powAll)/avg(powAll) : 0;
-
-  // --- verdict ---
-  let verdict;
-  if(ground===0){ verdict='Vooral volleys en smashes deze sessie — speel eens een baseline-potje voor meer slagvariatie.'; }
-  else {
-    const fhp=pct(fh,ground);
-    const dom = fhp>=60?'sterk forehand-gericht': fhp<=40?'sterk backhand-gericht':'mooi gebalanceerd';
-    const sp = pct(spins,N);
-    verdict = `Je speelde ${dom} (${fhp}% forehand). ` +
-      (sp>=40?`Veel spin (${sp}%) — goed voor controle. `:`Vooral vlakke slagen (${100-sp}%). `) +
-      (fatigue<=-12?`Je kracht zakte ${Math.abs(fatigue)}% tegen het eind — let op je conditie.`:
-       fatigue>=8?`Je bleef sterk tot het eind (+${fatigue}%). Mooi.`:`Je kracht bleef stabiel.`);
-  }
-
-  // --- tips (regelgebaseerd) ---
-  const tips=[];
-  const fhp=pct(fh,ground);
-  if(ground>0 && fhp>=65) tips.push(['work','↔️','Backhand vermijden','Je speelt '+fhp+'% forehand. Tegenstanders gaan je backhand opzoeken — train die kant bewust.']);
-  if(ground>0 && fhp<=35) tips.push(['work','↔️','Forehand benutten','Je speelt veel backhand ('+(100-fhp)+'%). Je forehand is meestal je krachtigste wapen — zoek die vaker op.']);
-  if(ground>0 && fhp>40 && fhp<60) tips.push(['good','⚖️','Goede balans','Forehand/backhand mooi in evenwicht — lastig te bespelen voor je tegenstander.']);
-  if(bhPow>0 && fhPow>0 && bhPow < fhPow*0.8) tips.push(['work','💪','Backhand-kracht','Je backhand komt er zachter uit dan je forehand. Werk aan je rotatie en gewichtsoverdracht.']);
-  if(pct(spins,N)<25) tips.push(['info','🎯','Meer spin proberen','Je slaat vooral vlak. Topspin geeft marge over het net, slice houdt de bal laag — variatie maakt je onvoorspelbaar.']);
-  if(pct(spins,N)>=45) tips.push(['good','🌀','Goede spin-variatie','Je wisselt mooi tussen vlak, topspin en slice. Dat houdt je tegenstander aan het werk.']);
-  if(volleys>0 && pct(volleys,N)>=20) tips.push(['good','🥅','Actief aan het net','Veel volleys ('+pct(volleys,N)+'%) — je zoekt het net op. Typisch agressief padel.']);
-  if(volleys>0 && pct(volleys,N)<8) tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net — durf vaker op te komen.']);
-  if(smashes>0) tips.push(['good','⚡','Smashes geraakt','Je sloeg '+smashes+' smash'+(smashes>1?'es':'')+'. Afmaken bovenlangs is een belangrijk wapen.']);
-  if(fatigue<=-12) tips.push(['work','🔋','Kracht zakt in','Je slagen werden '+Math.abs(fatigue)+'% zwakker tegen het eind. Conditie of focus — iets om op te letten in lange potjes.']);
-  if(cv>0 && cv<0.28) tips.push(['good','🎯','Constante techniek','Je slaat heel gelijkmatig — een teken van een stabiele techniek.']);
-  if(cv>=0.45) tips.push(['info','📊','Wisselende kracht','Je kracht varieert sterk per slag. Normaal bij verschillende slagsituaties, maar consistentie geeft controle.']);
-  if(tips.length===0) tips.push(['info','✅','Niks geks gezien','Een gebalanceerde sessie zonder duidelijke zwakke plekken. Blijf zo spelen.']);
-
-  // --- render ---
-  const families=[
-    {lbl:'Forehand', n:fh, col:'#c4ff00'},
-    {lbl:'Backhand', n:bh, col:'#4aa8ff'},
-    {lbl:'Volley', n:volleys, col:'#ffb14a'},
-    {lbl:'Smash', n:smashes, col:'#ff6b54'},
-  ];
-  const maxF=Math.max(...families.map(f=>f.n),1);
-
-  root.innerHTML =
-    `<div class="verdict">${verdict}</div>` +
-    `<h2>Slagverdeling</h2><div class="bars">` +
-    families.filter(f=>f.n>0).map(f=>
-      `<div class="bar-row"><span class="lbl">${f.lbl}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*f.n/maxF)}%;background:${f.col}"></span></span>
-        <span class="val">${f.n} · ${pct(f.n,N)}%</span></div>`).join('') +
-    `</div>` +
-    `<h2>Coaching-tips</h2>` +
-    tips.map(([cls,ic,t,d])=>
-      `<div class="tip ${cls}"><span class="ic">${ic}</span><div class="body"><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('') +
-    `<button onclick="load()">Ververs</button> &nbsp; <a class="statslink" href="/beta/stats/${PIN}?beta=${encodeURIComponent(KEY)}">Ruwe stats →</a>`;
+function comingSoon(){
+  document.getElementById('meta').textContent='binnenkort beschikbaar';
+  document.getElementById('root').innerHTML=
+    `<div class="verdict" style="border-left-color:var(--bh)"><div style="font-size:2.2rem;margin-bottom:.4rem">🚧</div>
+     <div style="font-weight:600;font-size:1.15rem;margin-bottom:.5rem">Coming soon</div>
+     <div style="color:#b8c1ce">De AI-coach analyseert je slagen en geeft persoonlijke tips na elk potje. Binnenkort hier.</div></div>`;
 }
 
+async function load(){
+  try{
+    if(!KEY){ comingSoon(); return; }
+    if(!MODEL) MODEL=await (await fetch('/beta/model.json')).json();
+    const r=await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`);
+    if(r.status===403){ comingSoon(); return; }
+    if(!r.ok){ document.getElementById('err').textContent='Geen toegang.'; return; }
+    const j=await r.json();
+    const batches=(j.batches||[]).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
+    let AX=[],AY=[],AZ=[],GX=[],GY=[],GZ=[],SW=[],t0=null;
+    for(const b of batches){ if(!Array.isArray(b.ax))continue; if(t0===null)t0=b.t0||0;
+      const base=AX.length;
+      for(let i=0;i<b.ax.length;i++){AX.push(b.ax[i]);AY.push(b.ay[i]);AZ.push(b.az[i]);GX.push((b.gx&&b.gx[i])||0);GY.push((b.gy&&b.gy[i])||0);GZ.push((b.gz&&b.gz[i])||0);}
+      for(const m of (b.sw||[]))SW.push(base+m);
+    }
+    SUMMARY = buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0);
+    const hist = await (await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`)).json();
+    render(SUMMARY, hist.sessions||[]);
+  }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
+}
+
+function buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0){
+  const n=AX.length, hz=50, durMin=n/hz/60;
+  const sw=SW.map(c=>{const f=feats(AX,AY,AZ,GX,GY,GZ,c);const t=classify(f);return {pos:c,type:t,fam:fam(t),power:f[7]};});
+  const N=sw.length;
+  const famCnt={Forehand:0,Backhand:0,Volley:0,Smash:0,Lob:0}, famPow={Forehand:[],Backhand:[],Volley:[],Smash:[],Lob:[]};
+  const typeCnt={}; const allPow=[];
+  for(const s of sw){ famCnt[s.fam]++; famPow[s.fam].push(s.power); typeCnt[s.type]=(typeCnt[s.type]||0)+1; allPow.push(s.power); }
+  const spin={flat:0,topspin:0,slice:0};
+  for(const s of sw){ if(TOPSPIN.indexOf(s.type)>=0)spin.topspin++; else if(SLICE.indexOf(s.type)>=0)spin.slice++; else spin.flat++; }
+  // segmenten (10) voor vermoeidheid + activiteit
+  const SEG=10, segs=[];
+  for(let k=0;k<SEG;k++){ const lo=n*k/SEG, hi=n*(k+1)/SEG; const ss=sw.filter(s=>s.pos>=lo&&s.pos<hi);
+    segs.push({swings:ss.length, power:ss.length?Math.round(avg(ss.map(s=>s.power))):0}); }
+  const third=Math.floor(N/3);
+  const early=avg(sw.slice(0,third).map(s=>s.power)), late=avg(sw.slice(N-third).map(s=>s.power));
+  const fatiguePct=early?Math.round(100*(late-early)/early):0;
+  const gaps=[]; for(let i=1;i<SW.length;i++)gaps.push((SW[i]-SW[i-1])/hz);
+  gaps.sort((a,b)=>a-b); const medGap=gaps.length?gaps[Math.floor(gaps.length/2)]:0;
+  const cvByFam={}; for(const f in famPow){ const a=famPow[f]; cvByFam[f]= a.length>1 && avg(a)? +(std(a)/avg(a)).toFixed(2):0; }
+  const powByFam={}; for(const f in famPow) powByFam[f]= famPow[f].length?Math.round(avg(famPow[f])):0;
+  return { t0, durationMin:+durMin.toFixed(1), totalSwings:N, fam:famCnt, types:typeCnt,
+    powAvg:Math.round(avg(allPow)||0), powPeak:Math.round(Math.max(0,...allPow)), powByFam,
+    spin, fatiguePct, early:Math.round(early||0), late:Math.round(late||0),
+    segments:segs, medGapS:+medGap.toFixed(1), cvByFam, swPerMin:durMin?+(N/durMin).toFixed(1):0 };
+}
+
+function render(S, history){
+  document.getElementById('btnbar').style.display='flex';
+  document.getElementById('meta').textContent=`${S.totalSwings} slagen · ${S.durationMin} min · ${new Date().toLocaleDateString('nl-NL')}`;
+  if(S.totalSwings<8){ document.getElementById('root').innerHTML='<div class="empty">Nog te weinig slagen voor een analyse.</div>'; return; }
+  const N=S.totalSwings, ground=S.fam.Forehand+S.fam.Backhand;
+  const fhp=pct(S.fam.Forehand,ground);
+
+  // verdict
+  const dom=fhp>=60?'sterk forehand-gericht':fhp<=40?'sterk backhand-gericht':'mooi gebalanceerd';
+  const spinPct=pct(S.spin.topspin+S.spin.slice,N);
+  const verdict=`Je speelde ${dom} (${fhp}% forehand van je grondslagen). `+
+    (spinPct>=35?`Veel spin (${spinPct}%) — goede controle. `:`Vooral vlak (${100-spinPct}%). `)+
+    (S.fatiguePct<=-12?`Je kracht zakte ${Math.abs(S.fatiguePct)}% tegen het eind — conditie/focus.`:
+     S.fatiguePct>=8?`Je bleef sterk tot het eind (+${S.fatiguePct}%). Mooi.`:`Je kracht bleef stabiel door de wedstrijd.`);
+
+  // tips
+  const tips=[];
+  if(fhp>40&&fhp<60)tips.push(['good','⚖️','Goede balans','Forehand/backhand in evenwicht — lastig te bespelen.']);
+  else if(fhp>=65)tips.push(['work','↔️','Backhand wordt vermeden',`${fhp}% forehand. Tegenstanders gaan je backhand opzoeken — train die kant.`]);
+  else if(fhp<=35)tips.push(['work','↔️','Forehand benutten',`Veel backhand (${100-fhp}%). Je forehand is vaak je sterkste wapen — zoek die vaker.`]);
+  if(S.powByFam.Backhand&&S.powByFam.Forehand&&S.powByFam.Backhand<S.powByFam.Forehand*0.8)
+    tips.push(['work','💪','Backhand-kracht',`Je backhand komt ~${Math.round(100-100*S.powByFam.Backhand/S.powByFam.Forehand)}% zachter uit dan je forehand. Werk aan rotatie en gewichtsoverdracht.`]);
+  if(spinPct<25)tips.push(['info','🎯','Meer spin proberen','Je slaat vooral vlak. Topspin geeft marge, slice houdt de bal laag — variatie maakt je onvoorspelbaar.']);
+  else if(spinPct>=40)tips.push(['good','🌀','Goede spin-variatie','Je wisselt mooi tussen vlak, topspin en slice.']);
+  if(pct(S.fam.Volley,N)>=18)tips.push(['good','🥅','Actief aan het net',`Veel volleys (${pct(S.fam.Volley,N)}%) — agressief padel.`]);
+  else if(pct(S.fam.Volley,N)<7)tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net.']);
+  if(S.fam.Smash>0)tips.push(['good','⚡','Smashes geraakt',`${S.fam.Smash} smash${S.fam.Smash>1?'es':''} — afmaken bovenlangs is een wapen.`]);
+  if(S.fatiguePct<=-12)tips.push(['work','🔋','Kracht zakt in',`Je slagen werden ${Math.abs(S.fatiguePct)}% zwakker tegen het eind.`]);
+  const cvg=(S.cvByFam.Forehand+S.cvByFam.Backhand)/2;
+  if(cvg>0&&cvg<0.28)tips.push(['good','🎯','Constante techniek','Je slaat heel gelijkmatig — stabiele techniek.']);
+  if(!tips.length)tips.push(['info','✅','Gebalanceerde sessie','Geen duidelijke zwakke plekken. Blijf zo spelen.']);
+
+  // families bars
+  const fams=['Forehand','Backhand','Volley','Smash','Lob'].map(f=>({f,n:S.fam[f]})).filter(x=>x.n>0);
+  const maxF=Math.max(...fams.map(x=>x.n),1);
+  // power per family
+  const pf=['Forehand','Backhand','Smash','Volley','Lob'].map(f=>({f,v:S.powByFam[f]||0})).filter(x=>x.v>0);
+  const maxP=Math.max(...pf.map(x=>x.v),1);
+  // 12 types tabel
+  const typeRows=Object.entries(S.types).sort((a,b)=>b[1]-a[1])
+    .map(([t,c])=>`<tr><td><span class="dot" style="background:${FAMCOL[fam(t)]}"></span> ${LABELS[t]||t}</td><td>${c} · ${pct(c,N)}%</td></tr>`).join('');
+
+  let html=`<div class="verdict">${verdict}</div>
+    <div class="cards">
+      <div class="card"><div class="l">Slagen</div><div class="v accent">${N}</div></div>
+      <div class="card"><div class="l">Per minuut</div><div class="v">${S.swPerMin}</div></div>
+      <div class="card"><div class="l">Gem. kracht</div><div class="v">${S.powAvg}</div></div>
+      <div class="card"><div class="l">Piek</div><div class="v">${S.powPeak}</div></div>
+      <div class="card"><div class="l">Tempo</div><div class="v">${S.medGapS}<small>s</small></div></div>
+      <div class="card"><div class="l">Conditie</div><div class="v" style="color:${S.fatiguePct<=-12?'#ff6b54':S.fatiguePct>=8?'#c4ff00':'#fff'}">${S.fatiguePct>0?'+':''}${S.fatiguePct}<small>%</small></div></div>
+    </div>
+
+    <h2>Slagverdeling</h2><div class="bars">${fams.map(x=>
+      `<div class="bar-row"><span class="lbl">${x.f}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*x.n/maxF)}%;background:${FAMCOL[x.f]}"></span></span><span class="val">${x.n} · ${pct(x.n,N)}%</span></div>`).join('')}</div>
+
+    <h2>Kracht per slagtype</h2><div class="bars">${pf.map(x=>
+      `<div class="bar-row"><span class="lbl">${x.f}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*x.v/maxP)}%;background:${FAMCOL[x.f]}"></span></span><span class="val">${x.v}</span></div>`).join('')}</div>
+    <div class="note">Kracht = piek-zwaaiversnelling. Vergelijk je eigen slagen onderling.</div>
+
+    <h2>Spin</h2><div class="bars">
+      <div class="bar-row"><span class="lbl">Vlak</span><span class="bar-track"><span class="bar-fill" style="width:${pct(S.spin.flat,N)}%;background:#6b7280"></span></span><span class="val">${pct(S.spin.flat,N)}%</span></div>
+      <div class="bar-row"><span class="lbl">Topspin</span><span class="bar-track"><span class="bar-fill" style="width:${pct(S.spin.topspin,N)}%;background:#c4ff00"></span></span><span class="val">${pct(S.spin.topspin,N)}%</span></div>
+      <div class="bar-row"><span class="lbl">Slice</span><span class="bar-track"><span class="bar-fill" style="width:${pct(S.spin.slice,N)}%;background:#4aa8ff"></span></span><span class="val">${pct(S.spin.slice,N)}%</span></div>
+    </div>
+
+    <h2>Activiteit & kracht door de wedstrijd</h2>
+    <canvas id="segCanvas" height="200"></canvas>
+    <div class="legend"><span><i class="dot" style="background:var(--ball)"></i>slagen/segment</span><span><i class="dot" style="background:var(--vol)"></i>gem. kracht</span></div>
+
+    <h2>Alle slagtypes (${Object.keys(S.types).length})</h2>
+    <table class="types"><tbody>${typeRows}</tbody></table>
+
+    <h2>Coaching-tips</h2>${tips.map(([c,ic,t,d])=>`<div class="tip ${c}"><span class="ic">${ic}</span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}`;
+
+  // voortgang over sessies
+  if(history && history.length>=1){
+    const all=history.slice(); const cur=all.find(s=>s.t0===S.t0);
+    const shown = cur?all:all.concat([S]);
+    if(shown.length>=2){
+      html+=`<h2>Voortgang (${shown.length} sessies)</h2>
+        <canvas id="trendSwings" height="120"></canvas>
+        <div class="note" style="margin-bottom:.8rem">Slagen per sessie</div>
+        <canvas id="trendBalance" height="120"></canvas>
+        <div class="note">Forehand-aandeel per sessie (%)</div>`;
+    }
+  }
+  document.getElementById('root').innerHTML=html;
+
+  drawSegments(S);
+  if(history && history.length){
+    const shown = history.find(s=>s.t0===S.t0)?history:history.concat([S]);
+    if(shown.length>=2){ drawTrend('trendSwings', shown.map(s=>s.totalSwings), '#c4ff00');
+      drawTrend('trendBalance', shown.map(s=>{const g=s.fam.Forehand+s.fam.Backhand;return g?Math.round(100*s.fam.Forehand/g):0;}), '#4aa8ff', 100); }
+  }
+}
+
+function setup(id){ const cv=document.getElementById(id); if(!cv)return null; const ctx=cv.getContext('2d');
+  cv.width=cv.clientWidth*2; const W=cv.width,H=cv.height*2; cv.style.height=(H/2)+'px'; cv.height=H; ctx.clearRect(0,0,W,H); return {ctx,W,H}; }
+
+function drawSegments(S){
+  const o=setup('segCanvas'); if(!o)return; const {ctx,W,H}=o;
+  const segs=S.segments, n=segs.length, padB=28, padT=14;
+  const maxS=Math.max(...segs.map(s=>s.swings),1), maxP=Math.max(...segs.map(s=>s.power),1);
+  const bw=W/n;
+  segs.forEach((s,i)=>{ const h=(s.swings/maxS)*(H-padT-padB); ctx.fillStyle='#c4ff00';
+    ctx.fillRect(i*bw+bw*0.18, H-padB-h, bw*0.64, h); });
+  // power line
+  ctx.strokeStyle='#ffb14a'; ctx.lineWidth=2.5; ctx.beginPath();
+  segs.forEach((s,i)=>{ const x=i*bw+bw/2, y=padT+(1-s.power/maxP)*(H-padT-padB); if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); });
+  ctx.stroke();
+  ctx.fillStyle='#8b95a3'; ctx.font='18px system-ui'; ctx.textAlign='left'; ctx.fillText('start',6,H-7);
+  ctx.textAlign='right'; ctx.fillText('eind',W-6,H-7);
+}
+function drawTrend(id,data,col,fixedMax){
+  const o=setup(id); if(!o)return; const {ctx,W,H}=o; if(data.length<2)return;
+  const max=fixedMax||Math.max(...data,1), padB=20,padT=12, n=data.length;
+  ctx.strokeStyle='#2a3038'; ctx.beginPath(); ctx.moveTo(0,H-padB); ctx.lineTo(W,H-padB); ctx.stroke();
+  ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath();
+  data.forEach((v,i)=>{ const x=n>1?(i/(n-1))*W:W/2, y=padT+(1-v/max)*(H-padT-padB); if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); });
+  ctx.stroke();
+  ctx.fillStyle=col; data.forEach((v,i)=>{ const x=n>1?(i/(n-1))*W:W/2, y=padT+(1-v/max)*(H-padT-padB); ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill();
+    ctx.fillStyle='#cfd6df'; ctx.font='17px system-ui'; ctx.textAlign='center'; ctx.fillText(v, x, y-10); ctx.fillStyle=col; });
+}
+
+document.addEventListener('click', async e=>{
+  if(e.target.id==='refreshBtn') return load();
+  if(e.target.id==='saveBtn' && SUMMARY){
+    e.target.textContent='Bewaren…'; e.target.disabled=true;
+    try{ const r=await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...SUMMARY,savedTs:Date.now()})});
+      const j=await r.json(); e.target.textContent= r.ok?`Bewaard ✓ (${j.count} sessies)`:'Mislukt';
+    }catch(_){ e.target.textContent='Mislukt'; }
+    setTimeout(()=>{e.target.textContent='Bewaar deze sessie';e.target.disabled=false;},2500);
+  }
+});
 load();
 </script>
 </body>

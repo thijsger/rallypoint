@@ -52,6 +52,19 @@ const BETA_KEY = process.env.BETA_KEY || 'rp-swing-9f3a2c';
 const BETA_LOG_FILE = path.join(DATA_DIR, 'beta-swing.jsonl');
 const betaLogs = {}; // pin -> [batch, ...]  (in geheugen, file als backup)
 
+// Verwerkte coach-samenvattingen per match (compact, blijft bewaard ook als de
+// ruwe log gewist wordt). Geladen uit file bij start.
+const BETA_COACH_FILE = path.join(DATA_DIR, 'beta-coach.json');
+let betaCoach = {}; // pin -> [summary, ...]
+try {
+  if (fs.existsSync(BETA_COACH_FILE)) {
+    betaCoach = JSON.parse(fs.readFileSync(BETA_COACH_FILE, 'utf8') || '{}');
+  }
+} catch (e) { betaCoach = {}; }
+function saveBetaCoach() {
+  try { fs.writeFileSync(BETA_COACH_FILE, JSON.stringify(betaCoach)); } catch (e) {}
+}
+
 
 try {
   if (fs.existsSync(HISTORY_FILE)) {
@@ -848,6 +861,46 @@ const server = http.createServer((req, res) => {
     }
     if (parts[1] === 'log' && req.method === 'DELETE') {
       betaLogs[pin] = [];
+      return sendJSON(res, 200, { ok: true });
+    }
+    res.writeHead(405); return res.end('method');
+  }
+
+  // --- BETA coach-samenvattingen (compact, persistent) ---
+  // POST   /beta/coach-data/:pin  -> sla 1 match-samenvatting op (dedup op t0)
+  // GET    /beta/coach-data/:pin  -> alle opgeslagen samenvattingen
+  // DELETE /beta/coach-data/:pin?t0=<t0> -> verwijder 1 (of alles zonder t0)
+  if (parts[0] === 'beta' && parts[1] === 'coach-data' && parts[2]) {
+    if (url.searchParams.get('beta') !== BETA_KEY) { res.writeHead(403); return res.end('nope'); }
+    const pin = parts[2];
+    if (!validPin(pin)) { res.writeHead(404); return res.end('pin'); }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 2e5) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const sum = JSON.parse(body || '{}');
+          if (!betaCoach[pin]) betaCoach[pin] = [];
+          // dedup op t0: zelfde sessie overschrijft i.p.v. dupliceren
+          const i = betaCoach[pin].findIndex(s => s.t0 === sum.t0);
+          if (i >= 0) betaCoach[pin][i] = sum; else betaCoach[pin].push(sum);
+          betaCoach[pin].sort((a, b) => (a.t0 || 0) - (b.t0 || 0));
+          if (betaCoach[pin].length > 500) betaCoach[pin].shift();
+          saveBetaCoach();
+          sendJSON(res, 200, { ok: true, count: betaCoach[pin].length });
+        } catch (e) { sendJSON(res, 400, { error: 'bad json' }); }
+      });
+      return;
+    }
+    if (req.method === 'GET') {
+      return sendJSON(res, 200, { pin, sessions: betaCoach[pin] || [] });
+    }
+    if (req.method === 'DELETE') {
+      const t0 = url.searchParams.get('t0');
+      if (t0 && betaCoach[pin]) betaCoach[pin] = betaCoach[pin].filter(s => String(s.t0) !== String(t0));
+      else betaCoach[pin] = [];
+      saveBetaCoach();
       return sendJSON(res, 200, { ok: true });
     }
     res.writeHead(405); return res.end('method');
