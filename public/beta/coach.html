@@ -202,8 +202,9 @@ function renderSession(S){
     <h2>Kracht per slag</h2><div class="bars">${powBars}</div>
     <div class="note">Kracht = piek-zwaaiversnelling. Vergelijk je eigen slagen onderling.</div>
     <h2>Activiteit & kracht door de wedstrijd</h2>
-    <canvas id="segCanvas" height="200"></canvas>
-    <div class="legend"><span><i class="dot" style="background:var(--ball)"></i>slagen/segment</span><span><i class="dot" style="background:#ffb14a"></i>gem. kracht</span></div>
+    <canvas id="segCanvas" height="210"></canvas>
+    <div class="legend"><span><i class="dot" style="background:var(--ball)"></i>slagen per ~${Math.max(1,Math.round((S.durationMin||0)/10))} min</span><span><i class="dot" style="background:#ffb14a"></i>gem. kracht (zwaai-piek)</span></div>
+    <div class="note">Wedstrijd in 10 stukjes (links=begin, rechts=eind). Groene staaf = hoeveel je sloeg, oranje lijn = hoe hard. Zakt oranje naar rechts? Dan neemt je kracht af.</div>
     <h2>Coaching-tips</h2>${tips.map(([c,ic,t,d])=>`<div class="tip ${c}"><span class="ic">${ic}</span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}
     ${isLive?'':`<button class="delbtn" id="delBtn">Verwijder deze sessie</button>`}`;
   drawSegments(S);
@@ -244,12 +245,32 @@ function setup(id){ const cv=document.getElementById(id); if(!cv)return null; co
   cv.width=cv.clientWidth*2; const W=cv.width,H=cv.height*2; cv.style.height=(H/2)+'px'; cv.height=H; ctx.clearRect(0,0,W,H); return {ctx,W,H}; }
 function drawSegments(S){
   const o=setup('segCanvas'); if(!o)return; const {ctx,W,H}=o;
-  const segs=S.segments, n=segs.length, padB=28, padT=14;
-  const maxS=Math.max(...segs.map(s=>s.swings),1), maxP=Math.max(...segs.map(s=>s.power),1), bw=W/n;
-  segs.forEach((s,i)=>{ const h=(s.swings/maxS)*(H-padT-padB); ctx.fillStyle='#c4ff00'; ctx.fillRect(i*bw+bw*0.18,H-padB-h,bw*0.64,h); });
+  const segs=S.segments, n=segs.length, padB=34, padT=22, padL=44, padR=58;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const maxS=Math.max(...segs.map(s=>s.swings),1);
+  const powVals=segs.filter(s=>s.power>0).map(s=>s.power);
+  const maxP=Math.max(...powVals,1), minP=Math.min(...powVals,maxP);
+  const bw=plotW/n;
+  // groene staven (slagen) — linkeras
+  segs.forEach((s,i)=>{ const h=(s.swings/maxS)*plotH; ctx.fillStyle='#c4ff00'; ctx.fillRect(padL+i*bw+bw*0.18,H-padB-h,bw*0.64,h); });
+  // oranje lijn (kracht) — rechteras, geschaald tussen minP..maxP voor leesbaarheid
+  const span=Math.max(maxP-minP,1);
+  const pts=segs.map((s,i)=>s.power>0?{x:padL+i*bw+bw/2,y:padT+(1-(s.power-minP)/span)*plotH}:null).filter(Boolean);
   ctx.strokeStyle='#ffb14a'; ctx.lineWidth=2.5; ctx.beginPath();
-  segs.forEach((s,i)=>{ const x=i*bw+bw/2, y=padT+(1-s.power/maxP)*(H-padT-padB); if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); }); ctx.stroke();
-  ctx.fillStyle='#8b95a3'; ctx.font='18px system-ui'; ctx.textAlign='left'; ctx.fillText('start',6,H-7); ctx.textAlign='right'; ctx.fillText('eind',W-6,H-7);
+  pts.forEach((p,i)=>{ if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y); }); ctx.stroke();
+  // linkeras: slagen (groen) — 0 en max
+  ctx.font='16px system-ui'; ctx.textAlign='right';
+  ctx.fillStyle='#c4ff00'; ctx.fillText(maxS, padL-6, padT+6); ctx.fillText('0', padL-6, H-padB);
+  ctx.fillStyle='#8b95a3'; ctx.textAlign='left'; ctx.fillText('slagen', 4, padT-8);
+  // rechteras: kracht (oranje) — minP en maxP
+  ctx.fillStyle='#ffb14a'; ctx.textAlign='left'; ctx.fillText(maxP, W-padR+6, padT+6); ctx.fillText(minP, W-padR+6, H-padB);
+  ctx.fillStyle='#8b95a3'; ctx.textAlign='right'; ctx.fillText('kracht', W-4, padT-8);
+  // x-as: minuten
+  const dur=S.durationMin||0;
+  ctx.fillStyle='#8b95a3'; ctx.font='15px system-ui';
+  ctx.textAlign='left'; ctx.fillText('0 min', padL, H-9);
+  ctx.textAlign='center'; ctx.fillText(Math.round(dur/2)+' min', padL+plotW/2, H-9);
+  ctx.textAlign='right'; ctx.fillText(Math.round(dur)+' min', padL+plotW, H-9);
 }
 function drawTrend(id,data,col,fixedMax){
   const o=setup(id); if(!o)return; const {ctx,W,H}=o; if(data.length<2)return;
