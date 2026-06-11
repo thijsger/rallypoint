@@ -1028,7 +1028,23 @@ connectBtn.addEventListener('click', async () => {
   applyState(match);   // ook taal-switch + render in één keer
   startLive();
   hydrateProfileLink();
+  gateHistoryLink(pin);
 });
+
+// Geschiedenis is privé voor de eigenaar. Verberg de history-knop voor
+// spectators (wie de PIN niet op zijn account heeft staan).
+async function gateHistoryLink(pin) {
+  const link = document.getElementById('historyLink');
+  if (!link) return;
+  try {
+    const r = await fetch('/api/auth/me');
+    if (r.ok) {
+      const me = await r.json();
+      if ((me.pins || []).indexOf(pin) >= 0) { link.style.display = ''; return; }
+    }
+  } catch (_) {}
+  link.style.display = 'none';   // niet ingelogd of niet de eigenaar -> verbergen
+}
 
 // Vult de profile-link rechtsboven met avatar + naam als user ingelogd is,
 // of stuurt 'm naar /account/login als niet. Fail-silent — link blijft

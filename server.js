@@ -969,10 +969,27 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'GET') {
+      // Geschiedenis is privé: is de PIN aan een account gekoppeld, dan mag
+      // alleen die ingelogde eigenaar 'm zien (spectators dus niet).
+      const owner = db.getPinOwner(pin);
+      if (owner) {
+        const user = getUserFromReq(req);
+        if (!user || owner.user_id !== user.id) {
+          return sendJSON(res, 403, { error: 'forbidden' });
+        }
+      }
       const list = (history[pin] || []).slice().reverse(); // nieuwste eerst
       return sendJSON(res, 200, list);
     }
     if (req.method === 'DELETE') {
+      // Alleen de ingelogde eigenaar mag de geschiedenis wissen.
+      const owner = db.getPinOwner(pin);
+      if (owner) {
+        const user = getUserFromReq(req);
+        if (!user || owner.user_id !== user.id) {
+          return sendJSON(res, 403, { error: 'forbidden' });
+        }
+      }
       delete history[pin];
       delete seenSaveIds[pin];
       persistHistory();
