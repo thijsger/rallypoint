@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <style>
   .steps-dots {
     display: flex; justify-content: center; gap: .5rem; margin-bottom: 1.4rem;
@@ -67,27 +68,27 @@
     <div class="step active" data-step-content="0">
       <div class="hero">
         <img src="/img/logo.png" class="hero-logo" alt="">
-        <h1>Welkom bij Rally<span>Point</span></h1>
-        <p>Twee snelle stappen om je account klaar te zetten.</p>
+        <h1><span data-i18n="onb.welcome">Welkom bij</span> Rally<span>Point</span></h1>
+        <p data-i18n="onb.intro">Twee snelle stappen om je account klaar te zetten.</p>
       </div>
       <div class="step-actions">
-        <button class="btn" id="startBtn">Aan de slag</button>
+        <button class="btn" id="startBtn" data-i18n="onb.start">Aan de slag</button>
       </div>
-      <div class="skip-link"><a id="skipAll">Overslaan, ga naar dashboard</a></div>
+      <div class="skip-link"><a id="skipAll" data-i18n="onb.skipAll">Overslaan, ga naar dashboard</a></div>
     </div>
 
     <!-- Step 1: Profiel -->
     <div class="step" data-step-content="1">
-      <div class="step-num">Stap 1 van 2</div>
-      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem">Je profiel</h1>
-      <div class="sub">Persoonlijke info — kun je later wijzigen.</div>
+      <div class="step-num" data-i18n="onb.step1num">Stap 1 van 2</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem" data-i18n="onb.s1.h1">Je profiel</h1>
+      <div class="sub" data-i18n="onb.s1.sub">Persoonlijke info — kun je later wijzigen.</div>
 
-      <label for="displayName">Hoe heet je?</label>
-      <input type="text" id="displayName" placeholder="Bijv. Thijs" maxlength="60">
+      <label for="displayName" data-i18n="onb.s1.name">Hoe heet je?</label>
+      <input type="text" id="displayName" maxlength="60">
 
-      <label for="sport">Favoriete sport</label>
+      <label for="sport" data-i18n="prof.favSport">Favoriete sport</label>
       <select id="sport">
-        <option value="">— Kies een sport —</option>
+        <option value="">—</option>
         <option value="0">Padel</option>
         <option value="1">Tennis</option>
         <option value="2">Pickleball</option>
@@ -97,27 +98,27 @@
       </select>
 
       <div class="step-actions">
-        <button class="btn secondary" id="skipStep1">Overslaan</button>
-        <button class="btn" id="saveStep1">Volgende</button>
+        <button class="btn secondary" id="skipStep1" data-i18n="onb.skip">Overslaan</button>
+        <button class="btn" id="saveStep1" data-i18n="onb.next">Volgende</button>
       </div>
       <div class="err" id="step1Err"></div>
     </div>
 
     <!-- Step 2: Watch koppelen -->
     <div class="step" data-step-content="2">
-      <div class="step-num">Stap 2 van 2</div>
-      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem">Koppel je watch</h1>
-      <div class="sub">Open de RallyPoint-app op je horloge en kopieer <b style="color:var(--ink)">PIN</b> en <b style="color:var(--ink)">Code</b> uit het Setup-menu.</div>
+      <div class="step-num" data-i18n="onb.step2num">Stap 2 van 2</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin-bottom:.3rem" data-i18n="onb.s2.h1">Koppel je watch</h1>
+      <div class="sub" data-i18n-html="onb.s2.sub">Open de RallyPoint-app op je horloge en kopieer <b style="color:var(--ink)">PIN</b> en <b style="color:var(--ink)">Code</b> uit het Setup-menu.</div>
 
-      <label for="pin">PIN (4 cijfers)</label>
+      <label for="pin" data-i18n="onb.s2.pin">PIN (4 cijfers)</label>
       <input type="text" id="pin" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;letter-spacing:.3em;text-align:center">
 
-      <label for="code">Code (6 tekens)</label>
+      <label for="code" data-i18n="onb.s2.code">Code (6 tekens)</label>
       <input type="text" id="code" placeholder="------" maxlength="6" pattern="[0-9a-fA-F]{6}" style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;letter-spacing:.3em;text-align:center;text-transform:lowercase">
 
       <div class="step-actions">
-        <button class="btn secondary" id="skipStep2">Sla over</button>
-        <button class="btn" id="saveStep2">Koppelen</button>
+        <button class="btn secondary" id="skipStep2" data-i18n="onb.s2.skip">Sla over</button>
+        <button class="btn" id="saveStep2" data-i18n="onb.s2.link">Koppelen</button>
       </div>
       <div class="err" id="step2Err"></div>
     </div>

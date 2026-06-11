@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
   <script>
@@ -28,28 +29,41 @@
     </a>
   </div>
   <div class="card">
-    <h1>Account aanmaken</h1>
-    <div class="sub">Eén account voor al je watches en stats.</div>
+    <h1 data-i18n="signup.h1">Account aanmaken</h1>
+    <div class="sub" data-i18n="signup.sub">Eén account voor al je watches en stats.</div>
     <form id="signupForm">
-      <label for="email">E-mailadres</label>
+      <label for="email" data-i18n="common.email">E-mailadres</label>
       <input type="email" id="email" required autocomplete="email">
-      <label for="password">Wachtwoord</label>
-      <input type="password" id="password" required autocomplete="new-password" minlength="8" placeholder="Minimaal 8 tekens">
-      <button class="btn" type="submit">Account aanmaken</button>
+      <label for="password" data-i18n="common.password">Wachtwoord</label>
+      <input type="password" id="password" required autocomplete="new-password" minlength="8" data-i18n-ph="signup.pwPh" placeholder="Minimaal 8 tekens">
+      <label for="langSelect" data-i18n="common.langLabel">Taal</label>
+      <select id="langSelect"></select>
+      <button class="btn" type="submit" data-i18n="signup.submit">Account aanmaken</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row">Heb je al een account? <a href="/account/login">Inloggen</a></div>
+    <div class="link-row"><span data-i18n="signup.haveAccount">Heb je al een account?</span> <a href="/account/login" data-i18n="signup.login">Inloggen</a></div>
   </div>
 </div>
 
 <footer class="app-footer">
-  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+  <a href="/about" data-i18n="foot.about">Over</a> · <a href="/privacy" data-i18n="foot.privacy">Privacy</a> · <a href="/terms" data-i18n="foot.terms">Voorwaarden</a>
 </footer>
 
 <script>
   const next = new URLSearchParams(location.search).get('next') || '/account';
   const form = document.getElementById('signupForm');
   const errEl = document.getElementById('err');
+
+  // Taalkiezer vullen + direct toepassen bij wijziging
+  const langSel = document.getElementById('langSelect');
+  RP.langs.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l; o.textContent = RP.langNames[l];
+    if (l === RP.lang) o.selected = true;
+    langSel.appendChild(o);
+  });
+  langSel.addEventListener('change', () => RP.setLang(langSel.value));
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     errEl.textContent = '';
@@ -60,21 +74,21 @@
     try {
       const r = await fetch('/api/auth/signup', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, lang: RP.lang })
       });
       const data = await r.json();
       if (!r.ok) {
         errEl.textContent =
-          data.error === 'email_taken' ? 'Dit e-mailadres is al in gebruik.' :
-          data.error === 'bad_email' ? 'Ongeldig e-mailadres.' :
-          data.error === 'bad_password' ? 'Wachtwoord moet minstens 8 tekens zijn.' :
-          'Aanmaken mislukt.';
+          data.error === 'email_taken' ? RP.t('signup.err.taken') :
+          data.error === 'bad_email' ? RP.t('signup.err.email') :
+          data.error === 'bad_password' ? RP.t('signup.err.pw') :
+          RP.t('signup.err.fail');
         btn.disabled = false; return;
       }
       // Nieuwe users → onboarding flow. Bestaande next-param respecteren als 't expliciet was meegegeven.
       window.location = new URLSearchParams(location.search).get('next') ? next : '/account/onboarding';
     } catch (e) {
-      errEl.textContent = 'Netwerkfout.';
+      errEl.textContent = RP.t('err.network');
       btn.disabled = false;
     }
   });

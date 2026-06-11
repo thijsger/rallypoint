@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
   <script>
@@ -29,10 +30,10 @@
   </div>
 
   <nav class="subnav">
-    <a href="/account" class="active">Dashboard</a>
-    <a href="/account/profile">Profiel</a>
-    <a href="/account/settings">Instellingen</a>
-    <a href="/?stay=1" style="margin-left:auto">Scoreboard →</a>
+    <a href="/account" class="active" data-i18n="nav.dashboard">Dashboard</a>
+    <a href="/account/profile" data-i18n="nav.profile">Profiel</a>
+    <a href="/account/settings" data-i18n="nav.settings">Instellingen</a>
+    <a href="/?stay=1" style="margin-left:auto" data-i18n="nav.scoreboard">Scoreboard →</a>
   </nav>
 
   <div id="bannerSlot"></div>
@@ -60,37 +61,37 @@
   <div id="content" class="hidden">
     <div class="card">
       <div class="section">
-        <h2>Account</h2>
-        <div class="row"><span class="row-label">E-mail</span><span class="row-value" id="userEmail"></span></div>
-        <div class="row"><span class="row-label">Status</span><span class="row-value" id="userVerified"></span></div>
+        <h2 data-i18n="dash.account">Account</h2>
+        <div class="row"><span class="row-label" data-i18n="common.email">E-mail</span><span class="row-value" id="userEmail"></span></div>
+        <div class="row"><span class="row-label" data-i18n="dash.statusLabel">Status</span><span class="row-value" id="userVerified"></span></div>
       </div>
     </div>
 
     <div class="card" id="quickStatsCard" style="display:none">
       <div class="section">
-        <h2>Snel overzicht</h2>
+        <h2 data-i18n="dash.quick">Snel overzicht</h2>
         <div class="stats-grid" id="quickStats"></div>
       </div>
     </div>
 
     <div class="card">
       <div class="section">
-        <h2>Watches</h2>
+        <h2 data-i18n="dash.watches">Watches</h2>
         <ul class="pin-list" id="pinList"></ul>
         <div class="pin-input-row" style="margin-top:.6rem">
           <input class="pin" type="text" id="pinInput" placeholder="PIN" maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
           <input type="text" id="codeInput" placeholder="Code" maxlength="6" pattern="[0-9a-fA-F]{6}" style="letter-spacing:.25em;text-transform:lowercase;text-align:center">
-          <button class="btn" id="couplePinBtn">Koppel</button>
+          <button class="btn" id="couplePinBtn" data-i18n="dash.coupleBtn">Koppel</button>
         </div>
-        <div class="info" style="margin-top:.8rem;margin-bottom:0">PIN en Code staan bovenaan het Setup-menu van je RallyPoint-app. Open de app eerst — anders kan de server de code niet verifiëren.</div>
+        <div class="info" style="margin-top:.8rem;margin-bottom:0" data-i18n="dash.pinInfo">PIN en Code staan bovenaan het Setup-menu van je RallyPoint-app. Open de app eerst — anders kan de server de code niet verifiëren.</div>
         <div class="err" id="pinErr"></div>
       </div>
     </div>
 
     <div class="card">
       <div class="section">
-        <h2>Sessie</h2>
-        <button class="btn secondary" id="logoutBtn">Uitloggen</button>
+        <h2 data-i18n="dash.session">Sessie</h2>
+        <button class="btn secondary" id="logoutBtn" data-i18n="dash.logout">Uitloggen</button>
       </div>
     </div>
   </div>
@@ -114,8 +115,8 @@
   // Post-actie meldingen als toast — clean URL na 1× tonen
   function flashFromQuery() {
     const msgs = {
-      verified_1: ['E-mail bevestigd. Welkom!', 'success'],
-      verified_0: ['Bevestiglink ongeldig of verlopen.', 'err'],
+      verified_1: [RP.t('dash.verifiedOk'), 'success'],
+      verified_0: [RP.t('dash.verifiedBad'), 'err'],
       just_signed_up: ['Account aangemaakt. Check je inbox voor de bevestigingsmail.', 'info'],
       onboarded: ['Je bent klaar — veel plezier!', 'success'],
       email_changed: ['E-mailadres bijgewerkt.', 'success'],
@@ -153,28 +154,29 @@
       const r = await fetch('/api/auth/me');
       if (r.status === 401) { window.location = '/account/login'; return; }
       me = await r.json();
+      if (me.lang) { RP.setLang(me.lang, true); }   // sync taal met server-voorkeur
       // Profile is needed for stats — fetch in parallel ideally but minimal pages here
       const p = await fetch('/api/account/profile');
       if (p.ok) profile = await p.json();
     } catch (e) {
-      bannerSlot.innerHTML = '<div class="banner err">Kon account niet laden.</div>';
+      bannerSlot.innerHTML = '<div class="banner err">' + RP.t('dash.loadFail') + '</div>';
       return;
     }
     skeleton.classList.add('hidden');
     content.classList.remove('hidden');
     userEmail.textContent = me.email;
     userVerified.innerHTML = me.email_verified
-      ? '<span class="status-pill active">Geverifieerd</span>'
-      : '<span class="status-pill expired">Niet geverifieerd</span>';
+      ? '<span class="status-pill active">' + RP.t('dash.verified') + '</span>'
+      : '<span class="status-pill expired">' + RP.t('dash.unverified') + '</span>';
 
     // Quick stats — alleen tonen als er minstens 1 match is
     const s = (profile && profile.stats) || {};
     if (s.total_matches > 0) {
       quickStatsCard.style.display = '';
       quickStats.innerHTML = `
-        <div class="stat-tile"><div class="num">${s.total_matches}</div><div class="lbl">Matches</div></div>
-        <div class="stat-tile"><div class="num accent">${s.win_rate != null ? s.win_rate + '%' : '—'}</div><div class="lbl">Win-rate</div></div>
-        <div class="stat-tile"><div class="num">${fmtDuration(s.total_duration_min || 0)}</div><div class="lbl">Speeltijd</div></div>
+        <div class="stat-tile"><div class="num">${s.total_matches}</div><div class="lbl">${RP.t('dash.statMatches')}</div></div>
+        <div class="stat-tile"><div class="num accent">${s.win_rate != null ? s.win_rate + '%' : '—'}</div><div class="lbl">${RP.t('dash.statWinRate')}</div></div>
+        <div class="stat-tile"><div class="num">${fmtDuration(s.total_duration_min || 0)}</div><div class="lbl">${RP.t('dash.statPlaytime')}</div></div>
       `;
     }
 
@@ -183,13 +185,13 @@
       pinList.innerHTML = `
         <li style="justify-content:center;padding:1.6rem 1rem;text-align:center;flex-direction:column;background:transparent;border-style:dashed">
           <div style="font-size:2rem;line-height:1;margin-bottom:.6rem">⌚</div>
-          <div style="font-family:Inter;font-size:.95rem;letter-spacing:0;color:var(--ink);font-weight:500">Nog geen watches gekoppeld</div>
-          <div style="font-family:Inter;font-size:.8rem;letter-spacing:0;color:var(--muted);margin-top:.35rem;line-height:1.5">Open RallyPoint op je watch, kopieer <b style="color:var(--muted-hi)">PIN</b> en <b style="color:var(--muted-hi)">Code</b> uit het Setup-menu, en vul hieronder in.</div>
+          <div style="font-family:Inter;font-size:.95rem;letter-spacing:0;color:var(--ink);font-weight:500">${RP.t('dash.noWatches')}</div>
+          <div style="font-family:Inter;font-size:.8rem;letter-spacing:0;color:var(--muted);margin-top:.35rem;line-height:1.5">${RP.t('dash.noWatchesHint')}</div>
         </li>`;
     } else {
       for (const pin of me.pins) {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="pin-val">${pin}</span><button data-pin="${pin}">Ontkoppel</button>`;
+        li.innerHTML = `<span class="pin-val">${pin}</span><button data-pin="${pin}">${RP.t('dash.unpair')}</button>`;
         pinList.appendChild(li);
       }
     }
@@ -199,8 +201,8 @@
     pinErr.textContent = '';
     const pin = pinInput.value.trim();
     const code = (document.getElementById('codeInput').value || '').trim().toLowerCase();
-    if (!/^\d{4}$/.test(pin)) { pinErr.textContent = 'PIN moet 4 cijfers zijn.'; return; }
-    if (!/^[0-9a-f]{6}$/.test(code)) { pinErr.textContent = 'Code moet 6 tekens zijn (0-9, a-f).'; return; }
+    if (!/^\d{4}$/.test(pin)) { pinErr.textContent = RP.t('dash.pinDigits'); return; }
+    if (!/^[0-9a-f]{6}$/.test(code)) { pinErr.textContent = RP.t('dash.codeChars'); return; }
     const r = await fetch('/api/account/couple-pin', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ pin, code })
@@ -208,14 +210,14 @@
     const data = await r.json();
     if (!r.ok) {
       pinErr.textContent =
-        data.error === 'pin_taken' ? 'Deze PIN is al gekoppeld aan een ander account.' :
-        data.error === 'bad_code' ? 'Code klopt niet — check het Setup-menu op je watch.' :
-        data.error === 'watch_not_active' ? 'Open je RallyPoint-app op de watch en probeer opnieuw.' :
-        'Koppelen mislukt.';
+        data.error === 'pin_taken' ? RP.t('dash.errTaken') :
+        data.error === 'bad_code' ? RP.t('dash.errCode') :
+        data.error === 'watch_not_active' ? RP.t('dash.errNotActive') :
+        RP.t('dash.errCoupleFail');
       return;
     }
     pinInput.value = ''; document.getElementById('codeInput').value = '';
-    toast('Watch gekoppeld', 'success');
+    toast(RP.t('dash.coupled'), 'success');
     load();
   });
 
@@ -223,15 +225,15 @@
     const btn = e.target.closest('button[data-pin]');
     if (!btn) return;
     const ok = await confirmModal({
-      title: 'PIN ontkoppelen?',
-      body: `PIN <b style="color:var(--ink)">${btn.dataset.pin}</b> wordt ontkoppeld van je account. Je kunt 'm later weer koppelen.`,
-      confirmLabel: 'Ontkoppel',
+      title: RP.t('dash.unpairTitle'),
+      body: RP.t('dash.unpairBody', { pin: btn.dataset.pin }),
+      confirmLabel: RP.t('dash.unpair'),
       danger: true,
     });
     if (!ok) return;
     btnLoading(btn, true);
     await fetch('/api/account/pins/' + btn.dataset.pin, { method: 'DELETE' });
-    toast('PIN ontkoppeld', 'success');
+    toast(RP.t('dash.unpaired'), 'success');
     load();
   });
 

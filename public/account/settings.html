@@ -26,6 +26,7 @@
     color: var(--muted-hi); font-weight: 400; line-height: 1.4;
   }
 </style>
+<script src="/account/i18n.js"></script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
   <script>
@@ -45,62 +46,94 @@
   </div>
 
   <nav class="subnav">
-    <a href="/account">Dashboard</a>
-    <a href="/account/profile">Profiel</a>
-    <a href="/account/settings" class="active">Instellingen</a>
-    <a href="/?stay=1" style="margin-left:auto">Scoreboard →</a>
+    <a href="/account" data-i18n="nav.dashboard">Dashboard</a>
+    <a href="/account/profile" data-i18n="nav.profile">Profiel</a>
+    <a href="/account/settings" class="active" data-i18n="nav.settings">Instellingen</a>
+    <a href="/?stay=1" style="margin-left:auto" data-i18n="nav.scoreboard">Scoreboard →</a>
   </nav>
 
   <div class="card">
-    <h1>Wachtwoord wijzigen</h1>
-    <div class="sub">Na opslaan blijven andere apparaten ingelogd.</div>
+    <h1 data-i18n="set.lang.h1">Taal</h1>
+    <div class="sub" data-i18n="set.lang.sub">Taal van de hele site. Wordt direct toegepast.</div>
+    <label for="langSelect" data-i18n="common.langLabel">Taal</label>
+    <select id="langSelect"></select>
+  </div>
+
+  <div class="card">
+    <h1 data-i18n="set.pw.h1">Wachtwoord wijzigen</h1>
+    <div class="sub" data-i18n="set.pw.sub">Na opslaan blijven andere apparaten ingelogd.</div>
     <form id="pwForm">
-      <label for="curPw">Huidig wachtwoord</label>
+      <label for="curPw" data-i18n="set.pw.cur">Huidig wachtwoord</label>
       <input type="password" id="curPw" required autocomplete="current-password">
-      <label for="newPw">Nieuw wachtwoord</label>
-      <input type="password" id="newPw" required minlength="8" autocomplete="new-password" placeholder="Min 8 tekens">
-      <button class="btn" type="submit">Wachtwoord opslaan</button>
-      <div class="success" id="pwOk" style="display:none">Wachtwoord gewijzigd.</div>
+      <label for="newPw" data-i18n="set.pw.new">Nieuw wachtwoord</label>
+      <input type="password" id="newPw" required minlength="8" autocomplete="new-password" data-i18n-ph="set.pw.newPh" placeholder="Min 8 tekens">
+      <button class="btn" type="submit" data-i18n="set.pw.submit">Wachtwoord opslaan</button>
+      <div class="success" id="pwOk" style="display:none" data-i18n="set.pw.ok">Wachtwoord gewijzigd.</div>
       <div class="err" id="pwErr"></div>
     </form>
   </div>
 
   <div class="card">
-    <h1>E-mailadres wijzigen</h1>
-    <div class="sub">Je krijgt een verificatiemail op het nieuwe adres.</div>
+    <h1 data-i18n="set.em.h1">E-mailadres wijzigen</h1>
+    <div class="sub" data-i18n="set.em.sub">Je krijgt een verificatiemail op het nieuwe adres.</div>
     <form id="emailForm">
-      <label for="newEmail">Nieuw e-mailadres</label>
+      <label for="newEmail" data-i18n="set.em.new">Nieuw e-mailadres</label>
       <input type="email" id="newEmail" required>
-      <label for="curPwEmail">Huidig wachtwoord ter bevestiging</label>
+      <label for="curPwEmail" data-i18n="set.em.curPw">Huidig wachtwoord ter bevestiging</label>
       <input type="password" id="curPwEmail" required autocomplete="current-password">
-      <button class="btn" type="submit">E-mail wijzigen</button>
-      <div class="success" id="emailOk" style="display:none">E-mailadres bijgewerkt. Check je inbox voor de bevestigingsmail.</div>
+      <button class="btn" type="submit" data-i18n="set.em.submit">E-mail wijzigen</button>
+      <div class="success" id="emailOk" style="display:none" data-i18n="set.em.ok">E-mailadres bijgewerkt. Check je inbox voor de bevestigingsmail.</div>
       <div class="err" id="emailErr"></div>
     </form>
   </div>
 
   <div class="card danger-card">
-    <h1>Account verwijderen</h1>
-    <div class="sub">Alle gegevens worden permanent verwijderd: account, gekoppelde watches, profiel. Match-history per PIN blijft bestaan (gekoppeld aan PIN, niet account).</div>
+    <h1 data-i18n="set.del.h1">Account verwijderen</h1>
+    <div class="sub" data-i18n="set.del.sub">Alle gegevens worden permanent verwijderd: account, gekoppelde watches, profiel. Match-history per PIN blijft bestaan (gekoppeld aan PIN, niet account).</div>
     <form id="deleteForm">
-      <label for="curPwDel">Huidig wachtwoord</label>
+      <label for="curPwDel" data-i18n="set.pw.cur">Huidig wachtwoord</label>
       <input type="password" id="curPwDel" required autocomplete="current-password">
       <div class="checkbox-row">
         <input type="checkbox" id="confirmDel" required>
-        <label for="confirmDel">Ja, ik weet het zeker — deze actie kan niet ongedaan worden gemaakt.</label>
+        <label for="confirmDel" data-i18n="set.del.confirm">Ja, ik weet het zeker — deze actie kan niet ongedaan worden gemaakt.</label>
       </div>
-      <button class="btn danger" type="submit">Verwijder mijn account</button>
+      <button class="btn danger" type="submit" data-i18n="set.del.submit">Verwijder mijn account</button>
       <div class="err" id="delErr"></div>
     </form>
   </div>
 </div>
 
 <footer class="app-footer">
-  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+  <a href="/about" data-i18n="foot.about">Over</a> · <a href="/privacy" data-i18n="foot.privacy">Privacy</a> · <a href="/terms" data-i18n="foot.terms">Voorwaarden</a>
 </footer>
 
 <script src="/account/toast.js"></script>
 <script>
+  // Taalkiezer: vul met server-voorkeur, sla wijziging op in DB + lokaal
+  const langSel = document.getElementById('langSelect');
+  RP.langs.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l; o.textContent = RP.langNames[l];
+    langSel.appendChild(o);
+  });
+  // Sync met server-voorkeur (bron van waarheid voor ingelogde user)
+  fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(me => {
+    if (me && me.lang) { RP.setLang(me.lang, true); }
+    langSel.value = RP.lang;
+  }).catch(() => { langSel.value = RP.lang; });
+  langSel.value = RP.lang;
+  langSel.addEventListener('change', async () => {
+    const lang = langSel.value;
+    RP.setLang(lang);
+    try {
+      await fetch('/api/account/lang', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ lang })
+      });
+      toast(RP.t('set.lang.saved'), 'success');
+    } catch (_) {}
+  });
+
   document.getElementById('pwForm').addEventListener('submit', async e => {
     e.preventDefault();
     const cur = document.getElementById('curPw').value;
@@ -116,15 +149,15 @@
       const data = await r.json();
       if (!r.ok) {
         const msg =
-          data.error === 'bad_current' ? 'Huidig wachtwoord klopt niet.' :
-          data.error === 'bad_password' ? 'Nieuw wachtwoord moet minstens 8 tekens zijn.' :
-          'Opslaan mislukt.';
+          data.error === 'bad_current' ? RP.t('set.pw.errCur') :
+          data.error === 'bad_password' ? RP.t('set.pw.errNew') :
+          RP.t('set.pw.errFail');
         errEl.textContent = msg;
       } else {
-        toast('Wachtwoord gewijzigd', 'success');
+        toast(RP.t('set.pw.ok'), 'success');
         e.target.reset();
       }
-    } catch (_) { errEl.textContent = 'Netwerkfout.'; }
+    } catch (_) { errEl.textContent = RP.t('err.network'); }
     btn.disabled = false;
   });
 
@@ -143,25 +176,25 @@
       const data = await r.json();
       if (!r.ok) {
         errEl.textContent =
-          data.error === 'bad_current' ? 'Wachtwoord klopt niet.' :
-          data.error === 'bad_email' ? 'Ongeldig e-mailadres.' :
-          data.error === 'email_taken' ? 'Dit e-mailadres is al in gebruik.' :
-          'Wijzigen mislukt.';
+          data.error === 'bad_current' ? RP.t('set.em.errCur') :
+          data.error === 'bad_email' ? RP.t('set.em.errEmail') :
+          data.error === 'email_taken' ? RP.t('set.em.errTaken') :
+          RP.t('set.em.errFail');
       } else {
-        toast('E-mailadres bijgewerkt — check je inbox', 'success', 5000);
+        toast(RP.t('set.em.ok'), 'success', 5000);
         e.target.reset();
       }
-    } catch (_) { errEl.textContent = 'Netwerkfout.'; }
+    } catch (_) { errEl.textContent = RP.t('err.network'); }
     btn.disabled = false;
   });
 
   document.getElementById('deleteForm').addEventListener('submit', async e => {
     e.preventDefault();
     const ok = await confirmModal({
-      title: 'Account verwijderen?',
-      body: 'Alle gegevens worden permanent verwijderd. Dit kan <b style="color:var(--them)">niet</b> ongedaan worden gemaakt.',
-      confirmLabel: 'Verwijder definitief',
-      cancelLabel: 'Annuleren',
+      title: RP.t('set.del.modalTitle'),
+      body: RP.t('set.del.modalBody'),
+      confirmLabel: RP.t('set.del.modalOk'),
+      cancelLabel: RP.t('common.cancel'),
       danger: true,
     });
     if (!ok) return;
@@ -176,11 +209,11 @@
       });
       const data = await r.json();
       if (!r.ok) {
-        errEl.textContent = data.error === 'bad_current' ? 'Wachtwoord klopt niet.' : 'Verwijderen mislukt.';
+        errEl.textContent = data.error === 'bad_current' ? RP.t('set.del.errCur') : RP.t('set.del.errFail');
         btnLoading(btn, false); return;
       }
       window.location = '/';
-    } catch (_) { errEl.textContent = 'Netwerkfout.'; btnLoading(btn, false); }
+    } catch (_) { errEl.textContent = RP.t('err.network'); btnLoading(btn, false); }
   });
 </script>
 </body>

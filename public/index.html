@@ -877,6 +877,12 @@ boxes[0].focus();
 //   2. Ingelogd + 1 gekoppeld horloge → auto connect (nooit PIN typen)
 //   2b. Ingelogd + meerdere horloges → toon picker
 //   3. localStorage cached PIN → prefill only (spectator)
+// Sitevoorkeur-taal meteen toepassen (account-keuze, los van het horloge)
+(function () {
+  const pref = (window.localStorage && localStorage.getItem('rallypointLang')) || '';
+  if (pref && WEB_STRINGS.tagline[pref]) { applyLanguage(pref); }
+})();
+
 (async () => {
   const params = new URLSearchParams(location.search);
   const urlPin = params.get('pin') || '';
@@ -894,6 +900,11 @@ boxes[0].focus();
     const r = await fetch('/api/auth/me');
     if (r.ok) {
       const me = await r.json();
+      // Sitevoorkeur-taal van het account toepassen + cachen voor volgende keer
+      if (me.lang && WEB_STRINGS.tagline[me.lang]) {
+        try { localStorage.setItem('rallypointLang', me.lang); } catch (_) {}
+        if (me.lang !== currentLang) { applyLanguage(me.lang); chooseVoiceForLang(me.lang); }
+      }
       const pins = (me.pins || []).filter(p => /^\d{4}$/.test(p));
       if (!stay && pins.length === 1) {
         // Precies 1 horloge → direct verbinden, nooit PIN typen
@@ -1053,8 +1064,10 @@ function snapshot(m) {
 // Verwerk een nieuwe stand (zowel via live updates als polling)
 function applyState(m) {
   if (!m) return;
-  // Taal volgt het horloge — wissel zodra een nieuwe taal binnenkomt
-  if (m.lang && m.lang !== currentLang) {
+  // Taal volgt het horloge — TENZIJ de gebruiker een eigen sitevoorkeur heeft.
+  // De voorkeur (account-taal) staat in localStorage en wint altijd.
+  var sitePref = (window.localStorage && localStorage.getItem('rallypointLang')) || '';
+  if (!sitePref && m.lang && m.lang !== currentLang) {
     applyLanguage(m.lang);
     chooseVoiceForLang(m.lang);
     // History opnieuw renderen na taalwissel

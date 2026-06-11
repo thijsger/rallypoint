@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <style>
   .profile-head {
     display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4);
@@ -45,10 +46,10 @@
   </div>
 
   <nav class="subnav">
-    <a href="/account">Dashboard</a>
-    <a href="/account/profile" class="active">Profiel</a>
-    <a href="/account/settings">Instellingen</a>
-    <a href="/?stay=1" style="margin-left:auto">Scoreboard →</a>
+    <a href="/account" data-i18n="nav.dashboard">Dashboard</a>
+    <a href="/account/profile" class="active" data-i18n="nav.profile">Profiel</a>
+    <a href="/account/settings" data-i18n="nav.settings">Instellingen</a>
+    <a href="/?stay=1" style="margin-left:auto" data-i18n="nav.scoreboard">Scoreboard →</a>
   </nav>
 
   <div id="bannerSlot"></div>
@@ -93,31 +94,31 @@
       </div>
 
       <div class="section">
-        <h2>Thema</h2>
+        <h2 data-i18n="prof.theme">Thema</h2>
         <div class="theme-picker" id="themePicker"></div>
       </div>
 
       <div class="section">
-        <h2>Achtergrond</h2>
+        <h2 data-i18n="prof.bg">Achtergrond</h2>
         <div class="theme-picker" id="bgPicker"></div>
         <div style="display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-4)">
-          <label for="bgCustom" style="margin:0;letter-spacing:.1em">Eigen kleur</label>
+          <label for="bgCustom" style="margin:0;letter-spacing:.1em" data-i18n="prof.bgCustom">Eigen kleur</label>
           <input type="color" id="bgCustom" value="#0a0d10" style="width:48px;height:36px;padding:0;margin:0;border-radius:var(--r-sm);border:1px solid var(--border-hi);background:transparent;cursor:pointer">
         </div>
       </div>
 
       <div class="section">
-        <h2>Persoonlijke gegevens</h2>
+        <h2 data-i18n="prof.personal">Persoonlijke gegevens</h2>
         <form id="profileForm">
-          <label for="displayNameInput">Weergavenaam</label>
-          <input type="text" id="displayNameInput" maxlength="60" placeholder="Hoe wil je heten?">
+          <label for="displayNameInput" data-i18n="prof.displayName">Weergavenaam</label>
+          <input type="text" id="displayNameInput" maxlength="60" data-i18n-ph="prof.displayNamePh" placeholder="Hoe wil je heten?">
 
-          <label for="avatarUrlInput">Avatar URL (optioneel)</label>
+          <label for="avatarUrlInput" data-i18n="prof.avatar">Avatar URL (optioneel)</label>
           <input type="url" id="avatarUrlInput" placeholder="https://...">
 
-          <label for="favoriteSportInput">Favoriete sport</label>
+          <label for="favoriteSportInput" data-i18n="prof.favSport">Favoriete sport</label>
           <select id="favoriteSportInput">
-            <option value="">— Geen voorkeur —</option>
+            <option value="">—</option>
             <option value="0">Padel</option>
             <option value="1">Tennis</option>
             <option value="2">Pickleball</option>
@@ -128,8 +129,8 @@
 
           <div class="row" style="border-top:1px solid var(--border);padding-top:var(--sp-4);margin-top:var(--sp-3);align-items:flex-start">
             <div style="flex:1;min-width:0">
-              <div class="row-label" style="margin-bottom:4px">Openbare matches</div>
-              <div style="color:var(--muted);font-size:.8rem;line-height:1.4">Toon je lopende matches op de Live Spectator lijst. Anderen zien je naam + score, geen PIN of geschiedenis.</div>
+              <div class="row-label" style="margin-bottom:4px" data-i18n="prof.publicTitle">Openbare matches</div>
+              <div style="color:var(--muted);font-size:.8rem;line-height:1.4" data-i18n="prof.publicSub">Toon je lopende matches op de Live Spectator lijst. Anderen zien je naam + score, geen PIN of geschiedenis.</div>
             </div>
             <label class="toggle">
               <input type="checkbox" id="isPublicInput">
@@ -138,8 +139,8 @@
           </div>
 
           <div class="save-row">
-            <button class="btn" type="submit">Opslaan</button>
-            <div class="success" id="saveMsg" style="display:none;margin-top:.6rem">Opgeslagen.</div>
+            <button class="btn" type="submit" data-i18n="prof.save">Opslaan</button>
+            <div class="success" id="saveMsg" style="display:none;margin-top:.6rem" data-i18n="prof.saved">Opgeslagen.</div>
             <div class="err" id="saveErr"></div>
           </div>
         </form>
@@ -148,7 +149,7 @@
 
     <div class="card">
       <div class="section">
-        <h2>Mijn stats</h2>
+        <h2 data-i18n="prof.myStats">Mijn stats</h2>
         <div class="stats-grid" id="statsGrid"></div>
       </div>
     </div>
@@ -193,8 +194,9 @@
       const r = await fetch('/api/account/profile');
       if (r.status === 401) { window.location = '/account/login?next=/account/profile'; return; }
       p = await r.json();
+      if (p.lang) { RP.setLang(p.lang, true); }   // sync taal met server-voorkeur
     } catch (e) {
-      skeleton.innerHTML = '<div class="card"><p style="color:var(--them);text-align:center">Profiel kon niet geladen worden.</p></div>';
+      skeleton.innerHTML = '<div class="card"><p style="color:var(--them);text-align:center">' + RP.t('prof.loadFail') + '</p></div>';
       return;
     }
     skeleton.classList.add('hidden');
@@ -214,13 +216,13 @@
     // Stats
     const s = p.stats || {};
     const tiles = [
-      { num: s.total_matches || 0, lbl: 'Matches' },
-      { num: s.win_rate != null ? s.win_rate + '%' : '—', lbl: 'Win-rate', accent: true },
-      { num: fmtDuration(s.total_duration_min || 0), lbl: 'Speeltijd' },
-      { num: s.total_points || 0, lbl: 'Punten totaal' },
-      { num: s.longest_match_pts || 0, lbl: 'Langste match' },
-      { num: s.most_played_sport != null ? SPORTS[s.most_played_sport] : '—', lbl: 'Favoriet' },
-      { num: s.pin_count || 0, lbl: 'Watches' },
+      { num: s.total_matches || 0, lbl: RP.t('prof.tMatches') },
+      { num: s.win_rate != null ? s.win_rate + '%' : '—', lbl: RP.t('prof.tWinRate'), accent: true },
+      { num: fmtDuration(s.total_duration_min || 0), lbl: RP.t('prof.tPlaytime') },
+      { num: s.total_points || 0, lbl: RP.t('prof.tPoints') },
+      { num: s.longest_match_pts || 0, lbl: RP.t('prof.tLongest') },
+      { num: s.most_played_sport != null ? SPORTS[s.most_played_sport] : '—', lbl: RP.t('prof.tFav') },
+      { num: s.pin_count || 0, lbl: RP.t('prof.tWatches') },
     ];
     statsGrid.innerHTML = tiles.map(t =>
       `<div class="stat-tile"><div class="num ${t.accent?'accent':''}">${t.num}</div><div class="lbl">${t.lbl}</div></div>`
@@ -311,16 +313,16 @@
       const data = await r.json();
       if (!r.ok) {
         const msg =
-          data.error === 'bad_avatar' ? 'Avatar URL moet beginnen met http(s)://' :
-          data.error === 'bad_sport' ? 'Ongeldige sport-keuze.' :
-          'Opslaan mislukt.';
+          data.error === 'bad_avatar' ? RP.t('prof.errAvatar') :
+          data.error === 'bad_sport' ? RP.t('prof.errSport') :
+          RP.t('prof.errSave');
         toast(msg, 'err');
         btnLoading(btn, false); return;
       }
-      toast('Profiel opgeslagen', 'success');
+      toast(RP.t('prof.savedToast'), 'success');
       load();   // refresh header
     } catch (e) {
-      toast('Netwerkfout.', 'err');
+      toast(RP.t('err.network'), 'err');
     }
     btnLoading(btn, false);
   });

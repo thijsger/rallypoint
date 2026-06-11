@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
   <script>
@@ -28,15 +29,15 @@
     </a>
   </div>
   <div class="card">
-    <h1>Nieuw wachtwoord</h1>
-    <div class="sub">Daarna log je opnieuw in.</div>
+    <h1 data-i18n="reset.h1">Nieuw wachtwoord</h1>
+    <div class="sub" data-i18n="reset.sub">Daarna log je opnieuw in.</div>
     <form id="resetForm">
-      <label for="password">Nieuw wachtwoord</label>
-      <input type="password" id="password" required minlength="8" autocomplete="new-password" placeholder="Minimaal 8 tekens">
-      <button class="btn" type="submit">Wachtwoord opslaan</button>
+      <label for="password" data-i18n="reset.label">Nieuw wachtwoord</label>
+      <input type="password" id="password" required minlength="8" autocomplete="new-password" data-i18n-ph="signup.pwPh" placeholder="Minimaal 8 tekens">
+      <button class="btn" type="submit" data-i18n="reset.submit">Wachtwoord opslaan</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row"><a href="/account/login">Terug naar inloggen</a></div>
+    <div class="link-row"><a href="/account/login" data-i18n="forgot.back">Terug naar inloggen</a></div>
   </div>
 </div>
 <script>
@@ -44,7 +45,7 @@
   const token = parts[2] || new URLSearchParams(location.search).get('token') || '';
   const form = document.getElementById('resetForm');
   const errEl = document.getElementById('err');
-  if (!token) { errEl.textContent = 'Ongeldige resetlink.'; form.querySelector('button').disabled = true; }
+  if (!token) { errEl.textContent = RP.t('reset.err.noToken'); form.querySelector('button').disabled = true; }
   form.addEventListener('submit', async e => {
     e.preventDefault();
     errEl.textContent = '';
@@ -58,12 +59,12 @@
       });
       const data = await r.json();
       if (!r.ok) {
-        errEl.textContent = data.error === 'invalid_token' ? 'Deze link is verlopen of ongeldig.' : 'Reset mislukt.';
+        errEl.textContent = data.error === 'invalid_token' ? RP.t('reset.err.invalid') : RP.t('reset.err.fail');
         btn.disabled = false; return;
       }
       window.location = '/account/login?reset=1';
     } catch (e) {
-      errEl.textContent = 'Netwerkfout.';
+      errEl.textContent = RP.t('err.network');
       btn.disabled = false;
     }
   });

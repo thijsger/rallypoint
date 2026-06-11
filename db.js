@@ -105,6 +105,7 @@ addColumnIfMissing('users', 'display_name', 'TEXT');
 addColumnIfMissing('users', 'avatar_url', 'TEXT');
 addColumnIfMissing('users', 'favorite_sport', 'INTEGER');
 addColumnIfMissing('users', 'is_public', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('users', 'lang', "TEXT");   // sitevoorkeur-taal (nl/en/de/es/fr)
 
 // Zet bestaande gebruikers op is_public=1 als standaard
 db.prepare('UPDATE users SET is_public = 1 WHERE is_public = 0').run();
@@ -154,9 +155,10 @@ const stmts = {
   getUserById: db.prepare('SELECT * FROM users WHERE id = ?'),
   getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
   createUser: db.prepare(`
-    INSERT INTO users (email, password_hash, verify_token, created_at, updated_at, is_public)
-    VALUES (?, ?, ?, ?, ?, 1)
+    INSERT INTO users (email, password_hash, verify_token, created_at, updated_at, is_public, lang)
+    VALUES (?, ?, ?, ?, ?, 1, ?)
   `),
+  updateLang: db.prepare('UPDATE users SET lang = ?, updated_at = ? WHERE id = ?'),
   setEmailVerified: db.prepare('UPDATE users SET email_verified = 1, verify_token = NULL, updated_at = ? WHERE id = ?'),
   setVerifyToken: db.prepare('UPDATE users SET verify_token = ?, updated_at = ? WHERE id = ?'),
   getUserByVerifyToken: db.prepare('SELECT * FROM users WHERE verify_token = ?'),
@@ -216,11 +218,18 @@ function randomHex(bytes = 32) { return crypto.randomBytes(bytes).toString('hex'
 function getUserById(id) { return stmts.getUserById.get(id); }
 function getUserByEmail(email) { return stmts.getUserByEmail.get(String(email || '').toLowerCase()); }
 
-function createUser(email, passwordHash) {
+const VALID_LANGS = ['nl', 'en', 'de', 'es', 'fr'];
+function normLang(lang) { return VALID_LANGS.indexOf(lang) >= 0 ? lang : 'nl'; }
+
+function createUser(email, passwordHash, lang) {
   const now = Date.now();
   const verifyToken = randomHex(24);
-  const res = stmts.createUser.run(String(email).toLowerCase(), passwordHash, verifyToken, now, now);
+  const res = stmts.createUser.run(String(email).toLowerCase(), passwordHash, verifyToken, now, now, normLang(lang));
   return { id: res.lastInsertRowid, verifyToken };
+}
+
+function updateLang(userId, lang) {
+  stmts.updateLang.run(normLang(lang), Date.now(), userId);
 }
 
 function markEmailVerified(userId) { stmts.setEmailVerified.run(Date.now(), userId); }
@@ -360,4 +369,5 @@ module.exports = {
   pairPin, unpairPin, getPinOwner, getUserByPin, getPinsForUser,
   getLicense, upsertLicense, claimOrphansForUser,
   updateProfile, changeEmail, deleteUser,
+  updateLang, normLang,
 };

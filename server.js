@@ -493,7 +493,7 @@ const server = http.createServer((req, res) => {
         if (!validPassword(password)) return sendJSON(res, 400, { error: 'bad_password', msg: 'min 8 tekens' });
         if (db.getUserByEmail(email)) return sendJSON(res, 409, { error: 'email_taken' });
         const hash = bcrypt.hashSync(password, BCRYPT_COST);
-        const { id, verifyToken } = db.createUser(email, hash);
+        const { id, verifyToken } = db.createUser(email, hash, db.normLang(body.lang));
         // Stuur verify-mail (best-effort, niet blokkerend op fout)
         emailer.sendVerifyEmail(email, verifyToken).catch(e => console.error('[signup] verify-mail fail:', e && e.message));
         // Claim orphan licenses + PINs voor deze email (paid users die migreren)
@@ -533,6 +533,7 @@ const server = http.createServer((req, res) => {
         user_id: user.id,
         email: user.email,
         email_verified: !!user.email_verified,
+        lang: user.lang || null,
         pins: pins.map(p => p.pin),
         license: lic ? {
           status: lic.status, plan: lic.plan, expires_at: lic.expires_at,
@@ -711,10 +712,19 @@ const server = http.createServer((req, res) => {
         avatar_url: user.avatar_url || null,
         favorite_sport: user.favorite_sport == null ? null : Number(user.favorite_sport),
         is_public: !!user.is_public,
+        lang: user.lang || null,
         created_at: user.created_at,
         pins,
         stats: statsForUser(user.id),
       });
+    }
+    // Taalvoorkeur wijzigen (los endpoint zodat de taalkiezer geen heel
+    // profiel hoeft mee te sturen)
+    if (parts[2] === 'lang' && req.method === 'POST') {
+      return readJsonBody(req).then(body => {
+        db.updateLang(user.id, db.normLang(body.lang));
+        return sendJSON(res, 200, { ok: true, lang: db.normLang(body.lang) });
+      }).catch(e => sendJSON(res, 400, { error: e.message || 'bad_request' }));
     }
     if (parts[2] === 'profile' && req.method === 'PATCH') {
       return readJsonBody(req).then(body => {
@@ -781,12 +791,31 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  // Publieke "Coming soon"-pagina voor de AI-coach (zonder pin/sleutel).
+  // De echte coach zit op /beta/coach/:pin?beta=<sleutel>.
+  if (parts[0] === 'coach' && !parts[1] && req.method === 'GET') {
+    return fs.readFile(path.join(__dirname, 'public', 'beta', 'coach.html'), (err, data) => {
+      if (err) { res.writeHead(404); return res.end('pagina ontbreekt'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+  }
+
+  // --- BETA-pagina's: HTML wordt publiek geserveerd (toont zelf "Coming soon"
+  // zonder geldige sleutel); de DATA hieronder blijft achter de sleutel. ---
+  if (parts[0] === 'beta' && (parts[1] === 'coach' || parts[1] === 'stats' || parts[1] === 'view') && parts[2] && req.method === 'GET') {
+    const file = parts[1] === 'stats' ? 'stats.html' : parts[1] === 'coach' ? 'coach.html' : 'view.html';
+    return fs.readFile(path.join(__dirname, 'public', 'beta', file), (err, data) => {
+      if (err) { res.writeHead(404); return res.end('pagina ontbreekt'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+  }
+
   // --- BETA swing-log (privé, achter ?beta=<sleutel>) ---
-  // POST /beta/log/:pin  -> watch stuurt batch {t0,bin,g,d:[[pg,pj,sw],...]}
+  // POST /beta/log/:pin  -> watch stuurt batch
   // GET  /beta/log/:pin  -> JSON van alle batches (voor analyse)
-  // GET  /beta/view/:pin -> simpele grafiek-viewer
-  // GET  /beta/stats/:pin -> slag-stats dashboard
-  if (parts[0] === 'beta' && (parts[1] === 'log' || parts[1] === 'view' || parts[1] === 'stats') && parts[2]) {
+  if (parts[0] === 'beta' && parts[1] === 'log' && parts[2]) {
     if (url.searchParams.get('beta') !== BETA_KEY) { res.writeHead(403); return res.end('nope'); }
     const pin = parts[2];
     if (!validPin(pin)) { res.writeHead(404); return res.end('pin'); }
@@ -813,14 +842,6 @@ const server = http.createServer((req, res) => {
     if (parts[1] === 'log' && req.method === 'DELETE') {
       betaLogs[pin] = [];
       return sendJSON(res, 200, { ok: true });
-    }
-    if ((parts[1] === 'view' || parts[1] === 'stats') && req.method === 'GET') {
-      const file = parts[1] === 'stats' ? 'stats.html' : 'view.html';
-      return fs.readFile(path.join(__dirname, 'public', 'beta', file), (err, data) => {
-        if (err) { res.writeHead(404); return res.end('pagina ontbreekt'); }
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(data);
-      });
     }
     res.writeHead(405); return res.end('method');
   }

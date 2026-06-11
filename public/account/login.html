@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0c0f12">
 <link rel="apple-touch-icon" href="/img/logo.png">
 <link rel="stylesheet" href="/account/style.css">
+<script src="/account/i18n.js"></script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
   <script>
@@ -28,23 +29,23 @@
     </a>
   </div>
   <div class="card">
-    <h1>Inloggen</h1>
-    <div class="sub">Welkom terug.</div>
+    <h1 data-i18n="login.h1">Inloggen</h1>
+    <div class="sub" data-i18n="login.sub">Welkom terug.</div>
     <form id="loginForm">
-      <label for="email">E-mailadres</label>
+      <label for="email" data-i18n="common.email">E-mailadres</label>
       <input type="email" id="email" required autocomplete="email">
-      <label for="password">Wachtwoord</label>
+      <label for="password" data-i18n="common.password">Wachtwoord</label>
       <input type="password" id="password" required autocomplete="current-password" minlength="8">
-      <button class="btn" type="submit">Inloggen</button>
+      <button class="btn" type="submit" data-i18n="login.submit">Inloggen</button>
       <div class="err" id="err"></div>
     </form>
-    <div class="link-row"><a href="/account/forgot">Wachtwoord vergeten?</a></div>
-    <div class="link-row">Nieuw hier? <a href="/account/signup">Account aanmaken</a></div>
+    <div class="link-row"><a href="/account/forgot" data-i18n="login.forgot">Wachtwoord vergeten?</a></div>
+    <div class="link-row"><span data-i18n="login.newHere">Nieuw hier?</span> <a href="/account/signup" data-i18n="login.signup">Account aanmaken</a></div>
   </div>
 </div>
 
 <footer class="app-footer">
-  <a href="/about">Over</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Voorwaarden</a>
+  <a href="/about" data-i18n="foot.about">Over</a> · <a href="/privacy" data-i18n="foot.privacy">Privacy</a> · <a href="/terms" data-i18n="foot.terms">Voorwaarden</a>
 </footer>
 
 <script>
@@ -65,12 +66,12 @@
       });
       const data = await r.json();
       if (!r.ok) {
-        errEl.textContent = data.error === 'bad_credentials' ? 'E-mail of wachtwoord klopt niet.' : 'Inloggen mislukt.';
+        errEl.textContent = data.error === 'bad_credentials' ? RP.t('login.err.creds') : RP.t('login.err.fail');
         btn.disabled = false; return;
       }
       window.location = next;
     } catch (e) {
-      errEl.textContent = 'Netwerkfout.';
+      errEl.textContent = RP.t('err.network');
       btn.disabled = false;
     }
   });

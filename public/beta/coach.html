@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Coach — RallyPoint beta</title>
+<style>
+  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.2rem 4rem; -webkit-font-smoothing:antialiased; }
+  .head { display:flex; align-items:center; gap:.9rem; margin-bottom:.3rem; }
+  .coach-badge { width:46px; height:46px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg,#c4ff00,#7aa800); display:flex; align-items:center; justify-content:center; font-size:1.5rem; }
+  h1 { font-size:1.25rem; margin:0; }
+  h1 span { color:#c4ff00; }
+  .meta { color:#8b95a3; font-size:.82rem; margin:.1rem 0 1.4rem; }
+  .verdict { background:#181d24; border:1px solid #2a3038; border-left:3px solid #c4ff00; border-radius:12px; padding:1.1rem 1.3rem; margin-bottom:1.4rem; font-size:1rem; line-height:1.5; }
+  h2 { font-size:.78rem; color:#8b95a3; text-transform:uppercase; letter-spacing:.14em; margin:1.6rem 0 .7rem; font-weight:600; }
+  .tip { background:#11161c; border:1px solid #2a3038; border-radius:12px; padding:1rem 1.1rem; margin-bottom:.7rem; display:flex; gap:.85rem; align-items:flex-start; }
+  .tip .ic { font-size:1.3rem; line-height:1.2; flex-shrink:0; }
+  .tip .body { flex:1; }
+  .tip .t { font-weight:600; margin-bottom:.2rem; }
+  .tip .d { color:#b8c1ce; font-size:.88rem; line-height:1.45; }
+  .tip.good { border-left:3px solid #c4ff00; }
+  .tip.work { border-left:3px solid #ffb14a; }
+  .tip.info { border-left:3px solid #4aa8ff; }
+  .bars { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
+  .bar-row { display:flex; align-items:center; gap:.6rem; font-size:.85rem; }
+  .bar-row .lbl { width:120px; color:#b8c1ce; flex-shrink:0; }
+  .bar-track { flex:1; background:#1b212a; border-radius:6px; height:18px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:6px; }
+  .bar-row .val { width:46px; text-align:right; font-variant-numeric:tabular-nums; color:#8b95a3; flex-shrink:0; }
+  button { background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:8px; padding:.5rem .9rem; font-size:.85rem; cursor:pointer; margin-top:1rem; }
+  button:hover { border-color:#c4ff00; }
+  a.statslink { color:#4aa8ff; font-size:.85rem; }
+  #err { color:#ff6b54; padding:1rem 0; }
+  .empty { color:#5d6470; padding:2rem 0; text-align:center; }
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="coach-badge">🎾</div>
+  <div>
+    <h1>AI <span>Coach</span></h1>
+    <div class="meta" id="meta">analyseren…</div>
+  </div>
+</div>
+<div id="err"></div>
+<div id="root"></div>
+
+<script>
+const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
+const KEY = new URLSearchParams(location.search).get('beta') || '';
+let MODEL=null;
+
+const GROUND = ['forehand','forehand_frontspin','forehand_slice','backhand','backhand_frontspin','backhand_slice'];
+const FH = ['forehand','forehand_frontspin','forehand_slice'];
+const BH = ['backhand','backhand_frontspin','backhand_slice'];
+const SPIN = ['forehand_frontspin','forehand_slice','backhand_frontspin','backhand_slice','volley_forehand_slice','volley_backhand_slice'];
+const VOLLEY = ['volley_forehand','volley_forehand_slice','volley_backhand','volley_backhand_slice'];
+
+function comingSoon(){
+  document.getElementById('meta').textContent = 'binnenkort beschikbaar';
+  document.getElementById('root').innerHTML =
+    `<div class="verdict" style="border-left-color:#4aa8ff">
+       <div style="font-size:2.2rem;margin-bottom:.4rem">🚧</div>
+       <div style="font-weight:600;font-size:1.15rem;margin-bottom:.5rem">Coming soon</div>
+       <div style="color:#b8c1ce">De AI-coach analyseert je slagen — forehand, backhand, smash, volley, spin —
+       en geeft je na elk potje persoonlijke tips. We zijn 'm aan het finetunen. Binnenkort hier.</div>
+     </div>
+     <div class="tip info"><span class="ic">🎾</span><div class="body">
+       <div class="t">Wat de coach straks doet</div>
+       <div class="d">Slagverdeling, kracht per slag, je sterke en zwakke kant, vermoeidheid door de wedstrijd,
+       en concrete oefenpunten — automatisch uit je horloge-data.</div></div></div>`;
+}
+
+async function load(){
+  try{
+    if(!KEY){ comingSoon(); return; }
+    if(!MODEL) MODEL = await (await fetch('/beta/model.json')).json();
+    const r = await fetch(`/beta/log/${PIN}?beta=${encodeURIComponent(KEY)}`);
+    if(r.status === 403){ comingSoon(); return; }
+    if(!r.ok){ document.getElementById('err').textContent='Geen toegang.'; return; }
+    const j = await r.json();
+    const batches = (j.batches||[]).slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
+    let AX=[],AY=[],AZ=[],GX=[],GY=[],GZ=[],SW=[];
+    for(const b of batches){
+      if(!Array.isArray(b.ax)) continue;
+      const base=AX.length;
+      for(let i=0;i<b.ax.length;i++){ AX.push(b.ax[i]);AY.push(b.ay[i]);AZ.push(b.az[i]);
+        GX.push((b.gx&&b.gx[i])||0);GY.push((b.gy&&b.gy[i])||0);GZ.push((b.gz&&b.gz[i])||0); }
+      for(const m of (b.sw||[])) SW.push(base+m);
+    }
+    const swings = SW.map(c=>{ const f=feats(AX,AY,AZ,GX,GY,GZ,c);
+      return { t:c/50, type:classify(f), power:f[7] }; });
+    document.getElementById('meta').textContent =
+      `${swings.length} slagen geanalyseerd · ${new Date().toLocaleTimeString('nl-NL')}`;
+    render(swings);
+  }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
+}
+
+function feats(AX,AY,AZ,GX,GY,GZ,c){
+  const n=AX.length,s=Math.max(0,c-12),e=Math.min(n,c+14);
+  const pk=a=>{let p=0;for(let i=s;i<e;i++)if(Math.abs(a[i])>Math.abs(p))p=a[i];return p;};
+  let dur=0; for(let i=Math.max(0,c-15);i<Math.min(n,c+15);i++){const g=Math.hypot(GX[i],GY[i],GZ[i]);if(g>250)dur++;}
+  let amag=0; for(let i=s;i<e;i++){const a=Math.hypot(AX[i],AY[i],AZ[i]);if(a>amag)amag=a;}
+  return [pk(GX),pk(GY),pk(GZ),pk(AX),pk(AY),pk(AZ),dur,amag];
+}
+function classify(f){ let best=null,bd=1e18;
+  for(const k in MODEL.classes){ const c=MODEL.classes[k].centroid; let d=0;
+    for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}
+    if(d<bd){bd=d;best=k;} } return best; }
+
+function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function std(a){ if(a.length<2) return 0; const m=avg(a); return Math.sqrt(avg(a.map(x=>(x-m)**2))); }
+function pct(n,d){ return d? Math.round(100*n/d) : 0; }
+
+function render(sw){
+  const root=document.getElementById('root');
+  if(sw.length < 8){
+    root.innerHTML = '<div class="empty">Nog te weinig slagen voor een analyse.<br>Speel een potje met de app actief en kom terug.</div>';
+    return;
+  }
+  const N=sw.length;
+  const count=t=>sw.filter(s=>s.type===t).length;
+  const inSet=(s,arr)=>arr.indexOf(s.type)>=0;
+  const fh=sw.filter(s=>inSet(s,FH)).length;
+  const bh=sw.filter(s=>inSet(s,BH)).length;
+  const ground=fh+bh;
+  const volleys=sw.filter(s=>inSet(s,VOLLEY)).length;
+  const spins=sw.filter(s=>inSet(s,SPIN)).length;
+  const smashes=count('smash');
+
+  // kracht per slagfamilie
+  const powAll=sw.map(s=>s.power);
+  const fhPow=avg(sw.filter(s=>inSet(s,FH)).map(s=>s.power));
+  const bhPow=avg(sw.filter(s=>inSet(s,BH)).map(s=>s.power));
+
+  // vermoeidheid: kracht eerste vs laatste derde
+  const third=Math.floor(N/3);
+  const early=avg(sw.slice(0,third).map(s=>s.power));
+  const late=avg(sw.slice(N-third).map(s=>s.power));
+  const fatigue=early? Math.round(100*(late-early)/early) : 0;
+
+  // consistentie: spreiding kracht (lager=consistenter)
+  const cv = avg(powAll)? std(powAll)/avg(powAll) : 0;
+
+  // --- verdict ---
+  let verdict;
+  if(ground===0){ verdict='Vooral volleys en smashes deze sessie — speel eens een baseline-potje voor meer slagvariatie.'; }
+  else {
+    const fhp=pct(fh,ground);
+    const dom = fhp>=60?'sterk forehand-gericht': fhp<=40?'sterk backhand-gericht':'mooi gebalanceerd';
+    const sp = pct(spins,N);
+    verdict = `Je speelde ${dom} (${fhp}% forehand). ` +
+      (sp>=40?`Veel spin (${sp}%) — goed voor controle. `:`Vooral vlakke slagen (${100-sp}%). `) +
+      (fatigue<=-12?`Je kracht zakte ${Math.abs(fatigue)}% tegen het eind — let op je conditie.`:
+       fatigue>=8?`Je bleef sterk tot het eind (+${fatigue}%). Mooi.`:`Je kracht bleef stabiel.`);
+  }
+
+  // --- tips (regelgebaseerd) ---
+  const tips=[];
+  const fhp=pct(fh,ground);
+  if(ground>0 && fhp>=65) tips.push(['work','↔️','Backhand vermijden','Je speelt '+fhp+'% forehand. Tegenstanders gaan je backhand opzoeken — train die kant bewust.']);
+  if(ground>0 && fhp<=35) tips.push(['work','↔️','Forehand benutten','Je speelt veel backhand ('+(100-fhp)+'%). Je forehand is meestal je krachtigste wapen — zoek die vaker op.']);
+  if(ground>0 && fhp>40 && fhp<60) tips.push(['good','⚖️','Goede balans','Forehand/backhand mooi in evenwicht — lastig te bespelen voor je tegenstander.']);
+  if(bhPow>0 && fhPow>0 && bhPow < fhPow*0.8) tips.push(['work','💪','Backhand-kracht','Je backhand komt er zachter uit dan je forehand. Werk aan je rotatie en gewichtsoverdracht.']);
+  if(pct(spins,N)<25) tips.push(['info','🎯','Meer spin proberen','Je slaat vooral vlak. Topspin geeft marge over het net, slice houdt de bal laag — variatie maakt je onvoorspelbaar.']);
+  if(pct(spins,N)>=45) tips.push(['good','🌀','Goede spin-variatie','Je wisselt mooi tussen vlak, topspin en slice. Dat houdt je tegenstander aan het werk.']);
+  if(volleys>0 && pct(volleys,N)>=20) tips.push(['good','🥅','Actief aan het net','Veel volleys ('+pct(volleys,N)+'%) — je zoekt het net op. Typisch agressief padel.']);
+  if(volleys>0 && pct(volleys,N)<8) tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net — durf vaker op te komen.']);
+  if(smashes>0) tips.push(['good','⚡','Smashes geraakt','Je sloeg '+smashes+' smash'+(smashes>1?'es':'')+'. Afmaken bovenlangs is een belangrijk wapen.']);
+  if(fatigue<=-12) tips.push(['work','🔋','Kracht zakt in','Je slagen werden '+Math.abs(fatigue)+'% zwakker tegen het eind. Conditie of focus — iets om op te letten in lange potjes.']);
+  if(cv>0 && cv<0.28) tips.push(['good','🎯','Constante techniek','Je slaat heel gelijkmatig — een teken van een stabiele techniek.']);
+  if(cv>=0.45) tips.push(['info','📊','Wisselende kracht','Je kracht varieert sterk per slag. Normaal bij verschillende slagsituaties, maar consistentie geeft controle.']);
+  if(tips.length===0) tips.push(['info','✅','Niks geks gezien','Een gebalanceerde sessie zonder duidelijke zwakke plekken. Blijf zo spelen.']);
+
+  // --- render ---
+  const families=[
+    {lbl:'Forehand', n:fh, col:'#c4ff00'},
+    {lbl:'Backhand', n:bh, col:'#4aa8ff'},
+    {lbl:'Volley', n:volleys, col:'#ffb14a'},
+    {lbl:'Smash', n:smashes, col:'#ff6b54'},
+  ];
+  const maxF=Math.max(...families.map(f=>f.n),1);
+
+  root.innerHTML =
+    `<div class="verdict">${verdict}</div>` +
+    `<h2>Slagverdeling</h2><div class="bars">` +
+    families.filter(f=>f.n>0).map(f=>
+      `<div class="bar-row"><span class="lbl">${f.lbl}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*f.n/maxF)}%;background:${f.col}"></span></span>
+        <span class="val">${f.n} · ${pct(f.n,N)}%</span></div>`).join('') +
+    `</div>` +
+    `<h2>Coaching-tips</h2>` +
+    tips.map(([cls,ic,t,d])=>
+      `<div class="tip ${cls}"><span class="ic">${ic}</span><div class="body"><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('') +
+    `<button onclick="load()">Ververs</button> &nbsp; <a class="statslink" href="/beta/stats/${PIN}?beta=${encodeURIComponent(KEY)}">Ruwe stats →</a>`;
+}
+
+load();
+</script>
+</body>
+</html>
