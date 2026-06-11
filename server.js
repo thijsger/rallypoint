@@ -624,6 +624,35 @@ const server = http.createServer((req, res) => {
 
   // --- Account API (alle endpoints vereisen authenticated user) ---
   if (parts[0] === 'api' && parts[1] === 'account') {
+    // Publieke endpoints (geen login nodig) — vóór de auth-gate afhandelen.
+    if (parts[2] === 'spectator' && parts[3] === 'active' && req.method === 'GET') {
+      // Publieke lijst van actieve matches.
+      // Alleen pins waarvan eigenaar is_public=1 heeft staan + match is recent.
+      const RECENT_MS = 10 * 60 * 1000;
+      const now = Date.now();
+      const result = [];
+      for (const pin of Object.keys(matches)) {
+        const m = matches[pin];
+        if (!m || (now - m.updated) > RECENT_MS) continue;
+        if (m.state && m.state.over) continue;   // alleen lopende
+        const owner = db.getPinOwner(pin);
+        if (!owner) continue;
+        const u = db.getUserById(owner.user_id);
+        if (!u || !u.is_public) continue;
+        result.push({
+          pin,
+          owner_name: u.display_name || u.email.split('@')[0],
+          owner_initial: (u.display_name || u.email).charAt(0).toUpperCase(),
+          sport: (m.state && m.state.sport) || 0,
+          sets: (m.state && m.state.sets) || [0,0],
+          games: (m.state && m.state.games) || [0,0],
+          updated_at: m.updated,
+        });
+      }
+      result.sort((a, b) => b.updated_at - a.updated_at);
+      return sendJSON(res, 200, result);
+    }
+
     const user = getUserFromReq(req);
     if (!user) return sendJSON(res, 401, { error: 'not_authenticated' });
 
@@ -652,33 +681,6 @@ const server = http.createServer((req, res) => {
     }
     if (parts[2] === 'pins' && !parts[3] && req.method === 'GET') {
       return sendJSON(res, 200, db.getPinsForUser(user.id).map(p => p.pin));
-    }
-    if (parts[2] === 'spectator' && parts[3] === 'active' && req.method === 'GET') {
-      // Publieke lijst van actieve matches — geen auth nodig.
-      // Alleen pins waarvan eigenaar is_public=1 heeft staan + match is recent.
-      const RECENT_MS = 10 * 60 * 1000;
-      const now = Date.now();
-      const result = [];
-      for (const pin of Object.keys(matches)) {
-        const m = matches[pin];
-        if (!m || (now - m.updated) > RECENT_MS) continue;
-        if (m.state && m.state.over) continue;   // alleen lopende
-        const owner = db.getPinOwner(pin);
-        if (!owner) continue;
-        const u = db.getUserById(owner.user_id);
-        if (!u || !u.is_public) continue;
-        result.push({
-          pin,
-          owner_name: u.display_name || u.email.split('@')[0],
-          owner_initial: (u.display_name || u.email).charAt(0).toUpperCase(),
-          sport: (m.state && m.state.sport) || 0,
-          sets: (m.state && m.state.sets) || [0,0],
-          games: (m.state && m.state.games) || [0,0],
-          updated_at: m.updated,
-        });
-      }
-      result.sort((a, b) => b.updated_at - a.updated_at);
-      return sendJSON(res, 200, result);
     }
     if (parts[2] === 'active-pin' && req.method === 'GET') {
       // Geeft de PIN van deze user waarvan de watch het meest recent heeft
