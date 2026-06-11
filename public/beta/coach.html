@@ -72,7 +72,13 @@ function feats(AX,AY,AZ,GX,GY,GZ,c){
   let amag=0; for(let i=s;i<e;i++){const a=Math.hypot(AX[i],AY[i],AZ[i]);if(a>amag)amag=a;}
   return [pk(GX),pk(GY),pk(GZ),pk(AX),pk(AY),pk(AZ),dur,amag];
 }
-function classify(f){let best=null,bd=1e18;for(const k in MODEL.classes){const c=MODEL.classes[k].centroid;let d=0;for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}if(d<bd){bd=d;best=k;}}return best;}
+// gx-teken (feature 0) is het betrouwbaarste signaal voor forehand- vs backhand-
+// kant: bij duidelijke rotatie sluiten we de andere kant uit. Smash/lob vrij.
+const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
+function classify(f){let best=null,bd=1e18;for(const k in MODEL.classes){
+  if(f[0]>150 && BH_SIDE[k]) continue;
+  if(f[0]<-150 && FH_SIDE[k]) continue;
+  const c=MODEL.classes[k].centroid;let d=0;for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}if(d<bd){bd=d;best=k;}}return best;}
 
 function comingSoon(){
   document.getElementById('meta').textContent='binnenkort beschikbaar';
