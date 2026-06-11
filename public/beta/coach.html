@@ -3,20 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Coach — RallyPoint beta</title>
+<title>AI Coach — RallyPoint</title>
+<link rel="icon" href="/img/logo.png">
 <style>
   :root{ --ball:#c4ff00; }
-  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.1rem 5rem; -webkit-font-smoothing:antialiased; }
-  .head { display:flex; align-items:center; gap:.9rem; margin-bottom:.2rem; }
+  *{box-sizing:border-box;}
+  body { margin:0; background:#0a0d10; color:#fff; font-family:system-ui,sans-serif; padding:1rem 1.1rem 5.5rem; -webkit-font-smoothing:antialiased; }
+  .head { display:flex; align-items:center; gap:.9rem; margin-bottom:.6rem; }
   .coach-badge { width:46px; height:46px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#c4ff00,#7aa800); display:flex; align-items:center; justify-content:center; font-size:1.5rem; }
   h1 { font-size:1.25rem; margin:0; } h1 span { color:var(--ball); }
-  .meta { color:#8b95a3; font-size:.82rem; margin:.1rem 0 1.2rem; }
+  .meta { color:#8b95a3; font-size:.82rem; margin:.1rem 0; }
   h2 { font-size:.74rem; color:#8b95a3; text-transform:uppercase; letter-spacing:.14em; margin:1.7rem 0 .7rem; font-weight:600; }
+  /* sessie-kiezer */
+  .sessions{ display:flex; gap:.5rem; overflow-x:auto; padding:.2rem 0 .5rem; -webkit-overflow-scrolling:touch; }
+  .chip{ flex:0 0 auto; background:#181d24; border:1px solid #2a3038; border-radius:11px; padding:.55rem .8rem; cursor:pointer; min-width:96px; }
+  .chip.active{ border-color:var(--ball); background:#1d2530; }
+  .chip .d{ font-size:.72rem; color:#8b95a3; } .chip.active .d{ color:var(--ball); }
+  .chip .n{ font-size:1.15rem; font-weight:700; line-height:1.1; } .chip .s{ font-size:.68rem; color:#8b95a3; }
+  .chip.live .d{ color:var(--ball); }
   .verdict { background:#181d24; border:1px solid #2a3038; border-left:3px solid var(--ball); border-radius:12px; padding:1.05rem 1.25rem; margin-bottom:.4rem; font-size:.98rem; line-height:1.5; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:.6rem; margin-bottom:.4rem; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:.6rem; margin-bottom:.4rem; }
   .card { background:#181d24; border:1px solid #2a3038; border-radius:11px; padding:.75rem .8rem; }
-  .card .l { color:#8b95a3; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.3rem; }
-  .card .v { font-size:1.5rem; font-weight:700; line-height:1; } .card .v.accent{ color:var(--ball); }
+  .card .l { color:#8b95a3; font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.3rem; }
+  .card .v { font-size:1.45rem; font-weight:700; line-height:1; } .card .v.accent{ color:var(--ball); }
   .card .v small{ font-size:.7rem; color:#8b95a3; font-weight:500; }
   .bars { display:flex; flex-direction:column; gap:.45rem; }
   .bar-row { display:flex; align-items:center; gap:.55rem; font-size:.83rem; }
@@ -30,13 +39,17 @@
   .tip .ic{ font-size:1.25rem; flex-shrink:0; } .tip .t{ font-weight:600; margin-bottom:.15rem; } .tip .d{ color:#b8c1ce; font-size:.86rem; line-height:1.4; }
   .tip.good{ border-left:3px solid var(--ball);} .tip.work{ border-left:3px solid #ffb14a;} .tip.info{ border-left:3px solid #4aa8ff;}
   .legend{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.76rem; color:#8b95a3; margin-top:.4rem;}
-  .legend span{ display:inline-flex; align-items:center; gap:5px;}
-  .dot{ width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .legend span{ display:inline-flex; align-items:center; gap:5px;} .dot{ width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .recs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.6rem; }
+  .rec{ background:#11161c; border:1px solid #2a3038; border-radius:11px; padding:.8rem .9rem; }
+  .rec .rl{ color:#8b95a3; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; } .rec .rv{ font-size:1.3rem; font-weight:700; margin-top:.2rem; } .rec .rs{ color:#5d6470; font-size:.7rem; }
   .btnbar{ position:fixed; left:0; right:0; bottom:0; background:#0d1116; border-top:1px solid #2a3038; padding:.7rem 1rem; display:flex; gap:.6rem; }
   button{ background:#181d24; color:#fff; border:1px solid #2a3038; border-radius:9px; padding:.6rem 1rem; font-size:.9rem; cursor:pointer; }
   button.primary{ background:var(--ball); color:#0a0d10; border-color:var(--ball); font-weight:600; flex:1; }
-  button:hover{ border-color:var(--ball); }
+  button:hover{ border-color:var(--ball); } button:disabled{opacity:.5;}
   #err { color:#ff6b54; padding:1rem 0; } .empty{ color:#5d6470; padding:2rem 0; text-align:center; }
+  .delbtn{ background:none;border:none;color:#5d6470;font-size:.74rem;cursor:pointer;padding:.2rem .4rem;margin-top:.6rem;}
+  .delbtn:hover{color:#ff6b54;}
 </style>
 </head>
 <body>
@@ -45,6 +58,7 @@
   <div><h1>AI <span>Coach</span></h1><div class="meta" id="meta">analyseren…</div></div>
 </div>
 <div id="err"></div>
+<div id="sessionsWrap"></div>
 <div id="root"></div>
 
 <div class="btnbar" id="btnbar" style="display:none">
@@ -55,15 +69,16 @@
 <script>
 const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
-let MODEL=null, SUMMARY=null;
+let MODEL=null, LIVE=null, SESSIONS=[], SELECTED=0;
 
-// Kleur + volgorde per klasse (6 klassen)
 const COL={forehand:'#c4ff00',backhand:'#4aa8ff',volley_forehand:'#ffb14a',volley_backhand:'#ff8a4a',smash:'#ff6b54',lob:'#b07aff'};
 const ORDER=['forehand','backhand','volley_forehand','volley_backhand','smash','lob'];
+const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
 function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || k; }
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
 function std(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(avg(a.map(x=>(x-m)**2)));}
 function pct(n,d){return d?Math.round(100*n/d):0;}
+function dstr(ts){ try{return new Date(ts).toLocaleDateString('nl-NL',{day:'numeric',month:'short'});}catch(e){return '?';} }
 
 function feats(AX,AY,AZ,GX,GY,GZ,c){
   const n=AX.length,s=Math.max(0,c-12),e=Math.min(n,c+14);
@@ -72,12 +87,8 @@ function feats(AX,AY,AZ,GX,GY,GZ,c){
   let amag=0; for(let i=s;i<e;i++){const a=Math.hypot(AX[i],AY[i],AZ[i]);if(a>amag)amag=a;}
   return [pk(GX),pk(GY),pk(GZ),pk(AX),pk(AY),pk(AZ),dur,amag];
 }
-// gx-teken (feature 0) is het betrouwbaarste signaal voor forehand- vs backhand-
-// kant: bij duidelijke rotatie sluiten we de andere kant uit. Smash/lob vrij.
-const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
 function classify(f){let best=null,bd=1e18;for(const k in MODEL.classes){
-  if(f[0]>150 && BH_SIDE[k]) continue;
-  if(f[0]<-150 && FH_SIDE[k]) continue;
+  if(f[0]>150 && BH_SIDE[k]) continue; if(f[0]<-150 && FH_SIDE[k]) continue;
   const c=MODEL.classes[k].centroid;let d=0;for(let i=0;i<8;i++){const z=(f[i]-c[i])/MODEL.scale[i];d+=z*z;}if(d<bd){bd=d;best=k;}}return best;}
 
 function comingSoon(){
@@ -103,12 +114,15 @@ async function load(){
       for(let i=0;i<b.ax.length;i++){AX.push(b.ax[i]);AY.push(b.ay[i]);AZ.push(b.az[i]);GX.push((b.gx&&b.gx[i])||0);GY.push((b.gy&&b.gy[i])||0);GZ.push((b.gz&&b.gz[i])||0);}
       for(const m of (b.sw||[]))SW.push(base+m);
     }
-    const live=buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0);
+    LIVE = SW.length? buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0) : null;
     const hist=await (await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`)).json();
-    const sessions=hist.sessions||[];
-    if(live.totalSwings>=8){ SUMMARY=live; render(SUMMARY,sessions,false); }
-    else if(sessions.length){ SUMMARY=sessions[sessions.length-1]; render(SUMMARY,sessions,true); }
-    else { render(live,sessions,false); }
+    SESSIONS=(hist.sessions||[]).slice().sort((a,b)=>(b.savedTs||b.t0||0)-(a.savedTs||a.t0||0));
+    // Live tonen als 'ie nog niet opgeslagen is
+    const liveSaved = LIVE && SESSIONS.some(s=>s.t0===LIVE.t0);
+    if(LIVE && LIVE.totalSwings>=8 && !liveSaved){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
+    else if(SESSIONS.length){ renderAll(SESSIONS,0); }
+    else if(LIVE && LIVE.totalSwings>=8){ renderAll([LIVE],0); }
+    else { document.getElementById('btnbar').style.display='flex'; document.getElementById('root').innerHTML='<div class="empty">Nog geen wedstrijd. Speel een potje met de app actief.</div>'; }
   }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
 }
 
@@ -128,31 +142,35 @@ function buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0){
   const gaps=[]; for(let i=1;i<SW.length;i++)gaps.push((SW[i]-SW[i-1])/hz); gaps.sort((a,b)=>a-b);
   const medGap=gaps.length?gaps[Math.floor(gaps.length/2)]:0;
   const powAvgByCls={}; ORDER.forEach(k=>powAvgByCls[k]=powByCls[k]&&powByCls[k].length?Math.round(avg(powByCls[k])):0);
-  const cvByCls={}; ORDER.forEach(k=>{const a=powByCls[k]||[];cvByCls[k]=a.length>1&&avg(a)?+(std(a)/avg(a)).toFixed(2):0;});
   return { t0, durationMin:+durMin.toFixed(1), totalSwings:N, cls, powByCls:powAvgByCls,
     powAvg:Math.round(avg(allPow)||0), powPeak:Math.round(Math.max(0,...allPow)),
-    fatiguePct, early:Math.round(early||0), late:Math.round(late||0),
-    segments:segs, medGapS:+medGap.toFixed(1), cvByCls, swPerMin:durMin?+(N/durMin).toFixed(1):0 };
+    fatiguePct, segments:segs, medGapS:+medGap.toFixed(1), swPerMin:durMin?+(N/durMin).toFixed(1):0 };
 }
 
-function render(S, history, historical){
+function renderAll(list, sel){
+  SESSIONS_VIEW=list; SELECTED=sel;
   document.getElementById('btnbar').style.display='flex';
-  const saveBtn=document.getElementById('saveBtn'); if(saveBtn) saveBtn.style.display=historical?'none':'';
-  const when=S.savedTs?new Date(S.savedTs).toLocaleDateString('nl-NL'):new Date().toLocaleDateString('nl-NL');
-  document.getElementById('meta').textContent=(historical?'opgeslagen · ':'')+`${S.totalSwings} slagen · ${S.durationMin} min · ${when}`;
-  if(S.totalSwings<8){ document.getElementById('root').innerHTML='<div class="empty">Nog geen wedstrijd. Speel een potje met de app actief.</div>'; return; }
-  const C=S.cls, N=S.totalSwings;
-  const fh=C.forehand||0, bh=C.backhand||0, ground=fh+bh;
-  const vol=(C.volley_forehand||0)+(C.volley_backhand||0);
-  const fhp=pct(fh,ground);
+  // sessie-kiezer
+  document.getElementById('sessionsWrap').innerHTML = list.length>1 ?
+    `<div class="sessions">${list.map((s,i)=>`<div class="chip ${i===sel?'active':''} ${s._live?'live':''}" data-i="${i}">
+       <div class="d">${s._live?'LIVE':dstr(s.savedTs||s.t0)}</div><div class="n">${s.totalSwings}</div><div class="s">${s.durationMin} min</div></div>`).join('')}</div>` : '';
+  renderSession(list[sel]);
+  renderRecordsAndTrends();
+}
+let SESSIONS_VIEW=[];
 
-  // verdict
+function renderSession(S){
+  const isLive=!!S._live;
+  document.getElementById('meta').textContent=(isLive?'live (niet opgeslagen) · ':'opgeslagen · ')+`${S.totalSwings} slagen · ${S.durationMin} min · ${dstr(S.savedTs||S.t0)}`;
+  document.getElementById('saveBtn').style.display=isLive?'':'none';
+  const C=S.cls, N=S.totalSwings;
+  const fh=C.forehand||0, bh=C.backhand||0, ground=fh+bh, vol=(C.volley_forehand||0)+(C.volley_backhand||0);
+  const fhp=pct(fh,ground);
   const dom=fhp>=60?'sterk forehand-gericht':fhp<=40?'sterk backhand-gericht':'mooi gebalanceerd';
   const verdict=`Je speelde ${dom} (${fhp}% forehand van je grondslagen). `+
     (S.fatiguePct<=-12?`Je kracht zakte ${Math.abs(S.fatiguePct)}% tegen het eind — conditie/focus.`:
      S.fatiguePct>=8?`Je bleef sterk tot het eind (+${S.fatiguePct}%). Mooi.`:`Je kracht bleef stabiel door de wedstrijd.`);
 
-  // tips
   const tips=[];
   if(fhp>40&&fhp<60)tips.push(['good','⚖️','Goede balans','Forehand/backhand in evenwicht — lastig te bespelen.']);
   else if(fhp>=65)tips.push(['work','↔️','Backhand wordt vermeden',`${fhp}% forehand. Tegenstanders gaan je backhand opzoeken — train die kant.`]);
@@ -162,22 +180,16 @@ function render(S, history, historical){
   if(pct(vol,N)>=18)tips.push(['good','🥅','Actief aan het net',`Veel volleys (${pct(vol,N)}%) — agressief padel.`]);
   else if(pct(vol,N)<7)tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net.']);
   if((C.smash||0)>0)tips.push(['good','⚡','Smashes geraakt',`${C.smash} smash${C.smash>1?'es':''} — afmaken bovenlangs is een wapen.`]);
-  if((C.lob||0)>0)tips.push(['info','🌙','Lobs gebruikt',`${C.lob} lob${C.lob>1?'s':''} — goed om de tegenstander terug te dringen.`]);
   if(S.fatiguePct<=-12)tips.push(['work','🔋','Kracht zakt in',`Je slagen werden ${Math.abs(S.fatiguePct)}% zwakker tegen het eind.`]);
-  const cvg=((S.cvByCls.forehand||0)+(S.cvByCls.backhand||0))/2;
-  if(cvg>0&&cvg<0.28)tips.push(['good','🎯','Constante techniek','Je slaat heel gelijkmatig — stabiele techniek.']);
-  if(!tips.length)tips.push(['info','✅','Gebalanceerde sessie','Geen duidelijke zwakke plekken. Blijf zo spelen.']);
+  if(!tips.length)tips.push(['info','✅','Gebalanceerde sessie','Geen duidelijke zwakke plekken.']);
 
-  // bars: slagverdeling + kracht per slag
   const present=ORDER.filter(k=>(C[k]||0)>0);
   const maxN=Math.max(...present.map(k=>C[k]),1);
   const maxP=Math.max(...present.map(k=>S.powByCls[k]||0),1);
-  const distBars=present.map(k=>
-    `<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*C[k]/maxN)}%;background:${COL[k]}"></span></span><span class="val">${C[k]} · ${pct(C[k],N)}%</span></div>`).join('');
-  const powBars=present.filter(k=>(S.powByCls[k]||0)>0).map(k=>
-    `<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*(S.powByCls[k])/maxP)}%;background:${COL[k]}"></span></span><span class="val">${S.powByCls[k]}</span></div>`).join('');
+  const distBars=present.map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*C[k]/maxN)}%;background:${COL[k]}"></span></span><span class="val">${C[k]} · ${pct(C[k],N)}%</span></div>`).join('');
+  const powBars=present.filter(k=>(S.powByCls[k]||0)>0).map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*(S.powByCls[k])/maxP)}%;background:${COL[k]}"></span></span><span class="val">${S.powByCls[k]}</span></div>`).join('');
 
-  let html=`<div class="verdict">${verdict}</div>
+  document.getElementById('root').innerHTML=`<div class="verdict">${verdict}</div>
     <div class="cards">
       <div class="card"><div class="l">Slagen</div><div class="v accent">${N}</div></div>
       <div class="card"><div class="l">Per minuut</div><div class="v">${S.swPerMin}</div></div>
@@ -192,22 +204,39 @@ function render(S, history, historical){
     <h2>Activiteit & kracht door de wedstrijd</h2>
     <canvas id="segCanvas" height="200"></canvas>
     <div class="legend"><span><i class="dot" style="background:var(--ball)"></i>slagen/segment</span><span><i class="dot" style="background:#ffb14a"></i>gem. kracht</span></div>
-    <h2>Coaching-tips</h2>${tips.map(([c,ic,t,d])=>`<div class="tip ${c}"><span class="ic">${ic}</span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}`;
-
-  // voortgang
-  let shown=null;
-  if(history&&history.length){ shown=history.find(s=>s.t0===S.t0)?history:history.concat([S]); }
-  if(shown&&shown.length>=2){
-    html+=`<h2>Voortgang (${shown.length} sessies)</h2>
-      <canvas id="trendSwings" height="120"></canvas><div class="note" style="margin-bottom:.8rem">Slagen per sessie</div>
-      <canvas id="trendBalance" height="120"></canvas><div class="note">Forehand-aandeel per sessie (%)</div>`;
-  }
-  document.getElementById('root').innerHTML=html;
-
+    <h2>Coaching-tips</h2>${tips.map(([c,ic,t,d])=>`<div class="tip ${c}"><span class="ic">${ic}</span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}
+    ${isLive?'':`<button class="delbtn" id="delBtn">Verwijder deze sessie</button>`}`;
   drawSegments(S);
-  if(shown&&shown.length>=2){
-    drawTrend('trendSwings', shown.map(s=>s.totalSwings), '#c4ff00');
-    drawTrend('trendBalance', shown.map(s=>{const g=(s.cls.forehand||0)+(s.cls.backhand||0);return g?Math.round(100*(s.cls.forehand||0)/g):0;}), '#4aa8ff', 100);
+}
+
+function renderRecordsAndTrends(){
+  const saved=SESSIONS;
+  if(saved.length<1) return;
+  // chronologisch voor trends
+  const chron=saved.slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
+  const totalSw=saved.reduce((s,x)=>s+x.totalSwings,0);
+  const maxSw=Math.max(...saved.map(s=>s.totalSwings));
+  const hardest=Math.max(...saved.map(s=>s.powPeak||0));
+  const longest=Math.max(...saved.map(s=>s.durationMin||0));
+  let html=`<h2>Records (${saved.length} ${saved.length===1?'sessie':'sessies'})</h2>
+    <div class="recs">
+      <div class="rec"><div class="rl">Totaal slagen</div><div class="rv">${totalSw}</div><div class="rs">over alle potjes</div></div>
+      <div class="rec"><div class="rl">Meeste in 1 potje</div><div class="rv">${maxSw}</div></div>
+      <div class="rec"><div class="rl">Hardste slag</div><div class="rv">${hardest}</div><div class="rs">piek-kracht</div></div>
+      <div class="rec"><div class="rl">Langste potje</div><div class="rv">${longest}<small style="font-size:.7rem;color:#5d6470"> min</small></div></div>
+    </div>`;
+  if(chron.length>=2){
+    html+=`<h2>Voortgang (${chron.length} potjes)</h2>
+      <canvas id="trSwings" height="110"></canvas><div class="note" style="margin-bottom:.7rem">Slagen per potje</div>
+      <canvas id="trBalance" height="110"></canvas><div class="note" style="margin-bottom:.7rem">Forehand-aandeel (%)</div>
+      <canvas id="trPower" height="110"></canvas><div class="note">Gem. kracht per potje</div>`;
+  }
+  const recDiv=document.createElement('div'); recDiv.innerHTML=html;
+  document.getElementById('root').appendChild(recDiv);
+  if(chron.length>=2){
+    drawTrend('trSwings', chron.map(s=>s.totalSwings), '#c4ff00');
+    drawTrend('trBalance', chron.map(s=>{const g=(s.cls.forehand||0)+(s.cls.backhand||0);return g?Math.round(100*(s.cls.forehand||0)/g):0;}), '#4aa8ff', 100);
+    drawTrend('trPower', chron.map(s=>s.powAvg||0), '#ffb14a');
   }
 }
 
@@ -224,22 +253,29 @@ function drawSegments(S){
 }
 function drawTrend(id,data,col,fixedMax){
   const o=setup(id); if(!o)return; const {ctx,W,H}=o; if(data.length<2)return;
-  const max=fixedMax||Math.max(...data,1), padB=20,padT=12, n=data.length;
+  const max=fixedMax||Math.max(...data,1), padB=20,padT=16, n=data.length;
   ctx.strokeStyle='#2a3038'; ctx.beginPath(); ctx.moveTo(0,H-padB); ctx.lineTo(W,H-padB); ctx.stroke();
   ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath();
   data.forEach((v,i)=>{ const x=n>1?(i/(n-1))*W:W/2, y=padT+(1-v/max)*(H-padT-padB); if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); }); ctx.stroke();
   ctx.fillStyle=col; data.forEach((v,i)=>{ const x=n>1?(i/(n-1))*W:W/2, y=padT+(1-v/max)*(H-padT-padB); ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill();
-    ctx.fillStyle='#cfd6df'; ctx.font='17px system-ui'; ctx.textAlign='center'; ctx.fillText(v,x,y-10); ctx.fillStyle=col; });
+    ctx.fillStyle='#cfd6df'; ctx.font='17px system-ui'; ctx.textAlign='center'; ctx.fillText(v,x,y-9); ctx.fillStyle=col; });
 }
 
 document.addEventListener('click', async e=>{
+  const chip=e.target.closest('.chip');
+  if(chip){ renderAll(SESSIONS_VIEW, +chip.dataset.i); return; }
   if(e.target.id==='refreshBtn') return load();
-  if(e.target.id==='saveBtn' && SUMMARY){
+  if(e.target.id==='delBtn'){
+    const S=SESSIONS_VIEW[SELECTED];
+    if(!confirm('Deze sessie verwijderen?')) return;
+    await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}&t0=${S.t0}`,{method:'DELETE'});
+    return load();
+  }
+  if(e.target.id==='saveBtn' && LIVE){
     e.target.textContent='Bewaren…'; e.target.disabled=true;
-    try{ const r=await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...SUMMARY,savedTs:Date.now()})});
-      const j=await r.json(); e.target.textContent=r.ok?`Bewaard ✓ (${j.count} sessies)`:'Mislukt';
-    }catch(_){ e.target.textContent='Mislukt'; }
-    setTimeout(()=>{e.target.textContent='Bewaar deze sessie';e.target.disabled=false;},2500);
+    try{ const r=await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...LIVE,_live:undefined,savedTs:Date.now()})});
+      await r.json(); e.target.textContent='Bewaard ✓'; setTimeout(load,800);
+    }catch(_){ e.target.textContent='Mislukt'; e.target.disabled=false; }
   }
 });
 load();
