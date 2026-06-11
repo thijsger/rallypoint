@@ -102,6 +102,9 @@ function setSessionCookie(res, token, maxAgeSec) {
     'HttpOnly',
     'SameSite=Lax',
     `Max-Age=${maxAgeSec}`,
+    // Expliciete Expires naast Max-Age — sommige (oudere/iOS) browsers
+    // bewaren een cookie alleen persistent met een Expires-datum.
+    `Expires=${new Date(Date.now() + maxAgeSec * 1000).toUTCString()}`,
   ];
   // Secure in productie (https). Render serveert https, dus altijd aan.
   if (process.env.NODE_ENV !== 'development') parts.push('Secure');

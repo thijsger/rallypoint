@@ -21,6 +21,7 @@
     'nav.profile':   { nl:'Profiel', en:'Profile', de:'Profil', es:'Perfil', fr:'Profil' },
     'nav.settings':  { nl:'Instellingen', en:'Settings', de:'Einstellungen', es:'Ajustes', fr:'Réglages' },
     'nav.scoreboard':{ nl:'Scorebord →', en:'Scoreboard →', de:'Anzeigetafel →', es:'Marcador →', fr:'Tableau →' },
+    'nav.home':{ nl:'Home', en:'Home', de:'Startseite', es:'Inicio', fr:'Accueil' },
     'foot.about':    { nl:'Over', en:'About', de:'Über', es:'Acerca de', fr:'À propos' },
     'foot.privacy':  { nl:'Privacy', en:'Privacy', de:'Datenschutz', es:'Privacidad', fr:'Confidentialité' },
     'foot.terms':    { nl:'Voorwaarden', en:'Terms', de:'Bedingungen', es:'Términos', fr:'Conditions' },
