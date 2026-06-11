@@ -631,7 +631,9 @@ const server = http.createServer((req, res) => {
     if (parts[2] === 'spectator' && parts[3] === 'active' && req.method === 'GET') {
       // Publieke lijst van actieve matches.
       // Alleen pins waarvan eigenaar is_public=1 heeft staan + match is recent.
-      const RECENT_MS = 10 * 60 * 1000;
+      // 60 min: de watch stuurt alleen bij een punt, dus tussen punten/changeovers
+      // mag een lopende match niet meteen van de lijst vallen.
+      const RECENT_MS = 60 * 60 * 1000;
       const now = Date.now();
       const result = [];
       for (const pin of Object.keys(matches)) {
