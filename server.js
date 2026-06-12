@@ -65,6 +65,9 @@ function saveBetaCoach() {
   try { fs.writeFileSync(BETA_COACH_FILE, JSON.stringify(betaCoach)); } catch (e) {}
 }
 
+// Gelabelde trainingsdata van de baan (per slag een venster + label).
+const BETA_LABEL_FILE = path.join(DATA_DIR, 'beta-label.jsonl');
+
 
 try {
   if (fs.existsSync(HISTORY_FILE)) {
@@ -861,6 +864,42 @@ const server = http.createServer((req, res) => {
     }
     if (parts[1] === 'log' && req.method === 'DELETE') {
       betaLogs[pin] = [];
+      return sendJSON(res, 200, { ok: true });
+    }
+    res.writeHead(405); return res.end('method');
+  }
+
+  // --- BETA gelabelde trainingsdata (van de baan) ---
+  // POST /beta/label/:pin -> { hz, win, data:[{l,w}...] } append naar file
+  // GET  /beta/label/:pin -> alle gelabelde slagen (om mallen mee te bouwen)
+  if (parts[0] === 'beta' && parts[1] === 'label' && parts[2]) {
+    if (url.searchParams.get('beta') !== BETA_KEY) { res.writeHead(403); return res.end('nope'); }
+    const pin = parts[2];
+    if (!validPin(pin)) { res.writeHead(404); return res.end('pin'); }
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 5e6) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const batch = JSON.parse(body || '{}');
+          const rows = (batch.data || []);
+          for (const r of rows) {
+            fs.appendFileSync(BETA_LABEL_FILE, JSON.stringify({ pin, l: r.l, w: r.w, hz: batch.hz, win: batch.win, ts: Date.now() }) + '\n');
+          }
+          sendJSON(res, 200, { ok: true, added: rows.length });
+        } catch (e) { sendJSON(res, 400, { error: 'bad json' }); }
+      });
+      return;
+    }
+    if (req.method === 'GET') {
+      try {
+        const lines = fs.existsSync(BETA_LABEL_FILE) ? fs.readFileSync(BETA_LABEL_FILE, 'utf8').trim().split('\n') : [];
+        const all = lines.filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(x => x && x.pin === pin);
+        return sendJSON(res, 200, { pin, count: all.length, data: all });
+      } catch (e) { return sendJSON(res, 500, { error: 'read fail' }); }
+    }
+    if (req.method === 'DELETE') {
+      try { if (fs.existsSync(BETA_LABEL_FILE)) fs.unlinkSync(BETA_LABEL_FILE); } catch (e) {}
       return sendJSON(res, 200, { ok: true });
     }
     res.writeHead(405); return res.end('method');
