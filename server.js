@@ -936,7 +936,7 @@ const server = http.createServer((req, res) => {
     if (pages[pageKey] !== undefined && !parts[2]) {
       return fs.readFile(path.join(__dirname, 'public', 'account', pages[pageKey]), (err, data) => {
         if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, must-revalidate' });
         res.end(data);
       });
     }
@@ -1105,7 +1105,13 @@ const server = http.createServer((req, res) => {
     if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
     const ext = path.extname(filePath);
     const types = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css' };
-    res.writeHead(200, { 'Content-Type': types[ext] || 'text/plain' });
+    var headers = { 'Content-Type': types[ext] || 'text/plain' };
+    // HTML/JS/CSS niet cachen: browsers moeten na een deploy altijd de
+    // nieuwste versie ophalen (voorkomt "oude kapotte versie blijft hangen").
+    if (ext == '.html' || ext == '.js' || ext == '.css') {
+      headers['Cache-Control'] = 'no-cache, must-revalidate';
+    }
+    res.writeHead(200, headers);
     res.end(data);
   });
 });
