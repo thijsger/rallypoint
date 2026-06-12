@@ -195,7 +195,7 @@ function renderSession(S){
       <div class="card"><div class="l">Per minuut</div><div class="v">${S.swPerMin}</div></div>
       <div class="card"><div class="l">Gem. kracht</div><div class="v">${S.powAvg}</div></div>
       <div class="card"><div class="l">Piek</div><div class="v">${S.powPeak}</div></div>
-      <div class="card"><div class="l">Tempo</div><div class="v">${S.medGapS}<small>s</small></div></div>
+      <div class="card"><div class="l">Tempo</div><div class="v">${S.medGapS!=null?S.medGapS:'–'}<small>${S.medGapS!=null?'s':''}</small></div></div>
       <div class="card"><div class="l">Conditie</div><div class="v" style="color:${S.fatiguePct<=-12?'#ff6b54':S.fatiguePct>=8?'#c4ff00':'#fff'}">${S.fatiguePct>0?'+':''}${S.fatiguePct}<small>%</small></div></div>
     </div>
     <h2>Slagverdeling</h2><div class="bars">${distBars}</div>
