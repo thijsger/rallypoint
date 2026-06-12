@@ -57,9 +57,8 @@
   .bars { display:flex; flex-direction:column; gap:.55rem; }
   .bar-row { display:flex; align-items:center; gap:.6rem; font-size:.84rem; }
   .bar-row .lbl { width:100px; color:#cfd6df; flex-shrink:0; font-weight:500; }
-  .bar-track { flex:1; background:rgba(255,255,255,.05); border-radius:8px; height:18px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,.3); }
-  .bar-fill { display:block; height:100%; border-radius:8px; min-width:3px; transition: width 1s cubic-bezier(.2,.85,.25,1); position:relative; box-shadow:0 0 12px rgba(255,255,255,.08); }
-  .bar-fill::after{ content:''; position:absolute; inset:0; border-radius:8px; background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 60%); }
+  .bar-track { flex:1; background:rgba(255,255,255,.045); border-radius:7px; height:14px; overflow:hidden; }
+  .bar-fill { display:block; height:100%; border-radius:7px; min-width:3px; transition: width 1s cubic-bezier(.2,.85,.25,1); position:relative; opacity:.92; }
   .bar-row .val { width:70px; text-align:right; font-variant-numeric:tabular-nums; color:#aeb7c2; flex-shrink:0; font-family:'Outfit',sans-serif; font-weight:600; font-size:.8rem; }
 
   @keyframes rpUp { from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:none;} }
@@ -81,6 +80,21 @@
 
   .legend{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.76rem; color:#8b95a3; margin-top:.5rem;}
   .legend span{ display:inline-flex; align-items:center; gap:5px;} .dot{ width:10px;height:10px;border-radius:3px;display:inline-block;}
+  /* stijl-badges */
+  .badges{ display:flex; flex-wrap:wrap; gap:.5rem; }
+  .badge{ display:inline-flex; align-items:center; gap:.5rem; background:var(--glass); border:1px solid var(--gborder); border-radius:13px; padding:.55rem .8rem; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  .badge .bi{ font-size:1.05rem; } .badge .bt{ font-family:'Outfit',sans-serif; font-weight:600; font-size:.84rem; } .badge .bd{ color:#8b95a3; font-size:.74rem; }
+  /* hoogtepunten */
+  .hls{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.65rem; }
+  .hl{ background:var(--glass); border:1px solid var(--gborder); border-radius:16px; padding:.9rem 1rem; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--gshadow); display:flex; gap:.7rem; align-items:center; }
+  .hl .hi{ width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;background:rgba(255,255,255,.06);flex-shrink:0; }
+  .hl .hv{ font-family:'Outfit',sans-serif; font-weight:700; font-size:1.15rem; line-height:1.1; } .hl .hl2{ color:#8b95a3; font-size:.72rem; margin-top:.1rem; }
+  /* helft-vergelijking */
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:.65rem; }
+  .half{ background:var(--glass); border:1px solid var(--gborder); border-radius:16px; padding:.9rem 1rem; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--gshadow); }
+  .half .ht{ color:#8b95a3; font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.5rem; }
+  .half .hrow{ display:flex; justify-content:space-between; align-items:baseline; margin:.25rem 0; font-size:.82rem; color:#cfd6df; }
+  .half .hrow b{ font-family:'Outfit',sans-serif; font-size:1.05rem; }
   .recs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.65rem; }
   .rec{ background:var(--glass); border:1px solid var(--gborder); border-radius:18px; padding:.95rem 1rem; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--gshadow); }
   .rec .rl{ color:#8b95a3; font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; } .rec .rv{ font-family:'Outfit',sans-serif; font-size:1.5rem; font-weight:700; margin-top:.25rem; letter-spacing:-.02em; } .rec .rs{ color:#5d6470; font-size:.68rem; }
@@ -115,7 +129,7 @@ const PIN = new URLSearchParams(location.search).get('pin') || location.pathname
 const KEY = new URLSearchParams(location.search).get('beta') || '';
 let MODEL=null, LIVE=null, SESSIONS=[], SELECTED=0;
 
-const COL={forehand:'#c4ff00',backhand:'#4aa8ff',volley_forehand:'#ffb14a',volley_backhand:'#ff8a4a',smash:'#ff6b54',lob:'#b07aff'};
+const COL={forehand:'#aee05a',backhand:'#5aa3e6',volley_forehand:'#efab5e',volley_backhand:'#ee9466',smash:'#ee7566',lob:'#a98ae0'};
 const ORDER=['forehand','backhand','volley_forehand','volley_backhand','smash','lob'];
 const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
 function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || k; }
@@ -221,29 +235,76 @@ function countUp(el,target){
     if(p<1)requestAnimationFrame(step); })(t0);
 }
 
+// Afgeleide inzichten uit een samenvatting (op betrouwbare data).
+function insights(S){
+  const C=S.cls||{}, N=S.totalSwings||0;
+  const fh=C.forehand||0, bh=C.backhand||0, ground=fh+bh;
+  const vol=(C.volley_forehand||0)+(C.volley_backhand||0), sm=C.smash||0, lob=C.lob||0;
+  const fhp=pct(fh,ground), aggr=pct(vol+sm,N), net=pct(vol,N);
+  const segs=(S.segments||[]); const nSeg=Math.max(segs.length,1);
+  const segMin=(S.durationMin||0)/nSeg;
+  let bi=0; for(let i=0;i<segs.length;i++){ if(segs[i].swings>(segs[bi]?segs[bi].swings:-1))bi=i; }
+  let si=0,sp=-1; for(let i=0;i<segs.length;i++){ if(segs[i].power>sp){sp=segs[i].power;si=i;} }
+  const half=Math.max(1,Math.floor(nSeg/2));
+  const fAct=segs.slice(0,half).reduce((a,s)=>a+s.swings,0);
+  const lAct=segs.slice(nSeg-half).reduce((a,s)=>a+s.swings,0);
+  const fpA=segs.slice(0,half).filter(s=>s.power>0).map(s=>s.power);
+  const lpA=segs.slice(nSeg-half).filter(s=>s.power>0).map(s=>s.power);
+  const fp=Math.round(avg(fpA)), lp=Math.round(avg(lpA));
+  const tr=i=>{ const a=Math.round(i*segMin), b=Math.round((i+1)*segMin); return a+'–'+b+' min'; };
+  // werkdruk-piek (slagen/min in drukste segment)
+  const peakRate=segMin>0?Math.round((segs[bi]?segs[bi].swings:0)/segMin):0;
+  return {C,N,fh,bh,ground,vol,sm,lob,fhp,aggr,net,segs,nSeg,segMin,bi,si,sp,half,fAct,lAct,fp,lp,tr,peakRate};
+}
+function careerAvg(){
+  const s=SESSIONS; if(!s.length) return null;
+  return { sw:Math.round(avg(s.map(x=>x.totalSwings))),
+           pow:Math.round(avg(s.map(x=>x.powAvg||0))),
+           fhp:Math.round(avg(s.map(x=>{const g=(x.cls.forehand||0)+(x.cls.backhand||0);return g?100*(x.cls.forehand||0)/g:0;}))) };
+}
+function styleBadges(I){
+  const b=[];
+  if(I.aggr>=22) b.push(['⚡','Agressief',`${I.aggr}% afmaak-slagen`]);
+  else if(I.net<8 && I.ground>0) b.push(['↔️','Baseline-speler','weinig aan het net']);
+  if(I.fhp>=60 && I.ground>0) b.push(['🟢','Forehand-dominant',`${I.fhp}%`]);
+  else if(I.fhp<=40 && I.ground>0) b.push(['🔵','Backhand-sterk',`${100-I.fhp}%`]);
+  else if(I.ground>0) b.push(['⚖️','Gebalanceerd','FH/BH gelijk']);
+  if(I.net>=18) b.push(['🥅','Net-speler',`${I.net}% volleys`]);
+  if((I.lob||0)>=3 && I.lob>I.N*0.06) b.push(['🌙','Tactisch','veel lobs']);
+  if(!b.length) b.push(['🎾','Allrounder','gevarieerd']);
+  return b;
+}
+function narrative(S,I,A){
+  const p=[];
+  p.push(`Je sloeg <b>${I.N} keer</b> in ${S.durationMin} min — een tempo van ${S.swPerMin} slagen/min.`);
+  if(I.segs.length>1) p.push(`Het drukst was je rond <b>${I.tr(I.bi)}</b> (${I.segs[I.bi].swings} slagen).`);
+  if(I.ground>0) p.push(I.fhp>=60?`Je speelde duidelijk forehand-gericht (${I.fhp}%).`:I.fhp<=40?`Je leunde sterk op je backhand (${100-I.fhp}%).`:`Forehand en backhand mooi in evenwicht.`);
+  p.push(S.fatiguePct<=-12?`Je kracht zakte <b>${Math.abs(S.fatiguePct)}%</b> tegen het eind — daar zit winst in je conditie.`:S.fatiguePct>=8?`Knap: je werd zelfs <b>${S.fatiguePct}% sterker</b> naar het eind.`:`Je kracht bleef stabiel door de hele wedstrijd.`);
+  if(A){ const d=S.totalSwings-A.sw; if(Math.abs(d)>=12) p.push(d>0?`Dat is <b>${d} slagen méér</b> dan je gemiddelde potje.`:`Dat is ${-d} slagen minder dan je normaal doet.`); }
+  return p.join(' ');
+}
+
 function renderSession(S){
   const isLive=!!S._live;
-  document.getElementById('meta').textContent=(isLive?'live (niet opgeslagen) · ':'opgeslagen · ')+`${S.totalSwings} slagen · ${S.durationMin} min · ${dstr(S.savedTs||S.t0)}`;
+  document.getElementById('meta').textContent=(isLive?'live · ':'opgeslagen · ')+`${S.totalSwings} slagen · ${S.durationMin} min · ${dstr(S.savedTs||S.t0)}`;
   document.getElementById('saveBtn').style.display=isLive?'':'none';
   const C=S.cls, N=S.totalSwings;
-  const fh=C.forehand||0, bh=C.backhand||0, ground=fh+bh, vol=(C.volley_forehand||0)+(C.volley_backhand||0);
-  const fhp=pct(fh,ground);
-  const dom=fhp>=60?'sterk forehand-gericht':fhp<=40?'sterk backhand-gericht':'mooi gebalanceerd';
-  const verdict=`Je speelde ${dom} (${fhp}% forehand van je grondslagen). `+
-    (S.fatiguePct<=-12?`Je kracht zakte ${Math.abs(S.fatiguePct)}% tegen het eind — conditie/focus.`:
-     S.fatiguePct>=8?`Je bleef sterk tot het eind (+${S.fatiguePct}%). Mooi.`:`Je kracht bleef stabiel door de wedstrijd.`);
+  const I=insights(S);
+  const A=careerAvg();
 
+  // tips (specifiek, data-verwijzend)
   const tips=[];
-  if(fhp>40&&fhp<60)tips.push(['good','⚖️','Goede balans','Forehand/backhand in evenwicht — lastig te bespelen.']);
-  else if(fhp>=65)tips.push(['work','↔️','Backhand wordt vermeden',`${fhp}% forehand. Tegenstanders gaan je backhand opzoeken — train die kant.`]);
-  else if(fhp<=35)tips.push(['work','↔️','Forehand benutten',`Veel backhand (${100-fhp}%). Je forehand is vaak je sterkste wapen — zoek die vaker.`]);
+  if(I.fhp>40&&I.fhp<60&&I.ground>0)tips.push(['good','⚖️','Goede balans','Forehand/backhand in evenwicht — lastig te bespelen.']);
+  else if(I.fhp>=65)tips.push(['work','↔️','Backhand wordt vermeden',`${I.fhp}% forehand — tegenstanders gaan je backhand opzoeken. Train die kant.`]);
+  else if(I.fhp<=35&&I.ground>0)tips.push(['work','↔️','Forehand benutten',`Veel backhand (${100-I.fhp}%). Je forehand is vaak je sterkste wapen — zoek 'm vaker.`]);
   if(S.powByCls.backhand&&S.powByCls.forehand&&S.powByCls.backhand<S.powByCls.forehand*0.8)
     tips.push(['work','💪','Backhand-kracht',`Je backhand komt ~${Math.round(100-100*S.powByCls.backhand/S.powByCls.forehand)}% zachter uit dan je forehand. Werk aan rotatie en gewichtsoverdracht.`]);
-  if(pct(vol,N)>=18)tips.push(['good','🥅','Actief aan het net',`Veel volleys (${pct(vol,N)}%) — agressief padel.`]);
-  else if(pct(vol,N)<7)tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net.']);
+  if(I.net>=18)tips.push(['good','🥅','Actief aan het net',`Veel volleys (${I.net}%) — agressief padel.`]);
+  else if(I.net<7)tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net.']);
   if((C.smash||0)>0)tips.push(['good','⚡','Smashes geraakt',`${C.smash} smash${C.smash>1?'es':''} — afmaken bovenlangs is een wapen.`]);
-  if(S.fatiguePct<=-12)tips.push(['work','🔋','Kracht zakt in',`Je slagen werden ${Math.abs(S.fatiguePct)}% zwakker tegen het eind.`]);
-  if(!tips.length)tips.push(['info','✅','Gebalanceerde sessie','Geen duidelijke zwakke plekken.']);
+  if(S.fatiguePct<=-12)tips.push(['work','🔋','Conditie','Je kracht zakte tegen het eind. In lange potjes maakt conditie het verschil.']);
+  if(A&&S.powAvg>A.pow*1.05)tips.push(['good','📈','Harder dan normaal',`Je sloeg gemiddeld harder dan je eigen gemiddelde (${A.pow}).`]);
+  if(!tips.length)tips.push(['info','✅','Sterke sessie','Geen duidelijke zwakke plekken — blijf zo spelen.']);
 
   const present=ORDER.filter(k=>(C[k]||0)>0);
   const maxN=Math.max(...present.map(k=>C[k]),1);
@@ -251,22 +312,40 @@ function renderSession(S){
   const distBars=present.map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" data-w="${Math.round(100*C[k]/maxN)}%" style="width:0;background:${COL[k]}"></span></span><span class="val">${C[k]} · ${pct(C[k],N)}%</span></div>`).join('');
   const powBars=present.filter(k=>(S.powByCls[k]||0)>0).map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" data-w="${Math.round(100*(S.powByCls[k])/maxP)}%" style="width:0;background:${COL[k]}"></span></span><span class="val">${S.powByCls[k]}</span></div>`).join('');
 
-  document.getElementById('root').innerHTML=`<div class="verdict">${verdict}</div>
+  document.getElementById('root').innerHTML=`<div class="verdict">${narrative(S,I,A)}</div>
     <div class="cards">
       <div class="card"><div class="l">Slagen</div><div class="v accent" data-count="${N}">0</div></div>
       <div class="card"><div class="l">Per minuut</div><div class="v">${S.swPerMin}</div></div>
       <div class="card"><div class="l">Gem. kracht</div><div class="v">${S.powAvg}</div></div>
       <div class="card"><div class="l">Piek</div><div class="v">${S.powPeak}</div></div>
-      <div class="card"><div class="l">Tempo</div><div class="v">${S.medGapS!=null?S.medGapS:'–'}<small>${S.medGapS!=null?'s':''}</small></div></div>
-      <div class="card"><div class="l">Conditie</div><div class="v" style="color:${S.fatiguePct<=-12?'#ff6b54':S.fatiguePct>=8?'#c4ff00':'#fff'}">${S.fatiguePct>0?'+':''}${S.fatiguePct}<small>%</small></div></div>
+      <div class="card"><div class="l">Speeltijd</div><div class="v">${S.durationMin}<small>m</small></div></div>
+      <div class="card"><div class="l">Conditie</div><div class="v" style="color:${S.fatiguePct<=-12?'#ee7566':S.fatiguePct>=8?'#aee05a':'#fff'}">${S.fatiguePct>0?'+':''}${S.fatiguePct}<small>%</small></div></div>
     </div>
+
+    <h2>Speelstijl</h2>
+    <div class="badges">${styleBadges(I).map(([ic,t,d])=>`<span class="badge"><span class="bi">${ic}</span><span><span class="bt">${t}</span> <span class="bd">${d}</span></span></span>`).join('')}</div>
+
+    <h2>Hoogtepunten</h2>
+    <div class="hls">
+      <div class="hl"><span class="hi">🔥</span><div><div class="hv">${I.segs.length>1?I.tr(I.bi):S.durationMin+' min'}</div><div class="hl2">drukste periode · ${I.segs[I.bi]?I.segs[I.bi].swings:N} slagen</div></div></div>
+      <div class="hl"><span class="hi">💥</span><div><div class="hv">${S.powPeak}</div><div class="hl2">hardste slag (piek-kracht)</div></div></div>
+      <div class="hl"><span class="hi">⚙️</span><div><div class="hv">${I.peakRate}/min</div><div class="hl2">piek-werkdruk</div></div></div>
+      <div class="hl"><span class="hi">💪</span><div><div class="hv">${I.sp>0?I.sp:S.powAvg}</div><div class="hl2">sterkste periode${I.segs.length>1?' · '+I.tr(I.si):''}</div></div></div>
+    </div>
+
     <h2>Slagverdeling</h2><div class="bars">${distBars}</div>
     <h2>Kracht per slag</h2><div class="bars">${powBars}</div>
     <div class="note">Kracht = piek-zwaaiversnelling. Vergelijk je eigen slagen onderling.</div>
-    <h2>Activiteit & kracht door de wedstrijd</h2>
+
+    <h2>Conditie & verloop</h2>
+    <div class="split">
+      <div class="half"><div class="ht">Eerste helft</div><div class="hrow">Slagen <b>${I.fAct}</b></div><div class="hrow">Gem. kracht <b>${I.fp||'–'}</b></div></div>
+      <div class="half"><div class="ht">Tweede helft</div><div class="hrow">Slagen <b>${I.lAct}</b></div><div class="hrow">Gem. kracht <b>${I.lp||'–'}</b></div></div>
+    </div>
     <canvas id="segCanvas" height="210"></canvas>
-    <div class="legend"><span><i class="dot" style="background:var(--ball)"></i>slagen per ~${Math.max(1,Math.round((S.durationMin||0)/10))} min</span><span><i class="dot" style="background:#ffb14a"></i>gem. kracht (zwaai-piek)</span></div>
-    <div class="note">Wedstrijd in 10 stukjes (links=begin, rechts=eind). Groene staaf = hoeveel je sloeg, oranje lijn = hoe hard. Zakt oranje naar rechts? Dan neemt je kracht af.</div>
+    <div class="legend"><span><i class="dot" style="background:#aee05a"></i>slagen per stuk</span><span><i class="dot" style="background:#efab5e"></i>gem. kracht</span></div>
+    <div class="note">Wedstrijd in stukjes (links=begin, rechts=eind). Zakt de oranje lijn naar rechts? Dan neemt je kracht af.</div>
+
     <h2>Coaching-tips</h2>${tips.map(([c,ic,t,d])=>`<div class="tip ${c}"><span class="ic">${ic}</span><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}
     ${isLive?'':`<button class="delbtn" id="delBtn">Verwijder deze sessie</button>`}`;
   drawSegments(S);
@@ -275,31 +354,34 @@ function renderSession(S){
 function renderRecordsAndTrends(){
   const saved=SESSIONS;
   if(saved.length<1) return;
-  // chronologisch voor trends
   const chron=saved.slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
   const totalSw=saved.reduce((s,x)=>s+x.totalSwings,0);
+  const totalMin=Math.round(saved.reduce((s,x)=>s+(x.durationMin||0),0));
   const maxSw=Math.max(...saved.map(s=>s.totalSwings));
   const hardest=Math.max(...saved.map(s=>s.powPeak||0));
   const longest=Math.max(...saved.map(s=>s.durationMin||0));
-  let html=`<h2>Records (${saved.length} ${saved.length===1?'sessie':'sessies'})</h2>
+  const fhpAll=Math.round(avg(saved.map(s=>{const g=(s.cls.forehand||0)+(s.cls.backhand||0);return g?100*(s.cls.forehand||0)/g:0;})));
+  let html=`<h2>Loopbaan (${saved.length} ${saved.length===1?'potje':'potjes'})</h2>
     <div class="recs">
-      <div class="rec"><div class="rl">Totaal slagen</div><div class="rv">${totalSw}</div><div class="rs">over alle potjes</div></div>
+      <div class="rec"><div class="rl">Totaal slagen</div><div class="rv">${totalSw}</div><div class="rs">ooit</div></div>
+      <div class="rec"><div class="rl">Speeltijd</div><div class="rv">${totalMin}<small style="font-size:.7rem;color:#5d6470"> min</small></div></div>
       <div class="rec"><div class="rl">Meeste in 1 potje</div><div class="rv">${maxSw}</div></div>
-      <div class="rec"><div class="rl">Hardste slag</div><div class="rv">${hardest}</div><div class="rs">piek-kracht</div></div>
+      <div class="rec"><div class="rl">Hardste slag</div><div class="rv">${hardest}</div><div class="rs">aller tijden</div></div>
       <div class="rec"><div class="rl">Langste potje</div><div class="rv">${longest}<small style="font-size:.7rem;color:#5d6470"> min</small></div></div>
+      <div class="rec"><div class="rl">Gem. forehand</div><div class="rv">${fhpAll}<small style="font-size:.7rem;color:#5d6470">%</small></div></div>
     </div>`;
   if(chron.length>=2){
     html+=`<h2>Voortgang (${chron.length} potjes)</h2>
-      <canvas id="trSwings" height="110"></canvas><div class="note" style="margin-bottom:.7rem">Slagen per potje</div>
-      <canvas id="trBalance" height="110"></canvas><div class="note" style="margin-bottom:.7rem">Forehand-aandeel (%)</div>
-      <canvas id="trPower" height="110"></canvas><div class="note">Gem. kracht per potje</div>`;
+      <canvas id="trSwings" height="120"></canvas><div class="note" style="margin-bottom:.8rem">Slagen per potje</div>
+      <canvas id="trPower" height="120"></canvas><div class="note" style="margin-bottom:.8rem">Gem. kracht per potje</div>
+      <canvas id="trBalance" height="120"></canvas><div class="note">Forehand-aandeel (%)</div>`;
   }
   const recDiv=document.createElement('div'); recDiv.innerHTML=html;
   document.getElementById('root').appendChild(recDiv);
   if(chron.length>=2){
-    drawTrend('trSwings', chron.map(s=>s.totalSwings), '#c4ff00');
-    drawTrend('trBalance', chron.map(s=>{const g=(s.cls.forehand||0)+(s.cls.backhand||0);return g?Math.round(100*(s.cls.forehand||0)/g):0;}), '#4aa8ff', 100);
-    drawTrend('trPower', chron.map(s=>s.powAvg||0), '#ffb14a');
+    drawTrend('trSwings', chron.map(s=>s.totalSwings), '#aee05a');
+    drawTrend('trPower', chron.map(s=>s.powAvg||0), '#efab5e');
+    drawTrend('trBalance', chron.map(s=>{const g=(s.cls.forehand||0)+(s.cls.backhand||0);return g?Math.round(100*(s.cls.forehand||0)/g):0;}), '#5aa3e6', 100);
   }
 }
 
@@ -314,18 +396,18 @@ function drawSegments(S){
   const maxP=Math.max(...powVals,1), minP=Math.min(...powVals,maxP);
   const bw=plotW/n;
   // groene staven (slagen) — linkeras
-  segs.forEach((s,i)=>{ const h=(s.swings/maxS)*plotH; ctx.fillStyle='#c4ff00'; ctx.fillRect(padL+i*bw+bw*0.18,H-padB-h,bw*0.64,h); });
+  segs.forEach((s,i)=>{ const h=(s.swings/maxS)*plotH; ctx.fillStyle='#aee05a'; ctx.fillRect(padL+i*bw+bw*0.18,H-padB-h,bw*0.64,h); });
   // oranje lijn (kracht) — rechteras, geschaald tussen minP..maxP voor leesbaarheid
   const span=Math.max(maxP-minP,1);
   const pts=segs.map((s,i)=>s.power>0?{x:padL+i*bw+bw/2,y:padT+(1-(s.power-minP)/span)*plotH}:null).filter(Boolean);
-  ctx.strokeStyle='#ffb14a'; ctx.lineWidth=2.5; ctx.beginPath();
+  ctx.strokeStyle='#efab5e'; ctx.lineWidth=2.5; ctx.beginPath();
   pts.forEach((p,i)=>{ if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y); }); ctx.stroke();
   // linkeras: slagen (groen) — 0 en max
   ctx.font='16px system-ui'; ctx.textAlign='right';
-  ctx.fillStyle='#c4ff00'; ctx.fillText(maxS, padL-6, padT+6); ctx.fillText('0', padL-6, H-padB);
+  ctx.fillStyle='#aee05a'; ctx.fillText(maxS, padL-6, padT+6); ctx.fillText('0', padL-6, H-padB);
   ctx.fillStyle='#8b95a3'; ctx.textAlign='left'; ctx.fillText('slagen', 4, padT-8);
   // rechteras: kracht (oranje) — minP en maxP
-  ctx.fillStyle='#ffb14a'; ctx.textAlign='left'; ctx.fillText(maxP, W-padR+6, padT+6); ctx.fillText(minP, W-padR+6, H-padB);
+  ctx.fillStyle='#efab5e'; ctx.textAlign='left'; ctx.fillText(maxP, W-padR+6, padT+6); ctx.fillText(minP, W-padR+6, H-padB);
   ctx.fillStyle='#8b95a3'; ctx.textAlign='right'; ctx.fillText('kracht', W-4, padT-8);
   // x-as: minuten
   const dur=S.durationMin||0;
