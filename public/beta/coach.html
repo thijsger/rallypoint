@@ -31,7 +31,15 @@
   .bar-row { display:flex; align-items:center; gap:.55rem; font-size:.83rem; }
   .bar-row .lbl { width:104px; color:#cfd6df; flex-shrink:0; }
   .bar-track { flex:1; background:#1b212a; border-radius:6px; height:16px; overflow:hidden; }
-  .bar-fill { display:block; height:100%; border-radius:6px; min-width:2px; }
+  .bar-fill { display:block; height:100%; border-radius:6px; min-width:2px; transition: width .9s cubic-bezier(.2,.85,.25,1); }
+  /* entrance-animaties */
+  @keyframes rpUp { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+  @keyframes rpPop { from{opacity:0; transform:scale(.92);} to{opacity:1; transform:none;} }
+  #root > * { opacity:0; }
+  .coach-badge { animation: rpPop .5s cubic-bezier(.2,1.3,.4,1) both; }
+  .chip { transition: border-color .2s, background .2s, transform .12s; }
+  .chip:active { transform: scale(.96); }
+  @media (prefers-reduced-motion: reduce){ #root > *{opacity:1 !important; animation:none !important;} .bar-fill{transition:none;} }
   .bar-row .val { width:64px; text-align:right; font-variant-numeric:tabular-nums; color:#8b95a3; flex-shrink:0; }
   canvas { width:100%; background:#11161c; border:1px solid #2a3038; border-radius:10px; display:block; }
   .note { color:#5d6470; font-size:.74rem; margin-top:.35rem; }
@@ -156,8 +164,26 @@ function renderAll(list, sel){
        <div class="d">${s._live?'LIVE':dstr(s.savedTs||s.t0)}</div><div class="n">${s.totalSwings}</div><div class="s">${s.durationMin} min</div></div>`).join('')}</div>` : '';
   renderSession(list[sel]);
   renderRecordsAndTrends();
+  animateIn();
 }
 let SESSIONS_VIEW=[];
+
+// Entrance-animaties: secties gestagger'd infaden, balkjes groeien, getal telt op.
+function animateIn(){
+  const root=document.getElementById('root');
+  [...root.children].forEach((el,i)=>{ const d=Math.min(i*0.05,0.6); el.style.animation=`rpUp .5s cubic-bezier(.2,.8,.2,1) ${d}s both`; });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    root.querySelectorAll('.bar-fill[data-w]').forEach(b=>{ b.style.width=b.dataset.w; });
+  }));
+  root.querySelectorAll('[data-count]').forEach(el=>countUp(el, +el.dataset.count));
+}
+function countUp(el,target){
+  if(!(target>0)){ el.textContent=target||0; return; }
+  const dur=700, t0=performance.now();
+  (function step(now){ const p=Math.min(1,(now-t0)/dur);
+    el.textContent=Math.round(target*(1-Math.pow(1-p,3)));
+    if(p<1)requestAnimationFrame(step); })(t0);
+}
 
 function renderSession(S){
   const isLive=!!S._live;
@@ -186,12 +212,12 @@ function renderSession(S){
   const present=ORDER.filter(k=>(C[k]||0)>0);
   const maxN=Math.max(...present.map(k=>C[k]),1);
   const maxP=Math.max(...present.map(k=>S.powByCls[k]||0),1);
-  const distBars=present.map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*C[k]/maxN)}%;background:${COL[k]}"></span></span><span class="val">${C[k]} · ${pct(C[k],N)}%</span></div>`).join('');
-  const powBars=present.filter(k=>(S.powByCls[k]||0)>0).map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*(S.powByCls[k])/maxP)}%;background:${COL[k]}"></span></span><span class="val">${S.powByCls[k]}</span></div>`).join('');
+  const distBars=present.map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" data-w="${Math.round(100*C[k]/maxN)}%" style="width:0;background:${COL[k]}"></span></span><span class="val">${C[k]} · ${pct(C[k],N)}%</span></div>`).join('');
+  const powBars=present.filter(k=>(S.powByCls[k]||0)>0).map(k=>`<div class="bar-row"><span class="lbl">${lbl(k)}</span><span class="bar-track"><span class="bar-fill" data-w="${Math.round(100*(S.powByCls[k])/maxP)}%" style="width:0;background:${COL[k]}"></span></span><span class="val">${S.powByCls[k]}</span></div>`).join('');
 
   document.getElementById('root').innerHTML=`<div class="verdict">${verdict}</div>
     <div class="cards">
-      <div class="card"><div class="l">Slagen</div><div class="v accent">${N}</div></div>
+      <div class="card"><div class="l">Slagen</div><div class="v accent" data-count="${N}">0</div></div>
       <div class="card"><div class="l">Per minuut</div><div class="v">${S.swPerMin}</div></div>
       <div class="card"><div class="l">Gem. kracht</div><div class="v">${S.powAvg}</div></div>
       <div class="card"><div class="l">Piek</div><div class="v">${S.powPeak}</div></div>
