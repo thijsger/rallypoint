@@ -567,6 +567,11 @@
   .players-actions { display: flex; gap: .6rem; margin-top: .4rem; }
   .players-actions .btn { flex: 1; }
   .pname.hidden { display: none; }
+  .pname-row { position: relative; }
+  .pserve-tag { position: absolute; top: -7px; right: 8px; background: var(--ball); color: #111; font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 6px; }
+  .pswap { width: 100%; background: none; border: 1px dashed var(--court-line, #2a3038); color: var(--muted, #8b95a3); border-radius: 8px; padding: .4rem; font-size: .76rem; cursor: pointer; }
+  .pswap:hover { color: #fff; border-color: var(--ball); }
+  .pswap.hidden { display: none; }
 
 </style>
 <!-- Google tag (gtag.js) -->
@@ -730,12 +735,16 @@
       <h3>Spelers</h3>
       <div class="players-sub">Vul de namen in — je ziet dan wie er serveert. De eerste naam per team serveert als eerste.</div>
       <div class="pteam"><div class="pteam-h" id="ptUsHead">Wij</div>
-        <input class="pname" id="pn0" placeholder="Speler 1" maxlength="20">
+        <div class="pname-row"><span class="pserve-tag" id="ptag0">serveert eerst</span>
+          <input class="pname" id="pn0" placeholder="Speler 1" maxlength="20"></div>
         <input class="pname" id="pn1" placeholder="Speler 2" maxlength="20">
+        <button class="pswap" data-team="0">⇅ wissel wie eerst serveert</button>
       </div>
       <div class="pteam"><div class="pteam-h" id="ptThemHead">Zij</div>
-        <input class="pname" id="pn2" placeholder="Speler 1" maxlength="20">
+        <div class="pname-row"><span class="pserve-tag" id="ptag2">serveert eerst</span>
+          <input class="pname" id="pn2" placeholder="Speler 1" maxlength="20"></div>
         <input class="pname" id="pn3" placeholder="Speler 2" maxlength="20">
+        <button class="pswap" data-team="1">⇅ wissel wie eerst serveert</button>
       </div>
       <div class="players-actions">
         <button class="btn secondary" id="playersClear">Wissen</button>
@@ -1346,17 +1355,25 @@ function updateServePlayers(m) {
   const ov = document.getElementById('playersOverlay');
   if (!btn || !ov) return;
   const ins = [0,1,2,3].map(i => document.getElementById('pn'+i));
+  const swaps = [...ov.querySelectorAll('.pswap')];
   function open() {
     loadPlayers();
     ins.forEach((el,i) => { if (el) el.value = playerNames[i] || ''; });
-    // Bij enkelspel alleen 1 veld per team
+    // Bij enkelspel alleen 1 veld per team + geen serveervolgorde-keuze
     const single = lastDoubles === false;
     if (ins[1]) ins[1].classList.toggle('hidden', single);
     if (ins[3]) ins[3].classList.toggle('hidden', single);
+    swaps.forEach(b => b.classList.toggle('hidden', single));
+    document.querySelectorAll('.pserve-tag').forEach(t => t.style.display = single ? 'none' : '');
     const us = document.getElementById('ptUsHead'), th = document.getElementById('ptThemHead');
     if (us) us.textContent = teamUs; if (th) th.textContent = teamThem;
     ov.classList.add('show');
   }
+  // Wissel wie van de twee teamspelers als eerste serveert (= ruil de namen om)
+  swaps.forEach(b => b.addEventListener('click', () => {
+    const t = +b.dataset.team, a = ins[t*2], c = ins[t*2+1];
+    if (a && c) { const tmp = a.value; a.value = c.value; c.value = tmp; }
+  }));
   function close() { ov.classList.remove('show'); }
   btn.addEventListener('click', open);
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
