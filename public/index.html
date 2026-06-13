@@ -428,6 +428,8 @@
     opacity: 0; transition: opacity .3s, transform .3s; z-index: 30; pointer-events: none;
   }
   .switch-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* Serve-aankondiging iets lager zodat hij niet botst met de wissel-toast */
+  .serve-toast { top: 22%; }
 
   /* ---- Winnaar-extra ---- */
   .winner-sets { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(1.5rem,4vw,2.5rem); color: var(--ink); margin-top: 1.5rem; letter-spacing: .05em; }
@@ -694,6 +696,7 @@
     <div class="tb-badge" id="tbBadge" data-i18n="tiebreak">TIEBREAK</div>
     <div class="tb-badge" id="deuceBadge" data-i18n="deuce">DEUCE</div>
     <div class="switch-toast" id="switchToast" data-i18n="switchSides">Switch sides</div>
+    <div class="switch-toast serve-toast" id="serveToast"></div>
 
     <div class="games-sets">
       <div class="gs" id="gsGames">
@@ -791,6 +794,7 @@ const WEB_STRINGS = {
   pointsPlayed:     { nl:'punten gespeeld',        en:'points played',         de:'gespielte Punkte',        es:'puntos jugados',                fr:'points joués' },
   longestRun:       { nl:'langste reeks',          en:'longest run',           de:'längste Serie',           es:'racha más larga',               fr:'plus longue série' },
   serve:            { nl:'Serve',                  en:'Serve',                 de:'Aufschlag',               es:'Saque',                         fr:'Service' },
+  serves:           { nl:'serveert',               en:'to serve',              de:'Aufschlag',               es:'al saque',                      fr:'au service' },
   serveLine:        { nl:'Serve: <b>{name}</b> · {side}', en:'Serve: <b>{name}</b> · {side}', de:'Aufschlag: <b>{name}</b> · {side}', es:'Saque: <b>{name}</b> · {side}', fr:'Service : <b>{name}</b> · {side}' },
   sideLeft:         { nl:'links',                  en:'left',                  de:'links',                   es:'izquierda',                     fr:'gauche' },
   sideRight:        { nl:'rechts',                 en:'right',                 de:'rechts',                   es:'derecha',                       fr:'droite' },
@@ -1251,6 +1255,7 @@ function render(m) {
   updateTiebreak(m);
   updateDeuce(m);
   updateSwitchToast(m);
+  updateServeToast(m);
 }
 
 const SPORT_KEYS = ['sportPadel','sportTennis','sportPickleball','sportTableTennis','sportBadminton','sportSquash'];
@@ -1393,6 +1398,27 @@ function updateSwitchToast(m) {
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3500);
   }
+}
+
+// Kondig bij elke nieuwe game kort aan wie er serveert.
+let _serveShownFor = null;
+function updateServeToast(m) {
+  const el = document.getElementById('serveToast');
+  if (!el) return;
+  if (m.over) return;
+  // Game-identiteit + serveerder: verandert bij een nieuwe game, of zodra het
+  // tweede team z'n serveerder kiest (servePlayer wijzigt) zodat de juiste naam komt.
+  const key = (m.sets?m.sets.join():'') + '|' + (m.games?m.games.join():'') + '|' + (m.servePlayer||0);
+  if (_serveShownFor === key) return;
+  _serveShownFor = key;
+  // Tekst: naam indien bekend, anders de teamnaam.
+  const plr = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
+  const nm = plr >= 0 ? playerName(plr) : null;
+  const who = nm || (m.serveTeam === 1 ? teamThem : teamUs);
+  if (!who) return;
+  el.textContent = '🎾 ' + who + ' ' + t('serves');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
 }
 
 // Zet het balletje in de juiste hoek van het veld
