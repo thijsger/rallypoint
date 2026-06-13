@@ -554,6 +554,20 @@
     .board-title { font-size: .95rem; }
   }
 
+  /* Spelers-paneel */
+  .players-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 200; padding: 1rem; }
+  .players-overlay.show { display: flex; }
+  .players-card { background: var(--bg-card, #161b22); border: 1px solid var(--court-line, #2a3038); border-radius: 16px; padding: 1.4rem; width: min(380px, 94vw); }
+  .players-card h3 { margin: 0 0 .3rem; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 1.3rem; }
+  .players-sub { color: var(--muted, #8b95a3); font-size: .82rem; line-height: 1.45; margin-bottom: 1rem; }
+  .pteam { margin-bottom: 1rem; }
+  .pteam-h { color: var(--ball); font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; margin-bottom: .5rem; font-weight: 600; }
+  .pname { width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--court-line, #2a3038); border-radius: 9px; padding: .6rem .7rem; color: #fff; font-size: 1rem; margin-bottom: .5rem; }
+  .pname:focus { outline: none; border-color: var(--ball); }
+  .players-actions { display: flex; gap: .6rem; margin-top: .4rem; }
+  .players-actions .btn { flex: 1; }
+  .pname.hidden { display: none; }
+
 </style>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-7J6B72EYMQ"></script>
@@ -628,6 +642,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
           <span class="label-text" data-i18n="historyBtn">History</span>
         </a>
+        <button class="icon-btn" id="playersBtn" title="Spelers" aria-label="Spelers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="label-text">Spelers</span>
+        </button>
         <button class="icon-btn" id="fsBtn" data-i18n-title="fsEnterTitle" title="Volledig scherm" aria-label="Fullscreen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
           <span class="label-text" data-i18n="fsEnter">Fullscreen</span>
@@ -705,6 +723,26 @@
 
   <!-- Sluit-knop voor volledig scherm (zichtbaar in fullscreen) -->
   <button id="fsExit" data-i18n-title="fsExitTitle" title="Exit fullscreen">✕</button>
+
+  <!-- Spelers-paneel: namen invullen zodat je ziet wie serveert -->
+  <div class="players-overlay" id="playersOverlay">
+    <div class="players-card">
+      <h3>Spelers</h3>
+      <div class="players-sub">Vul de namen in — je ziet dan wie er serveert. De eerste naam per team serveert als eerste.</div>
+      <div class="pteam"><div class="pteam-h" id="ptUsHead">Wij</div>
+        <input class="pname" id="pn0" placeholder="Speler 1" maxlength="20">
+        <input class="pname" id="pn1" placeholder="Speler 2" maxlength="20">
+      </div>
+      <div class="pteam"><div class="pteam-h" id="ptThemHead">Zij</div>
+        <input class="pname" id="pn2" placeholder="Speler 1" maxlength="20">
+        <input class="pname" id="pn3" placeholder="Speler 2" maxlength="20">
+      </div>
+      <div class="players-actions">
+        <button class="btn secondary" id="playersClear">Wissen</button>
+        <button class="btn" id="playersSave">Opslaan</button>
+      </div>
+    </div>
+  </div>
 
 
 <script>
@@ -1017,6 +1055,7 @@ connectBtn.addEventListener('click', async () => {
   }
 
   connectedPin = pin;
+  loadPlayers();                                 // spelersnamen voor serve-weergave
   localStorage.setItem('rallypointPin', pin);   // onthouden voor history-deeplink en pre-fill
   document.getElementById('connectScreen').style.display = 'none';
   const fc = document.getElementById('connectFooter'); if (fc) fc.style.display = 'none';
@@ -1131,6 +1170,7 @@ function render(m) {
   // Teamnamen volgen het horloge (en daarmee de taal). Geen lokale override meer.
   teamUs   = m.teamUs   || t('teamUs');
   teamThem = m.teamThem || t('teamThem');
+  if (typeof m.doubles === 'boolean') lastDoubles = m.doubles;
   applyNames();
 
   applyCourtSport(m);
@@ -1267,19 +1307,70 @@ function updateSetHistory(m) {
   }).join('');
 }
 
+/* ---- Spelersnamen (per PIN in localStorage) ---- */
+let playerNames = ['','','',''];
+let lastDoubles = true;
+function playersKey() { return 'rp_players_' + (connectedPin || 'x'); }
+function loadPlayers() {
+  try { const r = JSON.parse(localStorage.getItem(playersKey()) || '[]');
+        playerNames = [r[0]||'', r[1]||'', r[2]||'', r[3]||'']; }
+  catch (e) { playerNames = ['','','','']; }
+}
+function savePlayersToStore() { try { localStorage.setItem(playersKey(), JSON.stringify(playerNames)); } catch(e){} }
+// idx: 0,1 = team Wij; 2,3 = team Zij. Lege naam → fallback.
+function playerName(idx) {
+  const n = playerNames[idx];
+  if (n && n.trim()) return n.trim();
+  return null;
+}
+
 function updateServePlayers(m) {
   const you = document.getElementById('serveYou');
   const them = document.getElementById('serveThem');
   if (!you || !them) return;
   const team = (typeof m.serveTeam === 'number') ? m.serveTeam : -1;
   const no = (typeof m.serveNo === 'number') ? m.serveNo : null;
+  const plr = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
   if (no === null || team < 0) { return; }
-  const label = '🎾 ' + t('serve') + ' ' + no;
+  const nm = plr >= 0 ? playerName(plr) : null;
+  const label = nm ? ('🎾 ' + nm) : ('🎾 ' + t('serve') + ' ' + no);
   if (team === 0) { you.textContent = label; you.classList.add('active'); }
   else { them.textContent = label; them.classList.add('active'); }
 }
+
+/* ---- Spelers-paneel openen/sluiten ---- */
+(function setupPlayersPanel() {
+  const btn = document.getElementById('playersBtn');
+  const ov = document.getElementById('playersOverlay');
+  if (!btn || !ov) return;
+  const ins = [0,1,2,3].map(i => document.getElementById('pn'+i));
+  function open() {
+    loadPlayers();
+    ins.forEach((el,i) => { if (el) el.value = playerNames[i] || ''; });
+    // Bij enkelspel alleen 1 veld per team
+    const single = lastDoubles === false;
+    if (ins[1]) ins[1].classList.toggle('hidden', single);
+    if (ins[3]) ins[3].classList.toggle('hidden', single);
+    const us = document.getElementById('ptUsHead'), th = document.getElementById('ptThemHead');
+    if (us) us.textContent = teamUs; if (th) th.textContent = teamThem;
+    ov.classList.add('show');
+  }
+  function close() { ov.classList.remove('show'); }
+  btn.addEventListener('click', open);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  document.getElementById('playersSave').addEventListener('click', () => {
+    playerNames = ins.map(el => el ? el.value.trim() : '');
+    savePlayersToStore();
+    close();
+  });
+  document.getElementById('playersClear').addEventListener('click', () => {
+    ins.forEach(el => { if (el) el.value = ''; });
+    playerNames = ['','','',''];
+    savePlayersToStore();
+  });
+})();
 
 function updateTiebreak(m) {
   const b = document.getElementById('tbBadge');
