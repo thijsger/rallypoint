@@ -569,6 +569,13 @@
   .players-actions { display: flex; gap: .6rem; margin-top: .4rem; }
   .players-actions .btn { flex: 1; }
   .pname.hidden { display: none; }
+  .pname-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; border-radius: 9px; }
+  .pname-row .pname { margin-bottom: 0; flex: 1; }
+  .pname-row.hidden { display: none; }
+  .pdrag { cursor: grab; color: var(--muted, #8b95a3); font-size: 1.1rem; padding: .2rem .3rem; touch-action: none; user-select: none; line-height: 1; }
+  .pdrag:active { cursor: grabbing; }
+  .pname-row.dragging { opacity: .45; }
+  .pname-row.drop-target { outline: 2px dashed var(--ball); outline-offset: 2px; }
 
 </style>
 <!-- Google tag (gtag.js) -->
@@ -731,14 +738,14 @@
   <div class="players-overlay" id="playersOverlay">
     <div class="players-card">
       <h3>Spelers</h3>
-      <div class="players-sub">Vul namen in als je geen horloge gebruikt. Heb je een horloge gekoppeld? Dan komen de namen en wie er serveert daarvandaan.</div>
+      <div class="players-sub">Vul namen in als je geen horloge gebruikt. Sleep een speler met de greep (⠿) naar een andere plek om ze te wisselen — handig als je van team wisselt.</div>
       <div class="pteam"><div class="pteam-h" id="ptUsHead">Wij</div>
-        <input class="pname" id="pn0" placeholder="Speler 1" maxlength="20">
-        <input class="pname" id="pn1" placeholder="Speler 2" maxlength="20">
+        <div class="pname-row" data-slot="0"><span class="pdrag" title="Sleep om te wisselen">⠿</span><input class="pname" id="pn0" placeholder="Speler 1" maxlength="20"></div>
+        <div class="pname-row" data-slot="1"><span class="pdrag" title="Sleep om te wisselen">⠿</span><input class="pname" id="pn1" placeholder="Speler 2" maxlength="20"></div>
       </div>
       <div class="pteam"><div class="pteam-h" id="ptThemHead">Zij</div>
-        <input class="pname" id="pn2" placeholder="Speler 1" maxlength="20">
-        <input class="pname" id="pn3" placeholder="Speler 2" maxlength="20">
+        <div class="pname-row" data-slot="2"><span class="pdrag" title="Sleep om te wisselen">⠿</span><input class="pname" id="pn2" placeholder="Speler 1" maxlength="20"></div>
+        <div class="pname-row" data-slot="3"><span class="pdrag" title="Sleep om te wisselen">⠿</span><input class="pname" id="pn3" placeholder="Speler 2" maxlength="20"></div>
       </div>
       <div class="players-actions">
         <button class="btn secondary" id="playersClear">Wissen</button>
@@ -1358,17 +1365,62 @@ function updateServePlayers(m) {
   const ov = document.getElementById('playersOverlay');
   if (!btn || !ov) return;
   const ins = [0,1,2,3].map(i => document.getElementById('pn'+i));
+  const rows = [0,1,2,3].map(i => ov.querySelector('.pname-row[data-slot="'+i+'"]'));
   function open() {
     loadPlayers();
     ins.forEach((el,i) => { if (el) el.value = playerNames[i] || ''; });
-    // Bij enkelspel alleen 1 veld per team
+    // Bij enkelspel alleen 1 veld (rij) per team
     const single = lastDoubles === false;
-    if (ins[1]) ins[1].classList.toggle('hidden', single);
-    if (ins[3]) ins[3].classList.toggle('hidden', single);
+    if (rows[1]) rows[1].classList.toggle('hidden', single);
+    if (rows[3]) rows[3].classList.toggle('hidden', single);
     const us = document.getElementById('ptUsHead'), th = document.getElementById('ptThemHead');
     if (us) us.textContent = teamUs; if (th) th.textContent = teamThem;
     ov.classList.add('show');
   }
+
+  // --- Slepen om twee namen te wisselen (muis + touch via pointer events) ---
+  let dragFrom = -1;
+  let dropTo = -1;
+  function rowSlotAt(x, y) {
+    const elAt = document.elementFromPoint(x, y);
+    if (!elAt) return -1;
+    const row = elAt.closest('.pname-row');
+    if (!row || row.classList.contains('hidden')) return -1;
+    return parseInt(row.getAttribute('data-slot'), 10);
+  }
+  function clearDragVisuals() {
+    rows.forEach(r => { if (r) r.classList.remove('dragging', 'drop-target'); });
+  }
+  rows.forEach((row, slot) => {
+    if (!row) return;
+    const handle = row.querySelector('.pdrag');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragFrom = slot; dropTo = -1;
+      row.classList.add('dragging');
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (dragFrom < 0) return;
+      const s = rowSlotAt(e.clientX, e.clientY);
+      if (s !== dropTo) {
+        rows.forEach(r => r && r.classList.remove('drop-target'));
+        dropTo = s;
+        if (s >= 0 && s !== dragFrom && rows[s]) rows[s].classList.add('drop-target');
+      }
+    });
+    handle.addEventListener('pointerup', (e) => {
+      if (dragFrom >= 0 && dropTo >= 0 && dropTo !== dragFrom && ins[dragFrom] && ins[dropTo]) {
+        const tmp = ins[dragFrom].value;
+        ins[dragFrom].value = ins[dropTo].value;
+        ins[dropTo].value = tmp;
+      }
+      clearDragVisuals();
+      dragFrom = -1; dropTo = -1;
+    });
+    handle.addEventListener('pointercancel', () => { clearDragVisuals(); dragFrom = -1; dropTo = -1; });
+  });
   function close() { ov.classList.remove('show'); }
   btn.addEventListener('click', open);
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
