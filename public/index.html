@@ -1466,15 +1466,25 @@ function serveKey(m) {
   return (m.sets?m.sets.join():'') + '|' + (m.games?m.games.join():'') + '|' + (m.servePlayer||0);
 }
 
-// Kondig bij elke nieuwe game kort aan wie er serveert (toast + eventueel stem).
-// Zolang er op het horloge nog een serveerderkeuze openstaat (servePending),
-// zeggen/tonen we niets — anders zou de site te vroeg een serveerder kiezen.
+// Kondig aan wie er serveert — UITSLUITEND bij een echte aanleiding:
+//  - een nieuwe game/set is begonnen, of
+//  - de serveerderkeuze op het horloge is nét bevestigd (servePending: true→false).
+// Zolang die keuze nog openstaat (servePending) of er geen echte aanleiding is,
+// zeggen/tonen we NIETS — anders zou de site vooruitlopen op je keuze.
 let _serveToastShownFor = null;
 let _serveSpokenFor = null;
 function updateServeToast(m) {
   const el = document.getElementById('serveToast');
   if (!el) return;
   if (m.over || m.servePending) return;
+  const prev = prevState;
+  // Geen vorige stand (net verbonden) → niet vooruitlopen, alleen onthouden.
+  if (!prev) { _serveToastShownFor = serveKey(m); _serveSpokenFor = serveKey(m); return; }
+  const gameChanged = (m.games && prev.games && m.games.join() !== prev.games.join()) ||
+                      (m.sets  && prev.sets  && m.sets.join()  !== prev.sets.join());
+  const justChosen  = !!prev.servePending && !m.servePending;
+  if (!gameChanged && !justChosen) return;   // geen echte aanleiding
+
   const key = serveKey(m);
   const who = serveWho(m);
   if (!who) return;
@@ -1485,8 +1495,7 @@ function updateServeToast(m) {
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 3500);
   }
-  // Stem — alleen als announce() het niet al bij "game gewonnen" deed
-  // (dat is het geval bij de eerste game en nadat het tweede team net koos).
+  // Stem — alleen als announce() het niet al bij "game gewonnen" deed.
   if (voiceOn && _serveSpokenFor !== key) {
     _serveSpokenFor = key;
     speak(t('spokenServe', { name: who }));
