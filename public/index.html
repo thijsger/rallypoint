@@ -1479,18 +1479,12 @@ function updateServeToast(m) {
   const el = document.getElementById('serveToast');
   if (!el) return;
   if (m.over || m.servePending) return;
-  const prev = prevState;
-  // Geen vorige stand (net verbonden) → niet vooruitlopen, alleen onthouden.
-  if (!prev) { _serveToastShownFor = serveKey(m); _serveSpokenFor = serveKey(m); return; }
-  const gameChanged = (m.games && prev.games && m.games.join() !== prev.games.join()) ||
-                      (m.sets  && prev.sets  && m.sets.join()  !== prev.sets.join());
-  const justChosen  = !!prev.servePending && !m.servePending;
-  if (!gameChanged && !justChosen) return;   // geen echte aanleiding
-
-  const key = serveKey(m);
   const who = serveWho(m);
-  if (!who) return;
-  // Visuele toast
+  if (!who) return;                 // serveerder onbekend (keuze staat open) → niets
+  const key = serveKey(m);
+  // Bij het net verbinden: alleen onthouden, niet vooruitlopen / hardop zeggen.
+  if (!prevState) { _serveToastShownFor = key; _serveSpokenFor = key; return; }
+  // Visuele toast bij een nieuwe serveerder
   if (_serveToastShownFor !== key) {
     _serveToastShownFor = key;
     el.textContent = '🎾 ' + who + ' ' + t('serves');
