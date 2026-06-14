@@ -236,6 +236,7 @@ function normalizeState(s) {
       tiebreak: !!s.tb, serveTeam: s.srv || 0, serveSide: s.side || 0,
       servePlayer: s.plr || 0, serveNo: s.sno || 0, doubles: s.db !== undefined ? !!s.db : true,
       names: Array.isArray(s.nm) ? s.nm.map(n => (typeof n === 'string' ? n : '')) : null,
+      servePending: !!s.spd,
       switchSides: !!s.sw, fmt: s.fmt || 1, sport: s.spt || 0,
       golden: !!s.gld, rally: !!s.rl,
       teamUs: s.tu || 'Us', teamThem: s.tt || 'Them',

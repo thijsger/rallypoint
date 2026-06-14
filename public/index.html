@@ -810,6 +810,7 @@ const WEB_STRINGS = {
   spokenEqual:      { nl:'{n} gelijk.',            en:'{n} all.',              de:'{n} beide.',              es:'{n} iguales.',                  fr:'{n} partout.' },
   spokenSetWon:     { nl:'Set gewonnen. Sets {a} tegen {b}.', en:'Set won. Sets {a} to {b}.', de:'Satz gewonnen. Sätze {a} zu {b}.', es:'Set ganado. Sets {a} a {b}.', fr:'Set gagné. Sets {a} à {b}.' },
   spokenGameWon:    { nl:'Game. Games {a} tegen {b}.', en:'Game. Games {a} to {b}.', de:'Spiel. Spiele {a} zu {b}.', es:'Juego. Juegos {a} a {b}.', fr:'Jeu. Jeux {a} à {b}.' },
+  spokenServe:      { nl:'Service {name}.',          en:'{name} to serve.',      de:'Aufschlag {name}.',       es:'Saque {name}.',                 fr:'Service {name}.' },
   spokenMatchWon:   { nl:'{name} wint de wedstrijd, {a} tegen {b} in sets.', en:'{name} wins the match, {a} to {b} in sets.', de:'{name} gewinnt das Spiel, {a} zu {b} in Sätzen.', es:'{name} gana el partido, {a} a {b} en sets.', fr:'{name} remporte le match, {a} à {b} en sets.' },
   sportPadel:       { nl:'PADEL',                  en:'PADEL',                 de:'PADEL',                   es:'PÁDEL',                         fr:'PADEL' },
   sportTennis:      { nl:'TENNIS',                 en:'TENNIS',                de:'TENNIS',                  es:'TENIS',                         fr:'TENNIS' },
@@ -1400,25 +1401,43 @@ function updateSwitchToast(m) {
   }
 }
 
-// Kondig bij elke nieuwe game kort aan wie er serveert.
-let _serveShownFor = null;
+// Wie serveert er nu — naam indien ingevuld, anders de teamnaam.
+function serveWho(m) {
+  const plr = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
+  const nm = plr >= 0 ? playerName(plr) : null;
+  return nm || (m.serveTeam === 1 ? teamThem : teamUs);
+}
+// Identiteit van "wie serveert deze game" — wijzigt bij nieuwe game of als het
+// tweede team alsnog z'n serveerder kiest (servePlayer verandert).
+function serveKey(m) {
+  return (m.sets?m.sets.join():'') + '|' + (m.games?m.games.join():'') + '|' + (m.servePlayer||0);
+}
+
+// Kondig bij elke nieuwe game kort aan wie er serveert (toast + eventueel stem).
+// Zolang er op het horloge nog een serveerderkeuze openstaat (servePending),
+// zeggen/tonen we niets — anders zou de site te vroeg een serveerder kiezen.
+let _serveToastShownFor = null;
+let _serveSpokenFor = null;
 function updateServeToast(m) {
   const el = document.getElementById('serveToast');
   if (!el) return;
-  if (m.over) return;
-  // Game-identiteit + serveerder: verandert bij een nieuwe game, of zodra het
-  // tweede team z'n serveerder kiest (servePlayer wijzigt) zodat de juiste naam komt.
-  const key = (m.sets?m.sets.join():'') + '|' + (m.games?m.games.join():'') + '|' + (m.servePlayer||0);
-  if (_serveShownFor === key) return;
-  _serveShownFor = key;
-  // Tekst: naam indien bekend, anders de teamnaam.
-  const plr = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
-  const nm = plr >= 0 ? playerName(plr) : null;
-  const who = nm || (m.serveTeam === 1 ? teamThem : teamUs);
+  if (m.over || m.servePending) return;
+  const key = serveKey(m);
+  const who = serveWho(m);
   if (!who) return;
-  el.textContent = '🎾 ' + who + ' ' + t('serves');
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3500);
+  // Visuele toast
+  if (_serveToastShownFor !== key) {
+    _serveToastShownFor = key;
+    el.textContent = '🎾 ' + who + ' ' + t('serves');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+  // Stem — alleen als announce() het niet al bij "game gewonnen" deed
+  // (dat is het geval bij de eerste game en nadat het tweede team net koos).
+  if (voiceOn && _serveSpokenFor !== key) {
+    _serveSpokenFor = key;
+    speak(t('spokenServe', { name: who }));
+  }
 }
 
 // Zet het balletje in de juiste hoek van het veld
@@ -1710,9 +1729,15 @@ function announce(prev, m) {
     speak(t('spokenSetWon', { a: numWord(m.sets[0]), b: numWord(m.sets[1]) }));
     return;
   }
-  // Game gewonnen
+  // Game gewonnen — meteen erbij wie de volgende game serveert (als bekend en
+  // niet meer in afwachting van de keuze op het horloge).
   if (m.games[0] !== prev.games[0] || m.games[1] !== prev.games[1]) {
-    speak(t('spokenGameWon', { a: numWord(m.games[0]), b: numWord(m.games[1]) }));
+    let txt = t('spokenGameWon', { a: numWord(m.games[0]), b: numWord(m.games[1]) });
+    if (!m.servePending) {
+      const who = serveWho(m);
+      if (who) { _serveSpokenFor = serveKey(m); txt += ' ' + t('spokenServe', { name: who }); }
+    }
+    speak(txt);
     return;
   }
   // Gewoon punt
