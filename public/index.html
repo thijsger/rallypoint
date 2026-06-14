@@ -1455,9 +1455,11 @@ function updateSwitchToast(m) {
 }
 
 // Wie serveert er nu — naam indien ingevuld, anders de teamnaam.
+// servePlayer === -1 betekent "keuze staat nog open op het horloge": dan niets.
 function serveWho(m) {
   const plr = (typeof m.servePlayer === 'number') ? m.servePlayer : -1;
-  const nm = plr >= 0 ? playerName(plr) : null;
+  if (plr < 0) return null;
+  const nm = playerName(plr);
   return nm || (m.serveTeam === 1 ? teamThem : teamUs);
 }
 // Identiteit van "wie serveert deze game" — wijzigt bij nieuwe game of als het

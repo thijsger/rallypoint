@@ -234,7 +234,7 @@ function normalizeState(s) {
       sets:    [s.s0 || 0, s.s1 || 0],
       over:    !!s.over, winner: s.win !== undefined ? s.win : -1,
       tiebreak: !!s.tb, serveTeam: s.srv || 0, serveSide: s.side || 0,
-      servePlayer: s.plr || 0, serveNo: s.sno || 0, doubles: s.db !== undefined ? !!s.db : true,
+      servePlayer: (typeof s.plr === 'number') ? s.plr : 0, serveNo: s.sno || 0, doubles: s.db !== undefined ? !!s.db : true,
       names: Array.isArray(s.nm) ? s.nm.map(n => (typeof n === 'string' ? n : '')) : null,
       servePending: !!s.spd,
       switchSides: !!s.sw, fmt: s.fmt || 1, sport: s.spt || 0,
