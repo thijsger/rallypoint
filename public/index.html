@@ -1345,7 +1345,8 @@ function updateServePlayers(m) {
   you.textContent = ''; them.textContent = '';
   you.classList.remove('active'); them.classList.remove('active');
   if (no === null || team < 0) { return; }
-  const nm = plr >= 0 ? playerName(plr) : null;
+  // Tijdens een openstaande keuze op het horloge nog geen specifieke naam tonen.
+  const nm = (plr >= 0 && !m.servePending) ? playerName(plr) : null;
   const label = nm ? ('🎾 ' + nm) : ('🎾 ' + t('serve') + ' ' + no);
   if (team === 0) { you.textContent = label; you.classList.add('active'); }
   else { them.textContent = label; them.classList.add('active'); }
