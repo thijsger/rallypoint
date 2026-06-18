@@ -657,6 +657,7 @@ const server = http.createServer((req, res) => {
       for (const pin of Object.keys(matches)) {
         const m = matches[pin];
         if (!m || (now - m.updated) > RECENT_MS) continue;
+        if (m.left) continue;                    // app gesloten → niet meer tonen
         if (m.state && m.state.over) continue;   // alleen lopende
         const owner = db.getPinOwner(pin);
         if (!owner) continue;
@@ -1069,6 +1070,14 @@ const server = http.createServer((req, res) => {
       const state = freshMatch();
       matches[pin] = { state, updated: Date.now(), wasOver: false, autoArchived: false };
       broadcast(pin, { ...state, discarded: true });
+      return sendJSON(res, 200, { ok: true });
+    }
+
+    // Leave — het horloge sluit de app. Markeer de match als verlaten zodat hij
+    // direct uit de publieke spectator-lijst verdwijnt (een volgende push maakt
+    // hem vanzelf weer actief). Geen auth: de PIN volstaat als beacon.
+    if (parts[2] === 'leave' && req.method === 'POST') {
+      if (matches[pin]) { matches[pin].left = true; }
       return sendJSON(res, 200, { ok: true });
     }
 
