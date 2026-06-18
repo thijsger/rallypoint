@@ -1076,25 +1076,31 @@ connectBtn.addEventListener('click', async () => {
   document.getElementById('historyLink').href = '/history/' + pin;   // directe deeplink
   boardLive = true;
   acquireWakeLock();
+  // History- en Spelers-knop alvast verbergen tot bewezen is dat dit jouw PIN
+  // is — voorkomt dat een spectator ze kort ziet flitsen.
+  const _hl = document.getElementById('historyLink'); if (_hl) _hl.style.display = 'none';
+  const _pb = document.getElementById('playersBtn');  if (_pb) _pb.style.display = 'none';
   applyState(match);   // ook taal-switch + render in één keer
   startLive();
   hydrateProfileLink();
-  gateHistoryLink(pin);
+  gateOwnerControls(pin);
 });
 
-// Geschiedenis is privé voor de eigenaar. Verberg de history-knop voor
-// spectators (wie de PIN niet op zijn account heeft staan).
-async function gateHistoryLink(pin) {
+// Geschiedenis én spelersnamen invoeren zijn alleen voor de eigenaar van de
+// PIN. Spectators (wie de PIN niet op zijn account heeft) zien deze knoppen niet.
+async function gateOwnerControls(pin) {
   const link = document.getElementById('historyLink');
-  if (!link) return;
+  const playersBtn = document.getElementById('playersBtn');
+  let isOwner = false;
   try {
     const r = await fetch('/api/auth/me');
     if (r.ok) {
       const me = await r.json();
-      if ((me.pins || []).indexOf(pin) >= 0) { link.style.display = ''; return; }
+      isOwner = (me.pins || []).indexOf(pin) >= 0;
     }
   } catch (_) {}
-  link.style.display = 'none';   // niet ingelogd of niet de eigenaar -> verbergen
+  if (link)       link.style.display       = isOwner ? '' : 'none';
+  if (playersBtn) playersBtn.style.display = isOwner ? '' : 'none';
 }
 
 // Vult de profile-link rechtsboven met avatar + naam als user ingelogd is,
