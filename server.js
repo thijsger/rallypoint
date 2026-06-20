@@ -203,17 +203,35 @@ function persistHistory() {
   writeQueued = true;
   setTimeout(() => {
     writeQueued = false;
-    // Atomic write: tmp + rename. Voorkomt corrupte/halve history.json als
-    // het proces midden in een write gekild wordt.
-    const tmp = HISTORY_FILE + '.tmp';
-    try {
-      fs.writeFileSync(tmp, JSON.stringify(history));
-      fs.renameSync(tmp, HISTORY_FILE);
-    } catch (e) {
-      console.error('[history] write failed:', e && e.message);
-    }
+    flushHistory();
   }, 100);
 }
+
+// Schrijf history NU synchroon naar disk (atomic via tmp + rename). Voorkomt
+// corrupte/halve history.json als het proces midden in een write gekild wordt.
+function flushHistory() {
+  const tmp = HISTORY_FILE + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(history));
+    fs.renameSync(tmp, HISTORY_FILE);
+  } catch (e) {
+    console.error('[history] write failed:', e && e.message);
+  }
+}
+
+// Graceful shutdown: bij een Render-deploy (SIGTERM) of Ctrl-C (SIGINT) eerst
+// de eventueel nog gebufferde history flushen, zodat een net-gearchiveerde
+// match niet in het 100ms-debounce-venster verloren gaat.
+let shuttingDown = false;
+function gracefulExit(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('[shutdown] ' + signal + ' — history flushen');
+  flushHistory();
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulExit('SIGTERM'));
+process.on('SIGINT', () => gracefulExit('SIGINT'));
 
 function broadcast(pin, state) {
   const list = clients[pin];
@@ -237,6 +255,7 @@ function normalizeState(s) {
       servePlayer: (typeof s.plr === 'number') ? s.plr : 0, serveNo: s.sno || 0, doubles: s.db !== undefined ? !!s.db : true,
       names: Array.isArray(s.nm) ? s.nm.map(n => (typeof n === 'string' ? n : '')) : null,
       servePending: !!s.spd,
+      spectator: s.spc !== undefined ? !!s.spc : true,
       switchSides: !!s.sw, fmt: s.fmt || 1, sport: s.spt || 0,
       golden: !!s.gld, rally: !!s.rl,
       teamUs: s.tu || 'Us', teamThem: s.tt || 'Them',
@@ -658,6 +677,7 @@ const server = http.createServer((req, res) => {
         const m = matches[pin];
         if (!m || (now - m.updated) > RECENT_MS) continue;
         if (m.left) continue;                    // app gesloten → niet meer tonen
+        if (m.state && m.state.spectator === false) continue;   // spectator uit op horloge
         if (m.state && m.state.over) continue;   // alleen lopende
         const owner = db.getPinOwner(pin);
         if (!owner) continue;
