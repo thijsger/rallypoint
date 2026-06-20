@@ -1472,6 +1472,19 @@ function renderMatchDetail(m) {
         <span style="color:var(--us)">${esc(teamUs)}</span><span style="color:var(--them)">${esc(teamThem)}</span></div></div>`;
   }
 
+  // Wie speelt beter — 2 lijnen (voortschrijdend): één per team, hoogte = punten
+  // gewonnen in een glijdend venster. Wie hoger ligt, speelt op dat moment beter.
+  // Nodig: de echte puntreeks. Anders valt 'ie terug op de per-set staven.
+  let domHtml = domSetsHtml;
+  if (seq.length > 3) {
+    domHtml = `<div class="dcard">
+      <div class="dcard-title">${t('dominanceTitle')}</div>
+      <canvas class="perf-lines" data-flow="${seq.join(',')}" height="130"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px">
+        <span style="color:var(--us)">━ ${esc(teamUs)}</span><span style="color:var(--them)">━ ${esc(teamThem)}</span>
+      </div></div>`;
+  }
+
   const list = document.getElementById('list');
   list.innerHTML = `
     <a class="detail-back" href="#">${t('detailBack')}</a>
@@ -1500,7 +1513,7 @@ function renderMatchDetail(m) {
       <canvas class="flow-chart" ${flowAttr} height="110"></canvas>
     </div>` : ''}
 
-    ${domSetsHtml}
+    ${domHtml}
 
     <div class="dcard" id="shotsCard" style="display:none">
       <div class="dcard-title">${t('shotsTitle')}</div>
@@ -1517,7 +1530,7 @@ function renderMatchDetail(m) {
 
   list.querySelectorAll('canvas.flow-chart').forEach(c => drawFlowChart(c));
   list.querySelectorAll('canvas.momentum-strip').forEach(c => drawMomentumStrip(c));
-  list.querySelectorAll('canvas.dom-chart').forEach(c => drawDominance(c));
+  list.querySelectorAll('canvas.perf-lines').forEach(c => drawPerfLines(c));
   window.scrollTo(0, 0);
 
   // Slagen async ophalen en koppelen op tijd (coach-data sessie ≈ match-tijd).
@@ -1542,6 +1555,48 @@ function drawMomentumStrip(canvas) {
     ctx.fillStyle = pl[i] === 0 ? usC : themC;
     ctx.fillRect(i * w, 0, Math.ceil(w) + 0.5, cssH);
   }
+}
+
+// Wie speelt beter — 2 lijnen (voortschrijdend venster). Per punt: hoeveel
+// punten elk team won in de laatste W punten. Lijn die hoger ligt = speelt op
+// dat moment beter; een kruising = momentum-omslag.
+function drawPerfLines(canvas) {
+  const seq = (canvas.getAttribute('data-flow')||'').split(',').map(s => Number(s) === 1 ? 1 : 0);
+  if (seq.length < 4) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const cssH = canvas.height || 130;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const usC = (css.getPropertyValue('--us')||'#33d94b').trim();
+  const themC = (css.getPropertyValue('--them')||'#e0564f').trim();
+
+  const W = Math.min(15, Math.max(5, Math.round(seq.length / 12)));
+  const us = [], them = [];
+  for (let i = 0; i < seq.length; i++) {
+    const a = Math.max(0, i - W + 1);
+    let u = 0, th = 0;
+    for (let j = a; j <= i; j++) { if (seq[j] === 0) u++; else th++; }
+    us.push(u); them.push(th);
+  }
+  const padX = 8, padY = 10;
+  const innerW = cssW - 2*padX, innerH = cssH - 2*padY;
+  const xAt = i => padX + (i/(seq.length-1))*innerW;
+  const yAt = v => padY + innerH - (v/W)*innerH;
+
+  // middenlijn (50%)
+  ctx.strokeStyle = 'rgba(127,174,159,.25)'; ctx.setLineDash([3,3]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padX, yAt(W/2)); ctx.lineTo(cssW-padX, yAt(W/2)); ctx.stroke(); ctx.setLineDash([]);
+
+  const line = (arr, col) => {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.beginPath();
+    arr.forEach((v, i) => { const x = xAt(i), y = yAt(v); i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); });
+    ctx.stroke();
+  };
+  line(them, themC);
+  line(us, usC);
 }
 
 // Wie speelde beter per periode: deel de match in segmenten; per segment een
