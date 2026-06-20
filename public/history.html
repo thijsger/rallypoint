@@ -707,6 +707,10 @@ const I18N = {
   totalShots:       { nl:'Slagen totaal', en:'Total shots', de:'Schläge total', es:'Golpes total', fr:'Coups total' },
   power:            { nl:'Kracht',    en:'Power',     de:'Kraft',     es:'Potencia',  fr:'Puissance' },
   openCoach:        { nl:'Open volledige AI-coach →', en:'Open full AI coach →', de:'Vollen AI-Coach öffnen →', es:'Abrir AI coach →', fr:'Ouvrir le coach IA →' },
+  dominanceTitle:   { nl:'Wie speelde beter (per periode)', en:'Who played better (by period)', de:'Wer spielte besser', es:'Quién jugó mejor', fr:'Qui a mieux joué' },
+  powerByShotTitle: { nl:'Kracht per slag',    en:'Power by shot',  de:'Kraft pro Schlag', es:'Potencia por golpe', fr:'Puissance par coup' },
+  shotsTimelineTitle:{ nl:'Slagen over tijd',  en:'Shots over time', de:'Schläge über Zeit', es:'Golpes en el tiempo', fr:'Coups dans le temps' },
+  setEndLabel:      { nl:'einde set',          en:'set end',        de:'Satzende',       es:'fin de set',       fr:'fin de set' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -1432,7 +1436,18 @@ function renderMatchDetail(m) {
   if (m.deuceGames > 0) add(t('deuces'), m.deuceGames);
   if (m.sideSwitches > 0) add(t('sideSwitch'), m.sideSwitches);
 
-  const flowAttr = (Array.isArray(m.pointLog) && m.pointLog.length > 1) ? `data-flow="${m.pointLog.join(',')}"` : '';
+  // Set-grenzen in punt-index ruimte (uit setStats) → markers op de flow-lijn.
+  let bounds = [];
+  if (Array.isArray(m.setStats) && m.setStats.length) {
+    let acc = 0;
+    for (let i = 0; i < m.setStats.length - 1; i++) {   // laatste grens = einde match, niet markeren
+      const s = m.setStats[i];
+      acc += (Number(s.pointsUs)||0) + (Number(s.pointsThem)||0);
+      if (acc > 0) bounds.push(acc);
+    }
+  }
+  const flowAttr = (Array.isArray(m.pointLog) && m.pointLog.length > 1)
+    ? `data-flow="${m.pointLog.join(',')}" data-bounds="${bounds.join(',')}"` : '';
 
   const list = document.getElementById('list');
   list.innerHTML = `
@@ -1462,6 +1477,14 @@ function renderMatchDetail(m) {
       </div>
     </div>` : ''}
 
+    ${flowAttr ? `<div class="dcard">
+      <div class="dcard-title">${t('dominanceTitle')}</div>
+      <canvas class="dom-chart" data-flow="${m.pointLog.join(',')}" height="120"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-top:6px">
+        <span style="color:var(--us)">▲ ${esc(teamUs)}</span><span style="color:var(--them)">▼ ${esc(teamThem)}</span>
+      </div>
+    </div>` : ''}
+
     <div class="dcard" id="shotsCard" style="display:none">
       <div class="dcard-title">${t('shotsTitle')}</div>
       <div id="shotsBody"></div>
@@ -1477,6 +1500,7 @@ function renderMatchDetail(m) {
 
   list.querySelectorAll('canvas.flow-chart').forEach(c => drawFlowChart(c));
   list.querySelectorAll('canvas.momentum-strip').forEach(c => drawMomentumStrip(c));
+  list.querySelectorAll('canvas.dom-chart').forEach(c => drawDominance(c));
   window.scrollTo(0, 0);
 
   // Slagen async ophalen en koppelen op tijd (coach-data sessie ≈ match-tijd).
@@ -1500,6 +1524,48 @@ function drawMomentumStrip(canvas) {
   for (let i = 0; i < pl.length; i++) {
     ctx.fillStyle = pl[i] === 0 ? usC : themC;
     ctx.fillRect(i * w, 0, Math.ceil(w) + 0.5, cssH);
+  }
+}
+
+// Wie speelde beter per periode: deel de match in segmenten; per segment een
+// divergerende staaf vanaf de middenlijn — omhoog/groen = Us pakte de meeste
+// punten, omlaag/rood = Them. Hoogte = mate van overwicht.
+function drawDominance(canvas) {
+  const pl = (canvas.getAttribute('data-flow')||'').split(',').map(s => Number(s) === 1 ? 1 : 0);
+  if (pl.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const cssH = canvas.height || 120;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const usC = (css.getPropertyValue('--us')||'#33d94b').trim();
+  const themC = (css.getPropertyValue('--them')||'#e0564f').trim();
+
+  const SEG = Math.min(12, Math.max(4, Math.round(pl.length / 6)));
+  const per = pl.length / SEG;
+  const padX = 6, padY = 8, gap = 4;
+  const innerW = cssW - 2*padX;
+  const midY = padY + (cssH - 2*padY)/2;
+  const halfH = (cssH - 2*padY)/2;
+  const bw = (innerW - gap*(SEG-1)) / SEG;
+
+  // middenlijn
+  ctx.strokeStyle = 'rgba(127,174,159,.35)'; ctx.setLineDash([3,3]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padX, midY); ctx.lineTo(cssW-padX, midY); ctx.stroke(); ctx.setLineDash([]);
+
+  for (let s = 0; s < SEG; s++) {
+    const a = Math.floor(s*per), b = Math.floor((s+1)*per);
+    let us = 0, tot = 0;
+    for (let i = a; i < b && i < pl.length; i++) { tot++; if (pl[i] === 0) us++; }
+    if (!tot) continue;
+    const net = (us/tot) - 0.5;           // -0.5..+0.5
+    const h = Math.abs(net) * 2 * halfH;
+    const x = padX + s*(bw+gap);
+    ctx.fillStyle = net >= 0 ? usC : themC;
+    if (net >= 0) ctx.fillRect(x, midY - h, bw, h);
+    else ctx.fillRect(x, midY, bw, h);
   }
 }
 
@@ -1538,11 +1604,59 @@ function renderShots(s) {
       <span class="s-num">${n} · ${Math.round(100*n/total)}%</span>
     </div>`;
   }).join('');
+  // Graph 6 — Kracht per slag: balken van gem. kracht per slagtype.
+  const pw = s.powByCls || {};
+  const pwPresent = SHOT_ORDER.filter(k => (pw[k]||0) > 0);
+  const maxPw = Math.max(...pwPresent.map(k => pw[k]||0), 1);
+  const powRows = pwPresent.map(k => `<div class="shot-row">
+      <span class="s-name">${t(SHOT_LBL[k])}</span>
+      <span class="s-track"><span class="s-fill" style="width:${Math.round(100*(pw[k])/maxPw)}%;background:${SHOT_COL[k]}"></span></span>
+      <span class="s-num">${Math.round(pw[k])}</span>
+    </div>`).join('');
+  const powBlock = powRows ? `<div class="dcard-title" style="margin-top:18px">${t('powerByShotTitle')}</div>${powRows}` : '';
+
+  // Graph 8 — Slagen over tijd: aantal slagen per ~5-min segment.
+  const segs = Array.isArray(s.segments) ? s.segments : [];
+  const segBlock = segs.length > 1
+    ? `<div class="dcard-title" style="margin-top:18px">${t('shotsTimelineTitle')}</div>
+       <canvas class="shots-timeline" data-segs="${segs.map(x=>x.swings||0).join(',')}" height="90"></canvas>` : '';
+
   const coachUrl = `/beta/coach/${PIN}?beta=${encodeURIComponent(BETA_KEY)}${s.t0?`&t0=${s.t0}`:''}`;
   document.getElementById('shotsBody').innerHTML =
     `<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">${t('totalShots')}: <b style="color:var(--text)">${s.totalSwings||total}</b>${s.powAvg?` · ${t('power')} ⌀ ${Math.round(s.powAvg)}`:''}</div>${rows}
+     ${powBlock}
+     ${segBlock}
      <a class="detail-back" style="margin:14px 0 0;color:var(--ball)" href="${coachUrl}">${t('openCoach')}</a>`;
   document.getElementById('shotsCard').style.display = 'block';
+  document.querySelectorAll('canvas.shots-timeline').forEach(c => drawSegmentBars(c));
+}
+
+// Staafdiagram: slagen per tijd-segment (graph 8).
+function drawSegmentBars(canvas) {
+  const vals = (canvas.getAttribute('data-segs')||'').split(',').map(Number);
+  if (!vals.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const cssH = canvas.height || 90;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--us').trim() || '#33d94b';
+  const max = Math.max(...vals, 1);
+  const padX = 4, padB = 14, padT = 4, gap = 4;
+  const bw = (cssW - 2*padX - gap*(vals.length-1)) / vals.length;
+  const h = cssH - padB - padT;
+  ctx.fillStyle = accent;
+  vals.forEach((v, i) => {
+    const bh = (v / max) * h;
+    const x = padX + i*(bw+gap);
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x, padT + h - bh, bw, bh);
+  });
+  ctx.globalAlpha = 1;
+  // segment-labels (1,2,3…)
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  vals.forEach((v, i) => { ctx.fillText(String(i+1), padX + i*(bw+gap) + bw/2, cssH - 3); });
 }
 
 // Match-flow chart: line van cumulative score-diff (Us = +1, Them = -1).
@@ -1619,6 +1733,23 @@ function drawFlowChart(canvas) {
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
+
+  // Set-grenzen (graph 4 — kantelpunten): verticale markers waar een set eindigde.
+  const braw = canvas.getAttribute('data-bounds') || '';
+  if (braw) {
+    const bounds = braw.split(',').map(Number).filter(n => n > 0 && n < pts.length);
+    ctx.strokeStyle = hexToRgba(accent, .5);
+    ctx.fillStyle = hexToRgba(accent, .85);
+    ctx.lineWidth = 1;
+    ctx.font = '9px system-ui';
+    for (const bI of bounds) {
+      const x = xAt(bI);
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(x, padY); ctx.lineTo(x, padY + innerH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillRect(x - 1.5, padY, 3, 3);   // tickje bovenaan
+    }
+  }
 
   // Eindmarker
   const lastV = pts[pts.length - 1];
