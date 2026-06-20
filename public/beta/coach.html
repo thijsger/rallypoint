@@ -176,10 +176,13 @@ async function load(){
     LIVE = SW.length? buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0) : null;
     const hist=await (await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`)).json();
     SESSIONS=(hist.sessions||[]).slice().sort((a,b)=>(b.savedTs||b.t0||0)-(a.savedTs||a.t0||0));
+    // Deeplink: ?t0=<t0> selecteert direct die sessie (vanuit match-history).
+    const wantT0 = new URLSearchParams(location.search).get('t0');
+    const preIdx = wantT0 ? Math.max(0, SESSIONS.findIndex(s=>String(s.t0)===String(wantT0))) : 0;
     // Live tonen als 'ie nog niet opgeslagen is
     const liveSaved = LIVE && SESSIONS.some(s=>s.t0===LIVE.t0);
-    if(LIVE && LIVE.totalSwings>=8 && !liveSaved){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
-    else if(SESSIONS.length){ renderAll(SESSIONS,0); }
+    if(LIVE && LIVE.totalSwings>=8 && !liveSaved && !wantT0){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
+    else if(SESSIONS.length){ renderAll(SESSIONS, preIdx); }
     else if(LIVE && LIVE.totalSwings>=8){ renderAll([LIVE],0); }
     else { document.getElementById('btnbar').style.display='flex'; document.getElementById('root').innerHTML='<div class="empty">Nog geen wedstrijd. Speel een potje met de app actief.</div>'; }
   }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }

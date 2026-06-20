@@ -706,6 +706,7 @@ const I18N = {
   shotLob:          { nl:'Lob',       en:'Lob',       de:'Lob',       es:'Globo',     fr:'Lob' },
   totalShots:       { nl:'Slagen totaal', en:'Total shots', de:'Schläge total', es:'Golpes total', fr:'Coups total' },
   power:            { nl:'Kracht',    en:'Power',     de:'Kraft',     es:'Potencia',  fr:'Puissance' },
+  openCoach:        { nl:'Open volledige AI-coach →', en:'Open full AI coach →', de:'Vollen AI-Coach öffnen →', es:'Abrir AI coach →', fr:'Ouvrir le coach IA →' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -1537,8 +1538,10 @@ function renderShots(s) {
       <span class="s-num">${n} · ${Math.round(100*n/total)}%</span>
     </div>`;
   }).join('');
+  const coachUrl = `/beta/coach/${PIN}?beta=${encodeURIComponent(BETA_KEY)}${s.t0?`&t0=${s.t0}`:''}`;
   document.getElementById('shotsBody').innerHTML =
-    `<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">${t('totalShots')}: <b style="color:var(--text)">${s.totalSwings||total}</b>${s.powAvg?` · ${t('power')} ⌀ ${Math.round(s.powAvg)}`:''}</div>${rows}`;
+    `<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">${t('totalShots')}: <b style="color:var(--text)">${s.totalSwings||total}</b>${s.powAvg?` · ${t('power')} ⌀ ${Math.round(s.powAvg)}`:''}</div>${rows}
+     <a class="detail-back" style="margin:14px 0 0;color:var(--ball)" href="${coachUrl}">${t('openCoach')}</a>`;
   document.getElementById('shotsCard').style.display = 'block';
 }
 
