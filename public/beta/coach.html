@@ -129,10 +129,11 @@ const PIN = new URLSearchParams(location.search).get('pin') || location.pathname
 const KEY = new URLSearchParams(location.search).get('beta') || '';
 let MODEL=null, LIVE=null, SESSIONS=[], SELECTED=0;
 
-const COL={forehand:'#aee05a',backhand:'#5aa3e6',volley_forehand:'#efab5e',volley_backhand:'#ee9466',smash:'#ee7566',lob:'#a98ae0'};
-const ORDER=['forehand','backhand','volley_forehand','volley_backhand','smash','lob'];
+const COL={forehand:'#aee05a',backhand:'#5aa3e6',volley_forehand:'#efab5e',volley_backhand:'#ee9466',service:'#e8c84d',smash:'#ee7566',lob:'#a98ae0'};
+const ORDER=['forehand','backhand','volley_forehand','volley_backhand','service','smash','lob'];
+const NICE={forehand:'Forehand',backhand:'Backhand',volley_forehand:'Volley FH',volley_backhand:'Volley BH',service:'Service',smash:'Smash',lob:'Lob'};
 const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
-function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || k; }
+function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || NICE[k] || k; }
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
 function std(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(avg(a.map(x=>(x-m)**2)));}
 function pct(n,d){return d?Math.round(100*n/d):0;}
@@ -301,6 +302,7 @@ function renderSession(S){
     tips.push(['work','💪','Backhand-kracht',`Je backhand komt ~${Math.round(100-100*S.powByCls.backhand/S.powByCls.forehand)}% zachter uit dan je forehand. Werk aan rotatie en gewichtsoverdracht.`]);
   if(I.net>=18)tips.push(['good','🥅','Actief aan het net',`Veel volleys (${I.net}%) — agressief padel.`]);
   else if(I.net<7)tips.push(['info','🥅','Vaker naar het net','Weinig volleys. In padel win je veel punten aan het net.']);
+  if((C.service||0)>0)tips.push(['good','🎾','Services',`${C.service} service${C.service>1?'s':''} herkend — de openingsslag van je punten.`]);
   if((C.smash||0)>0)tips.push(['good','⚡','Smashes geraakt',`${C.smash} smash${C.smash>1?'es':''} — afmaken bovenlangs is een wapen.`]);
   if(S.fatiguePct<=-12)tips.push(['work','🔋','Conditie','Je kracht zakte tegen het eind. In lange potjes maakt conditie het verschil.']);
   if(A&&S.powAvg>A.pow*1.05)tips.push(['good','📈','Harder dan normaal',`Je sloeg gemiddeld harder dan je eigen gemiddelde (${A.pow}).`]);
