@@ -1011,7 +1011,7 @@ const server = http.createServer((req, res) => {
     const filePath = path.join(__dirname, 'public', 'history.html');
     return fs.readFile(filePath, (err, data) => {
       if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, must-revalidate' });
       res.end(data);
     });
   }
@@ -1026,7 +1026,7 @@ const server = http.createServer((req, res) => {
       const filePath = path.join(__dirname, 'public', 'history.html');
       return fs.readFile(filePath, (err, data) => {
         if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, must-revalidate' });
         res.end(data);
       });
     }

@@ -194,6 +194,8 @@
   .detail-back:hover { color:var(--ball); }
   .dcard { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
   .dcard-title { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); margin-bottom:12px; }
+  .exp-badge { display:inline-block; background:var(--amber,#ffc533); color:#1a1300; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 6px; border-radius:6px; vertical-align:middle; margin-left:6px; }
+  .exp-note { font-size:12px; color:var(--text-dim); line-height:1.45; margin:-4px 0 12px; }
   .dscore { display:flex; align-items:center; justify-content:center; gap:18px; margin:6px 0 4px; }
   .dscore .team { font-size:17px; font-weight:600; color:var(--text-dim); flex:1; text-align:center; }
   .dscore .team.winner { color:var(--text); }
@@ -707,6 +709,12 @@ const I18N = {
   totalShots:       { nl:'Slagen totaal', en:'Total shots', de:'Schläge total', es:'Golpes total', fr:'Coups total' },
   power:            { nl:'Kracht',    en:'Power',     de:'Kraft',     es:'Potencia',  fr:'Puissance' },
   openCoach:        { nl:'Open volledige AI-coach →', en:'Open full AI coach →', de:'Vollen AI-Coach öffnen →', es:'Abrir AI coach →', fr:'Ouvrir le coach IA →' },
+  experimental:     { nl:'Experimenteel',     en:'Experimental',   de:'Experimentell',  es:'Experimental',     fr:'Expérimental' },
+  shotsBeta:        { nl:'Slag-herkenning is in ontwikkeling — het tellen klopt, het type per slag is een schatting.',
+                      en:'Shot recognition is in development — counts are reliable, the type per shot is an estimate.',
+                      de:'Schlagerkennung ist in Entwicklung — die Zählung stimmt, der Typ pro Schlag ist eine Schätzung.',
+                      es:'El reconocimiento de golpes está en desarrollo — el conteo es fiable, el tipo por golpe es una estimación.',
+                      fr:'La reconnaissance des coups est en développement — le comptage est fiable, le type par coup est une estimation.' },
   dominanceTitle:   { nl:'Wie speelde beter (per periode)', en:'Who played better (by period)', de:'Wer spielte besser', es:'Quién jugó mejor', fr:'Qui a mieux joué' },
   powerByShotTitle: { nl:'Kracht per slag',    en:'Power by shot',  de:'Kraft pro Schlag', es:'Potencia por golpe', fr:'Puissance par coup' },
   shotsTimelineTitle:{ nl:'Slagen over tijd',  en:'Shots over time', de:'Schläge über Zeit', es:'Golpes en el tiempo', fr:'Coups dans le temps' },
@@ -1516,7 +1524,8 @@ function renderMatchDetail(m) {
     ${domHtml}
 
     <div class="dcard" id="shotsCard" style="display:none">
-      <div class="dcard-title">${t('shotsTitle')}</div>
+      <div class="dcard-title">${t('shotsTitle')} <span class="exp-badge">${t('experimental')}</span></div>
+      <div class="exp-note">${t('shotsBeta')}</div>
       <div id="shotsBody"></div>
     </div>
 
