@@ -187,6 +187,30 @@
     text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px;
   }
   .flow-chart { display: block; width: 100%; max-width: 100%; }
+  /* --- Per-match detailpagina --- */
+  .view-hint { margin-top:10px; font-size:12px; color:var(--ball); text-align:right; opacity:.85; }
+  .match[data-id]:hover { border-color: var(--ball); }
+  .detail-back { display:inline-block; margin-bottom:16px; color:var(--text-dim); text-decoration:none; font-size:14px; }
+  .detail-back:hover { color:var(--ball); }
+  .dcard { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+  .dcard-title { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); margin-bottom:12px; }
+  .dscore { display:flex; align-items:center; justify-content:center; gap:18px; margin:6px 0 4px; }
+  .dscore .team { font-size:17px; font-weight:600; color:var(--text-dim); flex:1; text-align:center; }
+  .dscore .team.winner { color:var(--text); }
+  .dscore .sets { font-size:40px; font-weight:800; letter-spacing:1px; }
+  .dscore .sets .sep { color:var(--text-dim); margin:0 6px; }
+  .momentum-strip { display:block; width:100%; height:26px; border-radius:6px; }
+  .pwbar { display:flex; height:30px; border-radius:8px; overflow:hidden; margin-top:6px; font-size:13px; font-weight:700; }
+  .pwbar .us { background:var(--us); color:#06210f; display:flex; align-items:center; padding:0 10px; }
+  .pwbar .them { background:var(--them); color:#2a0a0a; display:flex; align-items:center; justify-content:flex-end; padding:0 10px; }
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:14px 18px; }
+  .stat-grid .s-lbl { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); }
+  .stat-grid .s-val { font-size:20px; font-weight:700; margin-top:2px; }
+  .shot-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .shot-row .s-name { width:84px; font-size:13px; color:var(--text-dim); flex-shrink:0; }
+  .shot-row .s-track { flex:1; height:14px; background:rgba(255,255,255,.05); border-radius:7px; overflow:hidden; }
+  .shot-row .s-fill { height:100%; border-radius:7px; }
+  .shot-row .s-num { width:70px; text-align:right; font-size:13px; font-weight:600; flex-shrink:0; }
   .stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -667,6 +691,21 @@ const I18N = {
   recWinStreak:     { nl:'Win-streak',        en:'Win streak',    de:'Sieg-Serie',     es:'Racha de victorias', fr:'Série de victoires' },
   noData:           { nl:'Te weinig data',    en:'Not enough data',de:'Zu wenig Daten', es:'Datos insuficientes', fr:'Pas assez de données' },
   vsLabel:          { nl:' tegen ',           en:' vs ',          de:' gegen ',        es:' contra ',           fr:' contre ' },
+  detailBack:       { nl:'← Alle wedstrijden', en:'← All matches', de:'← Alle Spiele', es:'← Todos',           fr:'← Tous les matchs' },
+  momentumTitle:    { nl:'Punten winnen & verliezen', en:'Points won & lost', de:'Punkte gewonnen & verloren', es:'Puntos ganados y perdidos', fr:'Points gagnés et perdus' },
+  pointsWonTitle:   { nl:'Punten gewonnen',    en:'Points won',     de:'Punkte gewonnen', es:'Puntos ganados',  fr:'Points gagnés' },
+  shotsTitle:       { nl:'Slagen',             en:'Shots',          de:'Schläge',        es:'Golpes',           fr:'Coups' },
+  allStatsTitle:    { nl:'Alle statistieken',  en:'All stats',      de:'Alle Statistiken', es:'Estadísticas',   fr:'Statistiques' },
+  viewDetail:       { nl:'Bekijk match →',     en:'View match →',   de:'Spiel ansehen →', es:'Ver partido →',   fr:'Voir le match →' },
+  shotForehand:     { nl:'Forehand',  en:'Forehand',  de:'Vorhand',   es:'Derecha',   fr:'Coup droit' },
+  shotBackhand:     { nl:'Backhand',  en:'Backhand',  de:'Rückhand',  es:'Revés',     fr:'Revers' },
+  shotVolleyFh:     { nl:'Volley FH', en:'Volley FH', de:'Volley VH', es:'Volea FH',  fr:'Volée CD' },
+  shotVolleyBh:     { nl:'Volley BH', en:'Volley BH', de:'Volley RH', es:'Volea BH',  fr:'Volée R' },
+  shotService:      { nl:'Service',   en:'Service',   de:'Aufschlag', es:'Saque',     fr:'Service' },
+  shotSmash:        { nl:'Smash',     en:'Smash',     de:'Smash',     es:'Smash',     fr:'Smash' },
+  shotLob:          { nl:'Lob',       en:'Lob',       de:'Lob',       es:'Globo',     fr:'Lob' },
+  totalShots:       { nl:'Slagen totaal', en:'Total shots', de:'Schläge total', es:'Golpes total', fr:'Coups total' },
+  power:            { nl:'Kracht',    en:'Power',     de:'Kraft',     es:'Potencia',  fr:'Puissance' },
 };
 const SPORTS = [
   { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
@@ -1220,12 +1259,26 @@ function render(matches) {
     matchListTitle.style.display = 'none';
     return;
   }
+  // Detail-modus: hash #m=<savedAt> toont één match op een eigen pagina.
+  const sel = selectedMatchId();
+  if (sel !== null) {
+    const m = matches.find(x => String(x.savedAt) === sel);
+    if (m) { renderMatchDetail(m); return; }
+    location.hash = '';   // onbekende match → terug naar lijst
+  }
+
   empty.style.display = 'none';
   actions.style.display = 'block';
   renderFilters(matches);
 
   const filtered = filterByRange(matches, activeRange);
   renderStatsAndList(filtered);
+}
+
+function selectedMatchId() {
+  const h = location.hash || '';
+  const m = h.match(/m=(\d+)/);
+  return m ? m[1] : null;
 }
 
 function renderMatchList(list, matches) {
@@ -1299,7 +1352,7 @@ function renderMatchList(list, matches) {
          </div>` : '';
 
     return `
-      <div class="match ${cls}">
+      <div class="match ${cls}" data-id="${m.savedAt}" style="cursor:pointer">
         <div class="match-head">
           <div class="match-meta">
             <span class="match-sport">${sportLabel(m.sport)}</span>
@@ -1315,13 +1368,178 @@ function renderMatchList(list, matches) {
         ${history ? `<div class="set-history">${history}</div>` : ''}
         ${flowHtml}
         <div class="stats">${stats.join('')}</div>
-        ${renderSetTable(m)}
+        <div class="view-hint">${t('viewDetail')}</div>
       </div>
     `;
   }).join('');
 
+  // Hele kaart klikbaar → detailpagina van die ene match
+  list.querySelectorAll('.match[data-id]').forEach(card => {
+    card.addEventListener('click', () => { location.hash = 'm=' + card.getAttribute('data-id'); });
+  });
+
   // Na render: alle flow-canvasses tekenen
   list.querySelectorAll('canvas.flow-chart').forEach(c => drawFlowChart(c));
+}
+
+// === PER-MATCH DETAILPAGINA ===
+const BETA_KEY = 'rp-swing-9f3a2c';   // zelfde sleutel als de watch/coach (publiek)
+const SHOT_COL = { forehand:'#aee05a', backhand:'#5aa3e6', volley_forehand:'#efab5e',
+                   volley_backhand:'#ee9466', service:'#e8c84d', smash:'#ee7566', lob:'#a98ae0' };
+const SHOT_ORDER = ['forehand','backhand','volley_forehand','volley_backhand','service','smash','lob'];
+const SHOT_LBL = { forehand:'shotForehand', backhand:'shotBackhand', volley_forehand:'shotVolleyFh',
+                   volley_backhand:'shotVolleyBh', service:'shotService', smash:'shotSmash', lob:'shotLob' };
+
+function renderMatchDetail(m) {
+  // Verberg de overzicht-secties; toon één match groot.
+  ['filters','summary','records','charts','matchListTitle','actions'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  document.getElementById('empty').style.display = 'none';
+
+  const teamUs = m.teamUs || t('teamUs');
+  const teamThem = m.teamThem || t('teamThem');
+  const realWin = m.over && m.winner !== -1 && !m.manuallySaved;
+  const usWin = realWin && m.winner === 0;
+  const themWin = realWin && m.winner === 1;
+
+  // Punten gewonnen per team: tel uit pointLog, anders pointsByTeam.
+  let usPts = 0, themPts = 0;
+  if (Array.isArray(m.pointLog) && m.pointLog.length) {
+    for (const p of m.pointLog) { if (Number(p) === 1) themPts++; else usPts++; }
+  } else if (Array.isArray(m.pointsByTeam)) { usPts = m.pointsByTeam[0]||0; themPts = m.pointsByTeam[1]||0; }
+  const totPts = Math.max(1, usPts + themPts);
+
+  let history = '';
+  if (m.setHistory && m.setHistory.length) history = m.setHistory.map(s => s[0]+'-'+s[1]).join('   ');
+
+  const fmtLabels = { 0:'1 set', 1:'Bo3', 2:'Bo5', 3:'Pro set', 4:'∞' };
+  const tags = [];
+  tags.push(`<span class="meta-tag">${sportLabel(m.sport)}</span>`);
+  if (typeof m.fmt === 'number' && m.fmt in fmtLabels) tags.push(`<span class="meta-tag">${fmtLabels[m.fmt]}</span>`);
+  if (m.golden) tags.push(`<span class="meta-tag">⚡ ${t('golden')}</span>`);
+
+  // Alle statistieken
+  const sv = [];
+  const add = (lbl, val) => sv.push(`<div><div class="s-lbl">${lbl}</div><div class="s-val">${val}</div></div>`);
+  add(t('duration'), `${m.durationMin} ${t('minutes')}`);
+  add(t('totalPointsScored'), m.totalPoints || (usPts+themPts));
+  if (m.ptsPerMin > 0) add(t('tempo'), `${m.ptsPerMin.toFixed(1)}`);
+  if (m.avgPtsGame > 0) add(t('avgGame'), m.avgPtsGame.toFixed(1));
+  add(t('streak'), `${(m.longestStreak||[0,0])[0]} / ${(m.longestStreak||[0,0])[1]}`);
+  if (m.tiebreaks > 0) add(t('tiebreaks'), m.tiebreaks);
+  if (m.deuceGames > 0) add(t('deuces'), m.deuceGames);
+  if (m.sideSwitches > 0) add(t('sideSwitch'), m.sideSwitches);
+
+  const flowAttr = (Array.isArray(m.pointLog) && m.pointLog.length > 1) ? `data-flow="${m.pointLog.join(',')}"` : '';
+
+  const list = document.getElementById('list');
+  list.innerHTML = `
+    <a class="detail-back" href="#">${t('detailBack')}</a>
+    <div class="dcard">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${tags.join('')}</div>
+      <div class="dscore">
+        <div class="team us ${usWin?'winner':''}">${esc(teamUs)}</div>
+        <div class="sets">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
+        <div class="team them ${themWin?'winner':''}">${esc(teamThem)}</div>
+      </div>
+      ${history ? `<div class="set-history" style="text-align:center">${history}</div>` : ''}
+      <div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:8px">${formatDate(m.savedAt)}</div>
+    </div>
+
+    ${flowAttr ? `<div class="dcard">
+      <div class="dcard-title">${t('flowTitle')}</div>
+      <canvas class="flow-chart" ${flowAttr} height="110"></canvas>
+    </div>` : ''}
+
+    ${flowAttr ? `<div class="dcard">
+      <div class="dcard-title">${t('momentumTitle')}</div>
+      <canvas class="momentum-strip" data-flow="${m.pointLog.join(',')}"></canvas>
+      <div class="pwbar">
+        <div class="us" style="flex:${usPts||0.001}">${esc(teamUs)} ${usPts}</div>
+        <div class="them" style="flex:${themPts||0.001}">${themPts} ${esc(teamThem)}</div>
+      </div>
+    </div>` : ''}
+
+    <div class="dcard" id="shotsCard" style="display:none">
+      <div class="dcard-title">${t('shotsTitle')}</div>
+      <div id="shotsBody"></div>
+    </div>
+
+    <div class="dcard">
+      <div class="dcard-title">${t('allStatsTitle')}</div>
+      <div class="stat-grid">${sv.join('')}</div>
+    </div>
+
+    ${renderSetTable(m)}
+  `;
+
+  list.querySelectorAll('canvas.flow-chart').forEach(c => drawFlowChart(c));
+  list.querySelectorAll('canvas.momentum-strip').forEach(c => drawMomentumStrip(c));
+  window.scrollTo(0, 0);
+
+  // Slagen async ophalen en koppelen op tijd (coach-data sessie ≈ match-tijd).
+  loadShotsForMatch(m);
+}
+
+// Momentum: per punt een gekleurd segment (Us = groen, Them = rood).
+function drawMomentumStrip(canvas) {
+  const pl = (canvas.getAttribute('data-flow')||'').split(',').map(s => Number(s) === 1 ? 1 : 0);
+  if (!pl.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 280;
+  const cssH = 26;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const usC = (css.getPropertyValue('--us')||'#33d94b').trim();
+  const themC = (css.getPropertyValue('--them')||'#e0564f').trim();
+  const w = cssW / pl.length;
+  for (let i = 0; i < pl.length; i++) {
+    ctx.fillStyle = pl[i] === 0 ? usC : themC;
+    ctx.fillRect(i * w, 0, Math.ceil(w) + 0.5, cssH);
+  }
+}
+
+// Haal coach-data (slagen) op en koppel de sessie die qua tijd het dichtst bij
+// deze match ligt. Toont een slagverdeling als er een match is.
+async function loadShotsForMatch(m) {
+  try {
+    const r = await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(BETA_KEY)}`);
+    if (!r.ok) return;
+    const j = await r.json();
+    const sessions = (j.sessions || []);
+    if (!sessions.length) return;
+    // Beste match op tijd: |session.savedTs - match.savedAt| binnen 30 min.
+    let best = null, bestDiff = 30 * 60 * 1000;
+    for (const s of sessions) {
+      const ts = s.savedTs || s.t0 || 0;
+      const d = Math.abs(ts - m.savedAt);
+      if (d < bestDiff) { bestDiff = d; best = s; }
+    }
+    if (!best || !best.cls) return;
+    renderShots(best);
+  } catch (_) {}
+}
+
+function renderShots(s) {
+  const cls = s.cls || {};
+  const present = SHOT_ORDER.filter(k => (cls[k]||0) > 0);
+  if (!present.length) return;
+  const total = present.reduce((a,k) => a + (cls[k]||0), 0) || 1;
+  const maxN = Math.max(...present.map(k => cls[k]||0), 1);
+  const rows = present.map(k => {
+    const n = cls[k]||0;
+    return `<div class="shot-row">
+      <span class="s-name">${t(SHOT_LBL[k])}</span>
+      <span class="s-track"><span class="s-fill" style="width:${Math.round(100*n/maxN)}%;background:${SHOT_COL[k]}"></span></span>
+      <span class="s-num">${n} · ${Math.round(100*n/total)}%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('shotsBody').innerHTML =
+    `<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">${t('totalShots')}: <b style="color:var(--text)">${s.totalSwings||total}</b>${s.powAvg?` · ${t('power')} ⌀ ${Math.round(s.powAvg)}`:''}</div>${rows}`;
+  document.getElementById('shotsCard').style.display = 'block';
 }
 
 // Match-flow chart: line van cumulative score-diff (Us = +1, Them = -1).
@@ -1546,6 +1764,11 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
     await fetch('/history/' + PIN, { method: 'DELETE' });
     load();
   } catch (e) {}
+});
+
+// Wissel tussen lijst en match-detail bij hash-verandering (klik / terug-knop).
+window.addEventListener('hashchange', () => {
+  if (allMatches && allMatches.length) { render(allMatches); }
 });
 
 applyLang();
