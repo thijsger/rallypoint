@@ -1408,11 +1408,13 @@ function renderMatchDetail(m) {
   const usWin = realWin && m.winner === 0;
   const themWin = realWin && m.winner === 1;
 
-  // Punten gewonnen per team: tel uit pointLog, anders pointsByTeam.
-  let usPts = 0, themPts = 0;
-  if (Array.isArray(m.pointLog) && m.pointLog.length) {
-    for (const p of m.pointLog) { if (Number(p) === 1) themPts++; else usPts++; }
-  } else if (Array.isArray(m.pointsByTeam)) { usPts = m.pointsByTeam[0]||0; themPts = m.pointsByTeam[1]||0; }
+  // Punten gewonnen per team: de ECHTE totalen uit pointsByTeam (niet uit de
+  // korte pointLog-feed, die was alleen de laatste 7 punten als objecten).
+  const pbt = Array.isArray(m.pointsByTeam) ? m.pointsByTeam : [0,0];
+  let usPts = pbt[0]||0, themPts = pbt[1]||0;
+  // Echte chronologische puntreeks voor spelverloop/momentum (alleen nieuwe matches).
+  const seq = Array.isArray(m.pointSeq) ? m.pointSeq.map(n => Number(n) === 1 ? 1 : 0) : [];
+  if ((!usPts && !themPts) && seq.length) { for (const p of seq) { if (p===1) themPts++; else usPts++; } }
   const totPts = Math.max(1, usPts + themPts);
 
   let history = '';
@@ -1446,8 +1448,29 @@ function renderMatchDetail(m) {
       if (acc > 0) bounds.push(acc);
     }
   }
-  const flowAttr = (Array.isArray(m.pointLog) && m.pointLog.length > 1)
-    ? `data-flow="${m.pointLog.join(',')}" data-bounds="${bounds.join(',')}"` : '';
+  // Flow/momentum vereisen de ECHTE puntreeks; alleen tonen als die er is.
+  const flowAttr = (seq.length > 1)
+    ? `data-flow="${seq.join(',')}" data-bounds="${bounds.join(',')}"` : '';
+
+  // Wie speelde beter — per set (uit setStats: punten per team). Werkt altijd,
+  // ook voor oudere matches zonder de chronologische puntreeks.
+  let domSetsHtml = '';
+  if (Array.isArray(m.setStats) && m.setStats.length) {
+    const rows = m.setStats.map((s, i) => {
+      const u = Number(s.pointsUs)||0, th = Number(s.pointsThem)||0, tt = Math.max(1, u+th);
+      const uPct = Math.round(100*u/tt);
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px">
+          <span>${t('setShort')}${i+1}</span><span>${u} – ${th} ${t('points').toLowerCase()}</span></div>
+        <div class="pwbar" style="height:22px">
+          <div class="us" style="flex:${u||0.001};font-size:11px">${uPct}%</div>
+          <div class="them" style="flex:${th||0.001};font-size:11px">${100-uPct}%</div>
+        </div></div>`;
+    }).join('');
+    domSetsHtml = `<div class="dcard"><div class="dcard-title">${t('dominanceTitle')}</div>${rows}
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-top:2px">
+        <span style="color:var(--us)">${esc(teamUs)}</span><span style="color:var(--them)">${esc(teamThem)}</span></div></div>`;
+  }
 
   const list = document.getElementById('list');
   list.innerHTML = `
@@ -1463,27 +1486,21 @@ function renderMatchDetail(m) {
       <div style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:8px">${formatDate(m.savedAt)}</div>
     </div>
 
+    ${(usPts+themPts) > 0 ? `<div class="dcard">
+      <div class="dcard-title">${t('momentumTitle')}</div>
+      <div class="pwbar">
+        <div class="us" style="flex:${usPts||0.001}">${esc(teamUs)} ${usPts}</div>
+        <div class="them" style="flex:${themPts||0.001}">${themPts} ${esc(teamThem)}</div>
+      </div>
+      ${flowAttr ? `<canvas class="momentum-strip" data-flow="${seq.join(',')}" style="margin-top:10px"></canvas>` : ''}
+    </div>` : ''}
+
     ${flowAttr ? `<div class="dcard">
       <div class="dcard-title">${t('flowTitle')}</div>
       <canvas class="flow-chart" ${flowAttr} height="110"></canvas>
     </div>` : ''}
 
-    ${flowAttr ? `<div class="dcard">
-      <div class="dcard-title">${t('momentumTitle')}</div>
-      <canvas class="momentum-strip" data-flow="${m.pointLog.join(',')}"></canvas>
-      <div class="pwbar">
-        <div class="us" style="flex:${usPts||0.001}">${esc(teamUs)} ${usPts}</div>
-        <div class="them" style="flex:${themPts||0.001}">${themPts} ${esc(teamThem)}</div>
-      </div>
-    </div>` : ''}
-
-    ${flowAttr ? `<div class="dcard">
-      <div class="dcard-title">${t('dominanceTitle')}</div>
-      <canvas class="dom-chart" data-flow="${m.pointLog.join(',')}" height="120"></canvas>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-top:6px">
-        <span style="color:var(--us)">▲ ${esc(teamUs)}</span><span style="color:var(--them)">▼ ${esc(teamThem)}</span>
-      </div>
-    </div>` : ''}
+    ${domSetsHtml}
 
     <div class="dcard" id="shotsCard" style="display:none">
       <div class="dcard-title">${t('shotsTitle')}</div>

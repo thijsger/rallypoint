@@ -267,6 +267,7 @@ function normalizeState(s) {
       pointsByTeam: [s.ptb0 || 0, s.ptb1 || 0],
       longestStreak: [s.ls0 || 0, s.ls1 || 0],
       history: Array.isArray(s.log) ? s.log : [],
+      pointSeq: Array.isArray(s.seq) ? s.seq.map(n => Number(n) === 1 ? 1 : 0) : [],
       setHistory: Array.isArray(s.sh) ? s.sh : [],
       setStats: Array.isArray(s.sst) ? s.sst : [],
     };
@@ -318,9 +319,9 @@ function snapshotForHistory(state) {
     teamUs: typeof state.teamUs === 'string' ? state.teamUs : 'Us',
     teamThem: typeof state.teamThem === 'string' ? state.teamThem : 'Them',
     lang: typeof state.lang === 'string' ? state.lang : 'en',
-    // pointLog: array van 0/1 per scorende team (volgorde = chronologisch).
-    // Gebruikt voor match-flow chart in /history.
-    pointLog: Array.isArray(state.history) ? state.history.map(n => Number(n) === 1 ? 1 : 0) : [],
+    // Echte chronologische puntreeks (0=us, 1=them). Voor spelverloop/momentum.
+    // Het oude "pointLog" was een feed van 7 objecten — onbruikbaar als reeks.
+    pointSeq: Array.isArray(state.pointSeq) ? state.pointSeq.map(n => Number(n) === 1 ? 1 : 0) : [],
   };
 }
 
