@@ -908,7 +908,12 @@ const server = http.createServer((req, res) => {
           const batch = JSON.parse(body || '{}');
           const rows = (batch.data || []);
           for (const r of rows) {
-            fs.appendFileSync(BETA_LABEL_FILE, JSON.stringify({ pin, l: r.l, w: r.w, hz: batch.hz, win: batch.win, weak: !!batch.weak, sport: (typeof batch.sport === 'number' ? batch.sport : null), ts: Date.now() }) + '\n');
+            fs.appendFileSync(BETA_LABEL_FILE, JSON.stringify({
+              pin, l: r.l, m: (typeof r.m === 'number' ? r.m : null), w: r.w,
+              gx: r.gx, gy: r.gy, gz: r.gz, am: r.am, gap: r.gap,
+              hz: batch.hz, win: batch.win, weak: !!batch.weak,
+              sport: (typeof batch.sport === 'number' ? batch.sport : null), ts: Date.now()
+            }) + '\n');
           }
           sendJSON(res, 200, { ok: true, added: rows.length });
         } catch (e) { sendJSON(res, 400, { error: 'bad json' }); }
