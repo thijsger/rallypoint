@@ -617,7 +617,27 @@ function strokeBars(S,I,mode){ // mode: 'count' | 'power'
 function tabOverview(S,I,TIPS){
   const top3=TIPS.slice(0,3);
   const best=I.segs.length>1?I.tr(I.bi):formatMinutes(S.durationMin)+' min';
+  // Compacte uitslag-strip als er een gekoppelde wedstrijd is.
+  const m=matchFor(S); let resultCard='';
+  if(m){
+    const tu=m.teamUs||'Wij', tt=m.teamThem||'Zij';
+    const realWin=m.over&&m.winner!==-1&&!m.manuallySaved;
+    const usWin=realWin&&m.winner===0, themWin=realWin&&m.winner===1;
+    const pbt=Array.isArray(m.pointsByTeam)?m.pointsByTeam:[0,0];
+    let up=pbt[0]||0, tp=pbt[1]||0;
+    if((!up&&!tp)&&Array.isArray(m.pointSeq)) m.pointSeq.forEach(p=>p===1?tp++:up++);
+    resultCard=`<div class="card span2 fade-up" style="cursor:pointer" onclick="ACTIVE_TAB='match';renderSession(SESSIONS_VIEW[SELECTED])">
+      <div class="ctitle"><span class="ci">${svg('trophy',15)}</span>Uitslag</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:700;color:${usWin?'var(--text)':'var(--muted)'}">${esc(tu)}</div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:-.02em">${m.sets[0]}<span style="color:var(--muted);margin:0 5px">–</span>${m.sets[1]}</div>
+        <div style="font-size:15px;font-weight:700;color:${themWin?'var(--text)':'var(--muted)'}">${esc(tt)}</div>
+        <div style="margin-left:auto;font-size:13px;color:var(--muted)">${up}–${tp} punten · <span style="color:var(--lime)">Wedstrijd →</span></div>
+      </div>
+    </div>`;
+  }
   return `<div class="grid">
+    ${resultCard}
     <div class="card fade-up">
       <div class="ctitle"><span class="ci">${svg('target',15)}</span>Slagmix</div>
       <div class="donut-wrap">
@@ -712,6 +732,21 @@ function tabPower(S,I){
   </div>`;
 }
 
+/* Afgeleide wedstrijd-inzichten uit de puntreeks. */
+function matchExtras(m){
+  const seq=Array.isArray(m.pointSeq)?m.pointSeq.map(p=>p===1?1:0):[];
+  let runU=0,runT=0,curU=0,curT=0, diff=0,maxLead=0,minLead=0;
+  for(const p of seq){
+    if(p===0){curU++;curT=0;} else {curT++;curU=0;}
+    if(curU>runU)runU=curU; if(curT>runT)runT=curT;
+    diff+=p===0?1:-1; if(diff>maxLead)maxLead=diff; if(diff<minLead)minLead=diff;
+  }
+  const half=Math.floor(seq.length/2);
+  const fh=[0,0],sh=[0,0];
+  seq.forEach((p,i)=>{(i<half?fh:sh)[p===0?0:1]++;});
+  return {runU,runT,maxLead,minLead,fh,sh,len:seq.length};
+}
+
 /* ---------- match tab (wedstrijdverloop) ---------- */
 function tabMatch(S){
   const m=matchFor(S); if(!m) return `<div class="card span2 empty"><div class="ei">${svg('inbox',34)}</div>Geen gekoppelde wedstrijd gevonden.</div>`;
@@ -724,6 +759,7 @@ function tabMatch(S){
   if((!usPts&&!themPts)&&seq.length){usPts=0;themPts=0;seq.forEach(p=>p===1?themPts++:usPts++);}
   const sh=Array.isArray(m.setHistory)?m.setHistory.map(s=>s[0]+'–'+s[1]).join('   '):'';
   const hasFlow=seq.length>1;
+  const X=matchExtras(m);
   // per set
   const setRows=Array.isArray(m.setStats)?m.setStats.map((s,i)=>{
     const u=s.pointsUs||0,th=s.pointsThem||0,tt=Math.max(1,u+th),up=Math.round(100*u/tt);
@@ -755,6 +791,17 @@ function tabMatch(S){
       <canvas id="mWho" data-flow="${seq.join(',')}" height="120"></canvas>
       <div class="legend"><span><i style="background:var(--lime)"></i>${esc(teamUs)}</span><span><i style="background:var(--red)"></i>${esc(teamThem)}</span></div>
     </div>`:''}
+    ${hasFlow?`<div class="card span2 fade-up">
+      <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Eerste helft vs tweede helft</div>
+      <div class="cmp2">
+        <div class="cmp-side"><div class="ch">Eerste helft</div>
+          <div class="cr"><span class="muted">${esc(teamUs)}</span><b style="color:var(--lime)">${X.fh[0]}</b></div>
+          <div class="cr"><span class="muted">${esc(teamThem)}</span><b style="color:var(--red)">${X.fh[1]}</b></div></div>
+        <div class="cmp-side"><div class="ch">Tweede helft</div>
+          <div class="cr"><span class="muted">${esc(teamUs)}</span><b style="color:var(--lime)">${X.sh[0]}</b></div>
+          <div class="cr"><span class="muted">${esc(teamThem)}</span><b style="color:var(--red)">${X.sh[1]}</b></div></div>
+      </div>
+    </div>`:''}
     ${setRows?`<div class="card span2 fade-up"><div class="ctitle"><span class="ci">${svg('bars',15)}</span>Per set</div>${setRows}</div>`:''}
     <div class="card span2 fade-up">
       <div class="ctitle"><span class="ci">${svg('star',15)}</span>Wedstrijd-stats</div>
@@ -762,7 +809,9 @@ function tabMatch(S){
         ${m.durationMin?`<div class="scard"><div class="sl">Duur</div><div class="sv">${formatMinutes(m.durationMin)}<small>min</small></div></div>`:''}
         <div class="scard"><div class="sl">Punten</div><div class="sv">${formatNumber(m.totalPoints||usPts+themPts)}</div></div>
         ${m.ptsPerMin?`<div class="scard"><div class="sl">Tempo</div><div class="sv">${formatRate(m.ptsPerMin)}<small>/min</small></div></div>`:''}
-        ${m.longestStreak?`<div class="scard"><div class="sl">Langste reeks</div><div class="sv">${Math.max(m.longestStreak[0]||0,m.longestStreak[1]||0)}</div></div>`:''}
+        <div class="scard"><div class="sl">Langste reeks</div><div class="sv">${Math.max(X.runU,X.runT)}<small>op rij</small></div></div>
+        <div class="scard"><div class="sl">Grootste voorsprong</div><div class="sv" style="color:${X.maxLead>=Math.abs(X.minLead)?'var(--lime)':'var(--red)'}">${Math.max(X.maxLead,Math.abs(X.minLead))}</div></div>
+        ${X.minLead<-1&&m.winner===0?`<div class="scard"><div class="sl">Comeback</div><div class="sv" style="color:var(--lime)">${Math.abs(X.minLead)}<small>achter</small></div></div>`:''}
         ${m.tiebreaks?`<div class="scard"><div class="sl">Tiebreaks</div><div class="sv">${m.tiebreaks}</div></div>`:''}
         ${m.deuceGames?`<div class="scard"><div class="sl">Deuces</div><div class="sv">${m.deuceGames}</div></div>`:''}
       </div>
