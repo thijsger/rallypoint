@@ -271,7 +271,14 @@ canvas{display:block;width:100%}
 <script>
 const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
-let MODEL=null, LIVE=null, SESSIONS=[], SESSIONS_VIEW=[], SELECTED=0, ACTIVE_TAB='overview';
+let MODEL=null, LIVE=null, SESSIONS=[], SESSIONS_VIEW=[], SELECTED=0, ACTIVE_TAB='overview', MATCHES=[];
+// Vind de opgeslagen wedstrijd die qua tijd het dichtst bij deze sessie ligt.
+function matchFor(S){
+  if(!MATCHES.length) return null;
+  const ts=S.savedTs||S.t0||0; let best=null,bd=30*60*1000;
+  for(const m of MATCHES){ const d=Math.abs((m.savedAt||0)-ts); if(d<bd){bd=d;best=m;} }
+  return best;
+}
 
 /* ---------- stroke meta ---------- */
 const COL={forehand:'#A7F432',backhand:'#4EA3FF',volley_forehand:'#FFB84D',volley_backhand:'#FF9E6B',service:'#E8C84D',smash:'#FF6B5A',lob:'#A78BFA'};
@@ -279,6 +286,22 @@ const ORDER=['forehand','backhand','volley_forehand','volley_backhand','service'
 const NICE={forehand:'Forehand',backhand:'Backhand',volley_forehand:'Volley FH',volley_backhand:'Volley BH',service:'Service',smash:'Smash',lob:'Lob'};
 const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
 function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || NICE[k] || k; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- demo (?demo=1) — verzonnen sessie + wedstrijd om te previewen ---------- */
+const DEMO_SESSION={ t0:1782409734000, savedTs:1782409734375, _demo:true,
+  totalSwings:289, durationMin:78, swPerMin:3.71, powAvg:7840, powPeak:13420, fatiguePct:-11,
+  cls:{forehand:148,backhand:79,volley_forehand:9,volley_backhand:22,smash:18,lob:13,service:0},
+  powByCls:{forehand:8600,backhand:6300,volley_forehand:5400,volley_backhand:5100,smash:13420,lob:4200,service:0},
+  segments:(function(){const a=[];for(let k=0;k<12;k++)a.push({swings:Math.max(12,24+Math.round(8*Math.sin(k))-(k>8?k:0)),power:Math.max(6800,8200-k*70+Math.round(220*Math.cos(k)))});return a;})() };
+const DEMO_MATCH=(function(){const seq=[];const push=(w,n)=>{for(let i=0;i<n;i++)seq.push(w);};
+  [[0,4],[1,2],[0,3],[1,3],[0,4],[1,1],[0,3],[1,2],[0,2],[1,4],[1,3],[0,2],[1,3],[0,4],[1,4],[1,2],[0,3],[1,3],[0,2],[1,2],[0,4],[0,3],[0,2],[1,2],[0,3],[1,1],[0,4],[0,3]].forEach(([w,n])=>push(w,n));
+  let us=0,them=0;seq.forEach(p=>p===1?them++:us++);
+  return { savedAt:1782409734375, sport:0, over:true, winner:0, manuallySaved:false, teamUs:'Wij', teamThem:'Zij',
+    sets:[2,1], setHistory:[[6,4],[4,6],[6,3]], pointSeq:seq, pointsByTeam:[us,them],
+    setStats:[{gamesUs:6,gamesThem:4,pointsUs:42,pointsThem:33,winner:0},{gamesUs:4,gamesThem:6,pointsUs:31,pointsThem:40,winner:1},{gamesUs:6,gamesThem:3,pointsUs:38,pointsThem:27,winner:0}],
+    totalPoints:us+them, durationMin:78, ptsPerMin:(us+them)/78, longestStreak:[6,4], tiebreaks:1, deuceGames:5 };
+})();
 
 /* ---------- icon system (clean line SVG, inherits currentColor) ---------- */
 const ICONS={
@@ -357,6 +380,11 @@ async function load(){
     LIVE = SW.length? buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0) : null;
     const hist=await (await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`)).json();
     SESSIONS=(hist.sessions||[]).slice().sort((a,b)=>(b.savedTs||b.t0||0)-(a.savedTs||a.t0||0));
+    // Wedstrijd-history erbij (voor het matchverloop). Mislukt stil als geen toegang.
+    try{ const hr=await fetch(`/history/${PIN}`,{headers:{'Accept':'application/json'}});
+      if(hr.ok){ const hd=await hr.json(); MATCHES=Array.isArray(hd)?hd:[]; } }catch(_){}
+    // Demo-modus: ?demo=1 toont een verzonnen sessie + wedstrijd om te previewen.
+    if(new URLSearchParams(location.search).get('demo')==='1'){ SESSIONS=[DEMO_SESSION,...SESSIONS]; MATCHES=[DEMO_MATCH,...MATCHES]; document.getElementById('expBadge').style.display=''; renderAll(SESSIONS,0); return; }
     const wantT0 = new URLSearchParams(location.search).get('t0');
     const preIdx = wantT0 ? Math.max(0, SESSIONS.findIndex(s=>String(s.t0)===String(wantT0))) : 0;
     const liveSaved = LIVE && SESSIONS.some(s=>s.t0===LIVE.t0);
@@ -525,8 +553,9 @@ function renderSession(S){
       <div class="mv">${val}</div><div class="mt">${trend||''}</div>
     </div>`;
 
-  const tabs=['overview','strokes','power','condition','career'];
-  const tabNames={overview:'Overzicht',strokes:'Slagen',power:'Kracht',condition:'Conditie',career:'Loopbaan'};
+  const hasMatch=!!matchFor(S);
+  const tabs=['overview',...(hasMatch?['match']:[]),'strokes','power','condition','career'];
+  const tabNames={overview:'Overzicht',match:'Wedstrijd',strokes:'Slagen',power:'Kracht',condition:'Conditie',career:'Loopbaan'};
   if(!tabs.includes(ACTIVE_TAB))ACTIVE_TAB='overview';
 
   document.getElementById('root').innerHTML=`
@@ -558,6 +587,7 @@ function renderTab(S){
   const p=document.getElementById('tabpanel'); if(!p)return;
   const I=S.__I, A=S.__A, TIPS=S.__TIPS;
   if(ACTIVE_TAB==='overview') p.innerHTML=tabOverview(S,I,TIPS);
+  else if(ACTIVE_TAB==='match') p.innerHTML=tabMatch(S);
   else if(ACTIVE_TAB==='strokes') p.innerHTML=tabStrokes(S,I);
   else if(ACTIVE_TAB==='power') p.innerHTML=tabPower(S,I);
   else if(ACTIVE_TAB==='condition') p.innerHTML=tabCondition(S,I);
@@ -565,6 +595,7 @@ function renderTab(S){
   // post-render: animate bars + draw charts
   requestAnimationFrame(()=>{
     if(ACTIVE_TAB==='overview'){ drawDonut(S,I); drawProgress('ovProgress',S); }
+    if(ACTIVE_TAB==='match'){ const m=matchFor(S); if(m){ drawMatchFlow('mFlow',m); drawWhoBetter('mWho',m); } }
     if(ACTIVE_TAB==='power'){ drawProgress('pwProgress',S,'power'); }
     if(ACTIVE_TAB==='condition'){ drawProgress('cdProgress',S); }
     if(ACTIVE_TAB==='career'){ drawCareerTrends(); }
@@ -679,6 +710,96 @@ function tabPower(S,I){
       <div class="chart-note">Een dalende lijn naar rechts betekent dat je slagen zachter werden — meestal vermoeidheid.</div>
     </div>
   </div>`;
+}
+
+/* ---------- match tab (wedstrijdverloop) ---------- */
+function tabMatch(S){
+  const m=matchFor(S); if(!m) return `<div class="card span2 empty"><div class="ei">${svg('inbox',34)}</div>Geen gekoppelde wedstrijd gevonden.</div>`;
+  const teamUs=m.teamUs||'Wij', teamThem=m.teamThem||'Zij';
+  const realWin=m.over&&m.winner!==-1&&!m.manuallySaved;
+  const usWin=realWin&&m.winner===0, themWin=realWin&&m.winner===1;
+  const pbt=Array.isArray(m.pointsByTeam)?m.pointsByTeam:[0,0];
+  const seq=Array.isArray(m.pointSeq)?m.pointSeq:[];
+  let usPts=pbt[0]||0, themPts=pbt[1]||0;
+  if((!usPts&&!themPts)&&seq.length){usPts=0;themPts=0;seq.forEach(p=>p===1?themPts++:usPts++);}
+  const sh=Array.isArray(m.setHistory)?m.setHistory.map(s=>s[0]+'–'+s[1]).join('   '):'';
+  const hasFlow=seq.length>1;
+  // per set
+  const setRows=Array.isArray(m.setStats)?m.setStats.map((s,i)=>{
+    const u=s.pointsUs||0,th=s.pointsThem||0,tt=Math.max(1,u+th),up=Math.round(100*u/tt);
+    return `<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Set ${i+1} · ${s.gamesUs}-${s.gamesThem}</span><span>${u}-${th} punten</span></div>
+      <div class="pwbar" style="height:20px"><div class="us" style="flex:${u||0.001};font-size:11px">${up}%</div><div class="them" style="flex:${th||0.001};font-size:11px">${100-up}%</div></div></div>`;
+  }).join(''):'';
+  return `<div class="grid">
+    <div class="card span2 fade-up">
+      <div class="ctitle"><span class="ci">${svg('trophy',15)}</span>Uitslag</div>
+      <div class="dscore" style="margin:4px 0">
+        <div class="team us ${usWin?'winner':''}" style="font-size:18px;font-weight:700;flex:1;text-align:center;color:${usWin?'var(--text)':'var(--muted)'}">${esc(teamUs)}</div>
+        <div class="sets" style="font-size:40px;font-weight:800">${m.sets[0]}<span style="color:var(--muted);margin:0 6px">–</span>${m.sets[1]}</div>
+        <div class="team them ${themWin?'winner':''}" style="font-size:18px;font-weight:700;flex:1;text-align:center;color:${themWin?'var(--text)':'var(--muted)'}">${esc(teamThem)}</div>
+      </div>
+      ${sh?`<div style="text-align:center;color:var(--muted);font-size:13.5px;margin-top:4px">${sh}</div>`:''}
+    </div>
+    ${hasFlow?`<div class="card span2 fade-up">
+      <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Wedstrijdverloop</div>
+      <canvas id="mFlow" data-flow="${seq.join(',')}" height="150"></canvas>
+      <div class="chart-note">Boven de lijn = ${esc(teamUs)} stond voor, onder = ${esc(teamThem)}. Stippellijnen = einde van een set.</div>
+    </div>`:''}
+    <div class="card fade-up">
+      <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Punten gewonnen</div>
+      <div class="pwbar" style="height:34px"><div class="us" style="flex:${usPts||0.001}">${esc(teamUs)} ${usPts}</div><div class="them" style="flex:${themPts||0.001}">${themPts} ${esc(teamThem)}</div></div>
+      <div class="chart-note">${usPts+themPts} punten totaal · ${esc(usPts>=themPts?teamUs:teamThem)} pakte er ${Math.max(usPts,themPts)}.</div>
+    </div>
+    ${hasFlow?`<div class="card fade-up">
+      <div class="ctitle"><span class="ci">${svg('gauge',15)}</span>Wie speelde beter</div>
+      <canvas id="mWho" data-flow="${seq.join(',')}" height="120"></canvas>
+      <div class="legend"><span><i style="background:var(--lime)"></i>${esc(teamUs)}</span><span><i style="background:var(--red)"></i>${esc(teamThem)}</span></div>
+    </div>`:''}
+    ${setRows?`<div class="card span2 fade-up"><div class="ctitle"><span class="ci">${svg('bars',15)}</span>Per set</div>${setRows}</div>`:''}
+    <div class="card span2 fade-up">
+      <div class="ctitle"><span class="ci">${svg('star',15)}</span>Wedstrijd-stats</div>
+      <div class="sgrid">
+        ${m.durationMin?`<div class="scard"><div class="sl">Duur</div><div class="sv">${formatMinutes(m.durationMin)}<small>min</small></div></div>`:''}
+        <div class="scard"><div class="sl">Punten</div><div class="sv">${formatNumber(m.totalPoints||usPts+themPts)}</div></div>
+        ${m.ptsPerMin?`<div class="scard"><div class="sl">Tempo</div><div class="sv">${formatRate(m.ptsPerMin)}<small>/min</small></div></div>`:''}
+        ${m.longestStreak?`<div class="scard"><div class="sl">Langste reeks</div><div class="sv">${Math.max(m.longestStreak[0]||0,m.longestStreak[1]||0)}</div></div>`:''}
+        ${m.tiebreaks?`<div class="scard"><div class="sl">Tiebreaks</div><div class="sv">${m.tiebreaks}</div></div>`:''}
+        ${m.deuceGames?`<div class="scard"><div class="sl">Deuces</div><div class="sv">${m.deuceGames}</div></div>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function drawMatchFlow(id,m){
+  const seq=Array.isArray(m.pointSeq)?m.pointSeq.map(p=>p===1?1:0):[]; if(seq.length<2)return;
+  const o=setup(id,150); if(!o)return; const {ctx,W,H}=o;
+  const padX=8,padY=14,plotW=W-2*padX,plotH=H-2*padY,midY=padY+plotH/2;
+  let diff=0; const pts=[0]; seq.forEach(p=>{diff+=p===0?1:-1;pts.push(diff);});
+  const maxA=Math.max(1,...pts.map(p=>Math.abs(p)));
+  const xAt=i=>padX+(i/(pts.length-1))*plotW, yAt=v=>midY-(v/maxA)*(plotH/2);
+  const lime=getComputedStyle(document.documentElement).getPropertyValue('--lime').trim()||'#A7F432';
+  const red=getComputedStyle(document.documentElement).getPropertyValue('--red').trim()||'#FF6B5A';
+  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(padX,midY);ctx.lineTo(W-padX,midY);ctx.stroke();ctx.setLineDash([]);
+  // set-grenzen
+  if(Array.isArray(m.setStats)&&m.setStats.length>1){ let acc=0; ctx.strokeStyle='rgba(167,244,50,.4)';
+    for(let i=0;i<m.setStats.length-1;i++){acc+=(m.setStats[i].pointsUs||0)+(m.setStats[i].pointsThem||0);const x=xAt(acc);
+      ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(x,padY);ctx.lineTo(x,padY+plotH);ctx.stroke();ctx.setLineDash([]);}}
+  ctx.fillStyle='rgba(167,244,50,.08)';ctx.beginPath();ctx.moveTo(xAt(0),midY);pts.forEach((v,i)=>ctx.lineTo(xAt(i),yAt(v)));ctx.lineTo(xAt(pts.length-1),midY);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=lime;ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();pts.forEach((v,i)=>i?ctx.lineTo(xAt(i),yAt(v)):ctx.moveTo(xAt(i),yAt(v)));ctx.stroke();
+  const lv=pts[pts.length-1];ctx.fillStyle=lv>=0?lime:red;ctx.beginPath();ctx.arc(xAt(pts.length-1),yAt(lv),3.5,0,7);ctx.fill();
+}
+function drawWhoBetter(id,m){
+  const seq=Array.isArray(m.pointSeq)?m.pointSeq.map(p=>p===1?1:0):[]; if(seq.length<4)return;
+  const o=setup(id,120); if(!o)return; const {ctx,W,H}=o;
+  const Wn=Math.min(15,Math.max(5,Math.round(seq.length/12))),us=[],them=[];
+  for(let i=0;i<seq.length;i++){const a=Math.max(0,i-Wn+1);let u=0,th=0;for(let j=a;j<=i;j++)seq[j]===0?u++:th++;us.push(u);them.push(th);}
+  const padX=8,padY=10,iW=W-2*padX,iH=H-2*padY;
+  const xAt=i=>padX+(i/(seq.length-1))*iW, yAt=v=>padY+iH-(v/Wn)*iH;
+  const lime=getComputedStyle(document.documentElement).getPropertyValue('--lime').trim()||'#A7F432';
+  const red=getComputedStyle(document.documentElement).getPropertyValue('--red').trim()||'#FF6B5A';
+  ctx.strokeStyle='rgba(255,255,255,.1)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(padX,yAt(Wn/2));ctx.lineTo(W-padX,yAt(Wn/2));ctx.stroke();ctx.setLineDash([]);
+  const line=(arr,c)=>{ctx.strokeStyle=c;ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();arr.forEach((v,i)=>i?ctx.lineTo(xAt(i),yAt(v)):ctx.moveTo(xAt(i),yAt(v)));ctx.stroke();};
+  line(them,red);line(us,lime);
 }
 
 function tabCondition(S,I){
