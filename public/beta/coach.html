@@ -133,8 +133,8 @@ small{font-size:.62em;color:var(--muted);font-weight:600}
 .barlist{display:flex;flex-direction:column;gap:13px}
 .brow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px}
 .brow .bl{font-size:13.5px;color:var(--text);font-weight:500}
-.brow .bt{height:9px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
-.brow .bf{height:100%;border-radius:6px;width:var(--fw,0);animation:grow .8s cubic-bezier(.22,1,.36,1)}
+.brow .bt{display:block;height:9px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
+.brow .bf{display:block;height:9px;border-radius:6px;width:var(--fw,0);animation:grow .8s cubic-bezier(.22,1,.36,1)}
 @keyframes grow{from{width:0}}
 .brow .bv{font-size:13px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;text-align:right;min-width:58px}
 
@@ -194,9 +194,59 @@ canvas{display:block;width:100%}
   .compare{grid-template-columns:1fr}
 }
 @media(max-width:560px){
-  .metric .mv{font-size:26px}
-  .brow{grid-template-columns:80px 1fr auto}
-  .next{flex-wrap:wrap}
+  /* iPhone: respecteer notch + home-indicator, geen horizontale overflow */
+  html,body{overflow-x:hidden}
+  .wrap{padding:max(16px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+  .top{gap:11px;margin-bottom:18px}
+  .brand h1{font-size:21px}
+  .logo{width:38px;height:38px;border-radius:11px}
+  .top-right{width:100%;margin-left:0;justify-content:space-between}
+  .exp{font-size:11px;padding:5px 9px}
+
+  .card{padding:18px;border-radius:18px}
+  .hero{padding:20px}
+  .hero .summary{font-size:17px;line-height:1.45;margin:11px 0 15px}
+  .hbadges{gap:7px;margin-bottom:16px}
+  .hbadge{font-size:12.5px;padding:6px 11px}
+  .next{padding:13px;gap:11px}
+  .next .nt{font-size:14px}
+
+  /* metrics: 2 kolommen, compacter */
+  .metrics{grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:16px}
+  .metric{padding:15px 16px}
+  .metric .mv{font-size:25px}
+  .metric .mt{font-size:11.5px}
+
+  .tabs{margin-bottom:16px}
+  .tab{padding:9px 14px;font-size:13px}
+
+  .grid{gap:12px}
+  .ctitle{margin-bottom:14px}
+
+  /* slagmix: donut gecentreerd boven de legenda */
+  .donut-wrap{flex-direction:column;align-items:stretch;gap:18px}
+  .donut{align-self:center}
+  .dlegend{min-width:0}
+
+  /* balken: smaller label, alles blijft passen */
+  .brow{grid-template-columns:74px 1fr auto;gap:10px}
+  .brow .bl{font-size:13px}
+  .brow .bv{min-width:52px;font-size:12.5px}
+
+  .tip{padding:14px;gap:12px}
+  .tip .ti{width:36px;height:36px}
+  .tip .tt{font-size:14.5px}
+
+  .sgrid{grid-template-columns:1fr 1fr;gap:11px}
+  .scard{padding:14px}
+  .scard .sv{font-size:23px}
+
+  #tip-pop{display:none}  /* geen hover-tooltip op touch */
+}
+@media(max-width:380px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .sgrid{grid-template-columns:1fr}
+  .brow{grid-template-columns:66px 1fr auto}
 }
 </style>
 </head>
