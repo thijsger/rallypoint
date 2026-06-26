@@ -296,9 +296,13 @@ canvas{display:block;width:100%}
 const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
 let MODEL=null, LIVE=null, SESSIONS=[], SESSIONS_VIEW=[], SELECTED=0, ACTIVE_TAB='overview', MATCHES=[];
-// Vind de opgeslagen wedstrijd die qua tijd het dichtst bij deze sessie ligt.
+// Exact aangeklikte match uit history (?ms=<savedAt>).
+const WANT_MS = new URLSearchParams(location.search).get('ms');
+// Vind de bijbehorende wedstrijd. Kwam je via een history-klik (?ms), toon dan
+// EXACT die match; anders de wedstrijd die qua tijd het dichtst bij de sessie ligt.
 function matchFor(S){
   if(!MATCHES.length) return null;
+  if(WANT_MS){ const exact=MATCHES.find(m=>String(m.savedAt)===String(WANT_MS)); if(exact) return exact; }
   const ts=S.savedTs||S.t0||0; let best=null,bd=30*60*1000;
   for(const m of MATCHES){ const d=Math.abs((m.savedAt||0)-ts); if(d<bd){bd=d;best=m;} }
   return best;
