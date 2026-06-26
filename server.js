@@ -49,6 +49,8 @@ const seenSaveIds = {}; // pin -> Set(saveId)  voorkomt dubbele archivering bij 
 
 // --- BETA swing-log (privé diagnose) ---
 const BETA_KEY = process.env.BETA_KEY || 'rp-swing-9f3a2c';
+// Admin-overzicht: alle history van alle PIN's. Privé — zet ADMIN_KEY als env-var.
+const ADMIN_KEY = process.env.ADMIN_KEY || 'rp-admin-7b2e91c4';
 const BETA_LOG_FILE = path.join(DATA_DIR, 'beta-swing.jsonl');
 const betaLogs = {}; // pin -> [batch, ...]  (in geheugen, file als backup)
 
@@ -508,6 +510,47 @@ const server = http.createServer((req, res) => {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const parts = url.pathname.split('/').filter(Boolean);
+
+  // --- ADMIN: privé overzicht van alle history. Gated met ADMIN_KEY. ---
+  if (parts[0] === 'admin') {
+    // pagina zelf (key wordt client-side gevraagd en als query meegestuurd)
+    if (!parts[1] && req.method === 'GET') {
+      return fs.readFile(path.join(__dirname, 'public', 'admin.html'), (err, data) => {
+        if (err) { res.writeHead(404); return res.end('Niet gevonden'); }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+        res.end(data);
+      });
+    }
+    // API's: vereisen de juiste key
+    if (url.searchParams.get('key') !== ADMIN_KEY) { return sendJSON(res, 403, { error: 'forbidden' }); }
+
+    // GET /admin/overview -> alle PIN's met eigenaar + match-telling
+    if (parts[1] === 'overview' && req.method === 'GET') {
+      const rows = [];
+      for (const pin of Object.keys(history)) {
+        const list = Array.isArray(history[pin]) ? history[pin] : [];
+        if (!list.length) continue;
+        let owner = null;
+        try { const o = db.getPinOwner(pin); if (o) { const u = db.getUserById(o.user_id); if (u) owner = u.display_name || (u.email ? u.email.split('@')[0] : null); } } catch (e) {}
+        const last = list.reduce((m, x) => Math.max(m, x.savedAt || 0), 0);
+        const swings = list.reduce((s, x) => s + (x.totalSwings || 0), 0);
+        const mins = Math.round(list.reduce((s, x) => s + (x.durationMin || 0), 0));
+        rows.push({ pin, owner, matches: list.length, lastPlayed: last, totalSwings: swings, totalMin: mins });
+      }
+      rows.sort((a, b) => b.lastPlayed - a.lastPlayed);
+      return sendJSON(res, 200, { pins: rows.length, totalMatches: rows.reduce((s, r) => s + r.matches, 0), rows });
+    }
+
+    // GET /admin/history/:pin -> volledige history van die PIN
+    if (parts[1] === 'history' && parts[2] && req.method === 'GET') {
+      const pin = parts[2];
+      let owner = null;
+      try { const o = db.getPinOwner(pin); if (o) { const u = db.getUserById(o.user_id); if (u) owner = u.display_name || (u.email ? u.email.split('@')[0] : null); } } catch (e) {}
+      const list = (history[pin] || []).slice().reverse();
+      return sendJSON(res, 200, { pin, owner, matches: list });
+    }
+    return sendJSON(res, 404, { error: 'unknown admin route' });
+  }
 
   // --- TTS proxy: /tts/:lang/:text?voice=<id>&pin=<pin> — ElevenLabs + cache
   // Gated: client moet PIN meegeven die access heeft (trial/active).

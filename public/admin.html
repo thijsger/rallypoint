@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RallyPoint · Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070A08;--card:rgba(255,255,255,.045);--border:rgba(255,255,255,.10);--text:#F4F7F2;--muted:#8E978B;--lime:#A7F432;--blue:#4EA3FF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:26px clamp(14px,3vw,28px) 80px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:24px}
+.keybar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+input{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 14px;color:var(--text);font-size:14px;min-width:240px}
+input:focus{outline:none;border-color:var(--lime)}
+button{background:var(--lime);color:#0a0f08;border:none;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+button.ghost{background:var(--card);color:var(--text);border:1px solid var(--border);font-weight:600}
+.stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 20px;flex:1;min-width:140px}
+.stat .l{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+th,td{text-align:left;padding:13px 16px;font-size:14px;border-bottom:1px solid var(--border)}
+th{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer;transition:background .12s}
+tr.clickable:hover{background:rgba(255,255,255,.04)}
+.pin{font-weight:700;color:var(--lime);font-variant-numeric:tabular-nums}
+.owner{color:var(--text)} .noowner{color:var(--muted);font-style:italic}
+.num{font-variant-numeric:tabular-nums;color:var(--muted)}
+.back{display:inline-block;margin-bottom:16px;color:var(--muted);font-size:14px;cursor:pointer}
+.back:hover{color:var(--lime)}
+.msg{color:var(--muted);padding:30px 0}
+.err{color:#FF6B5A}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px 17px;margin-bottom:11px}
+.mhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.mscore{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.mdate{font-size:12.5px;color:var(--muted)}
+.mstats{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.mstats b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin · alle geschiedenis</h1>
+  <div class="sub">Privé overzicht van alle opgeslagen wedstrijden, alle PIN's. Niet delen.</div>
+  <div class="keybar" id="keybar">
+    <input id="key" type="password" placeholder="Admin-sleutel" autocomplete="off">
+    <button id="go">Laden</button>
+  </div>
+  <div id="content"><div class="msg">Voer de admin-sleutel in om te laden.</div></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+let KEY=localStorage.getItem('rp_admin_key')||'';
+if(KEY) $('#key').value=KEY;
+
+function fmtDate(ts){ try{return new Date(ts).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '?';} }
+function fmtNum(n){ return new Intl.NumberFormat('nl-NL').format(Math.round(n||0)); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadOverview(){
+  KEY=$('#key').value.trim(); if(!KEY){return;}
+  localStorage.setItem('rp_admin_key',KEY);
+  $('#content').innerHTML='<div class="msg">Laden…</div>';
+  try{
+    const r=await fetch(`/admin/overview?key=${encodeURIComponent(KEY)}`);
+    if(r.status===403){ $('#content').innerHTML='<div class="msg err">Verkeerde sleutel.</div>'; return; }
+    const d=await r.json();
+    if(!d.rows.length){ $('#content').innerHTML='<div class="msg">Nog geen opgeslagen wedstrijden.</div>'; return; }
+    $('#content').innerHTML=`
+      <div class="stat-row">
+        <div class="stat"><div class="l">PIN's</div><div class="v">${fmtNum(d.pins)}</div></div>
+        <div class="stat"><div class="l">Wedstrijden</div><div class="v">${fmtNum(d.totalMatches)}</div></div>
+      </div>
+      <table><thead><tr><th>PIN</th><th>Eigenaar</th><th>Wedstrijden</th><th>Slagen</th><th>Speeltijd</th><th>Laatst</th></tr></thead>
+      <tbody>${d.rows.map(x=>`<tr class="clickable" data-pin="${x.pin}">
+        <td class="pin">${esc(x.pin)}</td>
+        <td class="${x.owner?'owner':'noowner'}">${x.owner?esc(x.owner):'geen account'}</td>
+        <td class="num">${fmtNum(x.matches)}</td>
+        <td class="num">${fmtNum(x.totalSwings)}</td>
+        <td class="num">${fmtNum(x.totalMin)} min</td>
+        <td class="num">${fmtDate(x.lastPlayed)}</td></tr>`).join('')}</tbody></table>`;
+  }catch(e){ $('#content').innerHTML='<div class="msg err">Fout: '+esc(e.message)+'</div>'; }
+}
+
+async function loadPin(pin){
+  $('#content').innerHTML='<div class="msg">Laden…</div>';
+  try{
+    const r=await fetch(`/admin/history/${pin}?key=${encodeURIComponent(KEY)}`);
+    const d=await r.json();
+    const head=`<div class="back" id="back">← Terug naar overzicht</div>
+      <h1 style="font-size:21px;margin-bottom:2px">PIN ${esc(pin)} ${d.owner?'· '+esc(d.owner):''}</h1>
+      <div class="sub">${d.matches.length} wedstrijd${d.matches.length===1?'':'en'}</div>`;
+    const cards=d.matches.map(m=>{
+      const us=(m.sets&&m.sets[0])||0, them=(m.sets&&m.sets[1])||0;
+      const sh=Array.isArray(m.setHistory)?m.setHistory.map(s=>s[0]+'-'+s[1]).join('  '):'';
+      return `<div class="mcard">
+        <div class="mhead"><div class="mscore">${esc(m.teamUs||'Wij')} ${us}–${them} ${esc(m.teamThem||'Zij')}</div><div class="mdate">${fmtDate(m.savedAt)}</div></div>
+        ${sh?`<div class="mdate" style="margin-bottom:8px">${sh}</div>`:''}
+        <div class="mstats">
+          <span><b>${fmtNum(m.totalPoints||0)}</b> punten</span>
+          <span><b>${Math.round(m.durationMin||0)}</b> min</span>
+          ${m.totalSwings?`<span><b>${fmtNum(m.totalSwings)}</b> slagen</span>`:''}
+          <span>${['padel','tennis','pickleball','tafeltennis','badminton','squash'][m.sport]||'?'}</span>
+        </div></div>`;
+    }).join('');
+    $('#content').innerHTML=head+cards;
+    $('#back').onclick=loadOverview;
+  }catch(e){ $('#content').innerHTML='<div class="msg err">Fout: '+esc(e.message)+'</div>'; }
+}
+
+$('#go').onclick=loadOverview;
+$('#key').addEventListener('keydown',e=>{if(e.key==='Enter')loadOverview();});
+document.addEventListener('click',e=>{const tr=e.target.closest('tr.clickable');if(tr)loadPin(tr.dataset.pin);});
+if(KEY) loadOverview();
+</script>
+</body>
+</html>
