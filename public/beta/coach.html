@@ -172,6 +172,29 @@ canvas{display:block;width:100%}
 .chart-note{font-size:12px;color:var(--subtle);margin-top:12px;line-height:1.5}
 .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:12px}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+/* ---- match tab components ---- */
+.dscore{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;padding:6px 0}
+.dscore .team{font-size:18px;font-weight:700;flex:1;text-align:center;min-width:80px}
+.dscore .sets{font-size:clamp(34px,7vw,46px);font-weight:800;letter-spacing:-.02em}
+.dscore .sets .sep{color:var(--muted);margin:0 8px;font-weight:700}
+.win-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#0a1400;background:var(--lime);padding:4px 11px;border-radius:999px}
+.pwbar{display:flex;height:38px;border-radius:11px;overflow:hidden;font-size:13.5px;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.pwbar .us{background:linear-gradient(180deg,#b6ff45,#8fd400);color:#0a1400;display:flex;align-items:center;padding:0 13px}
+.pwbar .them{background:linear-gradient(180deg,#ff7a6a,#e8513f);color:#2a0a08;display:flex;align-items:center;justify-content:flex-end;padding:0 13px}
+.setline{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border-soft)}
+.setline:last-child{border-bottom:none}
+.setline .sn{font-size:12px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0}
+.setline .sn b{display:block;color:var(--text);font-size:15px;letter-spacing:-.01em}
+.setline .sbar{flex:1;display:flex;height:24px;border-radius:8px;overflow:hidden;font-size:11.5px;font-weight:700}
+.setline .sbar .u{background:rgba(167,244,50,.85);color:#0a1400;display:flex;align-items:center;padding:0 8px}
+.setline .sbar .t{background:rgba(255,107,90,.85);color:#2a0a08;display:flex;align-items:center;justify-content:flex-end;padding:0 8px}
+.setline .sp{font-size:12.5px;color:var(--muted);width:96px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+.cmp2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp-side{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px 17px}
+.cmp-side .ch{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
+.cmp-side .cr{display:flex;justify-content:space-between;align-items:center;font-size:14.5px;padding:5px 0}
+.cmp-side .cr b{font-weight:800;font-size:17px;letter-spacing:-.01em}
+@media(max-width:560px){.cmp2{grid-template-columns:1fr}.setline .sn{width:60px}.setline .sp{width:74px}}
 #tip-pop{position:fixed;pointer-events:none;z-index:50;background:#0d1410;border:1px solid var(--border);
   border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);
   opacity:0;transition:opacity .12s;white-space:nowrap}
@@ -259,6 +282,7 @@ canvas{display:block;width:100%}
     </div>
     <div class="top-right">
       <span class="exp" id="expBadge" style="display:none"><span class="dot"></span>Experimentele analyse</span>
+      <a class="ghost-btn" id="backBtn" href="#">← Terug</a>
       <button class="ghost-btn" id="refreshBtn">Ververs</button>
     </div>
   </div>
@@ -540,8 +564,11 @@ function renderAll(list, sel){
   renderSession(list[sel]);
 }
 
+let _tabInit=false;
 function renderSession(S){
   const isLive=!!S._live;
+  // Eerste keer: open direct de Wedstrijd-tab als er een gekoppelde wedstrijd is.
+  if(!_tabInit){ _tabInit=true; if(matchFor(S)) ACTIVE_TAB='match'; }
   document.getElementById('meta').textContent=(isLive?'Live · ':'')+`${formatDate(S.savedTs||S.t0)} · ${formatMinutes(S.durationMin)} min · ${formatNumber(S.totalSwings)} slagen`;
   const I=insights(S), A=careerAvg(), TIPS=coachTips(S,I,A);
   S.__I=I; S.__A=A; S.__TIPS=TIPS;
@@ -763,18 +790,19 @@ function tabMatch(S){
   // per set
   const setRows=Array.isArray(m.setStats)?m.setStats.map((s,i)=>{
     const u=s.pointsUs||0,th=s.pointsThem||0,tt=Math.max(1,u+th),up=Math.round(100*u/tt);
-    return `<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Set ${i+1} · ${s.gamesUs}-${s.gamesThem}</span><span>${u}-${th} punten</span></div>
-      <div class="pwbar" style="height:20px"><div class="us" style="flex:${u||0.001};font-size:11px">${up}%</div><div class="them" style="flex:${th||0.001};font-size:11px">${100-up}%</div></div></div>`;
+    return `<div class="setline"><div class="sn">Set ${i+1}<b>${s.gamesUs}–${s.gamesThem}</b></div>
+      <div class="sbar"><span class="u" style="flex:${u||0.001}">${up}%</span><span class="t" style="flex:${th||0.001}">${100-up}%</span></div>
+      <div class="sp">${u}–${th} punten</div></div>`;
   }).join(''):'';
   return `<div class="grid">
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">${svg('trophy',15)}</span>Uitslag</div>
-      <div class="dscore" style="margin:4px 0">
-        <div class="team us ${usWin?'winner':''}" style="font-size:18px;font-weight:700;flex:1;text-align:center;color:${usWin?'var(--text)':'var(--muted)'}">${esc(teamUs)}</div>
-        <div class="sets" style="font-size:40px;font-weight:800">${m.sets[0]}<span style="color:var(--muted);margin:0 6px">–</span>${m.sets[1]}</div>
-        <div class="team them ${themWin?'winner':''}" style="font-size:18px;font-weight:700;flex:1;text-align:center;color:${themWin?'var(--text)':'var(--muted)'}">${esc(teamThem)}</div>
+      <div class="ctitle"><span class="ci">${svg('trophy',15)}</span>Uitslag${realWin?`<span class="win-pill" style="margin-left:auto">${svg('check',12)} ${esc(usWin?teamUs:teamThem)} wint</span>`:''}</div>
+      <div class="dscore">
+        <div class="team" style="color:${usWin?'var(--text)':'var(--muted)'}">${esc(teamUs)}</div>
+        <div class="sets">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
+        <div class="team" style="color:${themWin?'var(--text)':'var(--muted)'}">${esc(teamThem)}</div>
       </div>
-      ${sh?`<div style="text-align:center;color:var(--muted);font-size:13.5px;margin-top:4px">${sh}</div>`:''}
+      ${sh?`<div style="text-align:center;color:var(--muted);font-size:13.5px;margin-top:6px;letter-spacing:.04em">${sh}</div>`:''}
     </div>
     ${hasFlow?`<div class="card span2 fade-up">
       <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Wedstrijdverloop</div>
@@ -993,6 +1021,14 @@ function rrect(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
 /* ---------- interactions ---------- */
+// Terug-knop: ga terug in de history als we van dezelfde site kwamen, anders
+// naar de wedstrijdhistorie van deze PIN.
+(function(){ const b=document.getElementById('backBtn'); if(!b)return;
+  b.href = PIN ? ('/history/'+PIN) : '/history';
+  b.addEventListener('click', ev=>{
+    if(document.referrer && document.referrer.indexOf(location.origin)===0){ ev.preventDefault(); history.back(); }
+  });
+})();
 document.addEventListener('click', async e=>{
   const chip=e.target.closest('.chip');
   if(chip){ renderAll(SESSIONS_VIEW, +chip.dataset.i); return; }
