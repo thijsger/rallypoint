@@ -134,7 +134,8 @@ small{font-size:.62em;color:var(--muted);font-weight:600}
 .brow{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px}
 .brow .bl{font-size:13.5px;color:var(--text);font-weight:500}
 .brow .bt{height:9px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
-.brow .bf{height:100%;border-radius:6px;width:0;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.brow .bf{height:100%;border-radius:6px;width:var(--fw,0);animation:grow .8s cubic-bezier(.22,1,.36,1)}
+@keyframes grow{from{width:0}}
 .brow .bv{font-size:13px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;text-align:right;min-width:58px}
 
 /* coach tip cards */
@@ -203,12 +204,12 @@ canvas{display:block;width:100%}
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <div class="logo">🎾</div>
+      <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0a0f08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="9.5" r="6"/><path d="M13.8 13.8 19 19"/></svg></div>
       <div><h1>AI Coach</h1><div class="sub" id="meta">analyseren…</div></div>
     </div>
     <div class="top-right">
       <span class="exp" id="expBadge" style="display:none"><span class="dot"></span>Experimentele analyse</span>
-      <button class="ghost-btn" id="refreshBtn">↻ Ververs</button>
+      <button class="ghost-btn" id="refreshBtn">Ververs</button>
     </div>
   </div>
   <div id="err"></div>
@@ -228,6 +229,32 @@ const ORDER=['forehand','backhand','volley_forehand','volley_backhand','service'
 const NICE={forehand:'Forehand',backhand:'Backhand',volley_forehand:'Volley FH',volley_backhand:'Volley BH',service:'Service',smash:'Smash',lob:'Lob'};
 const FH_SIDE={forehand:1,volley_forehand:1}, BH_SIDE={backhand:1,volley_backhand:1};
 function lbl(k){ return (MODEL && MODEL.classes[k] && MODEL.classes[k].label) || NICE[k] || k; }
+
+/* ---------- icon system (clean line SVG, inherits currentColor) ---------- */
+const ICONS={
+  racket:'<circle cx="9.5" cy="9.5" r="6"/><path d="M13.8 13.8 19 19"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>',
+  bolt:'<path d="M13 3 6 13h5l-1 8 8-11h-5z"/>',
+  flame:'<path d="M12 3c3 3 4.2 5.2 4.2 8.2a4.2 4.2 0 0 1-8.4 0c0-1.2.5-2.2 1.1-2.9C10 10 11 8 12 3Z"/>',
+  target:'<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/>',
+  net:'<rect x="3.5" y="6.5" width="17" height="11" rx="1.5"/><path d="M9 6.5v11M15 6.5v11M3.5 12h17"/>',
+  trophy:'<path d="M7 4h10v4.5a5 5 0 0 1-10 0Z"/><path d="M12 13.5V17M8.5 20.5h7M10 20.5v-2h4v2"/><path d="M7 6H4.2v1a3 3 0 0 0 3 3M17 6h2.8v1a3 3 0 0 1-3 3"/>',
+  chartUp:'<path d="M4 18 10 12l3 3 7-8"/><path d="M16 7h4v4"/>',
+  bars:'<path d="M5.5 20V11M12 20V5M18.5 20v-6"/>',
+  scales:'<path d="M12 4v16M6.5 8.5h11M6.5 8.5 4 14.5h5zM17.5 8.5 15 14.5h5z"/>',
+  battery:'<rect x="3.5" y="8.5" width="14" height="7" rx="2"/><path d="M20.5 11.2v2.6"/>',
+  arrows:'<path d="M8 8.5 4.5 12 8 15.5M16 8.5 19.5 12 16 15.5M4.5 12h15"/>',
+  check:'<path d="M5 12.5l4.2 4L19 6.5"/>',
+  medal:'<circle cx="12" cy="14.5" r="5"/><path d="M9 4.2l2.2 5.4M15 4.2l-2.2 5.4"/>',
+  gauge:'<path d="M4.5 18a7.5 7.5 0 1 1 15 0"/><path d="M12 18l4-4.5"/>',
+  inbox:'<path d="M4 13.5 6 6h12l2 7.5V18H4z"/><path d="M4 13.5h5l1 2h4l1-2h5"/>',
+  bulb:'<path d="M9.5 18.5h5M10.5 21h3"/><path d="M12 3a5.8 5.8 0 0 0-3.8 10.2c.7.7 1 1.3 1.1 2.3h5.4c.1-1 .4-1.6 1.1-2.3A5.8 5.8 0 0 0 12 3Z"/>',
+  star:'<path d="M12 4l2.3 4.7 5.2.7-3.8 3.7.9 5.2L12 15.9 7.4 18.3l.9-5.2L4.5 9.4l5.2-.7z"/>',
+  power:'<path d="M14 3 5 14h5l-1 7 9-12h-5z"/>',
+  wrench:'<path d="M15 5a4 4 0 0 0-5.4 5.1L4 15.7 6.3 18l5.6-5.6A4 4 0 0 0 17 7l-2.4 2.4-2-2L15 5Z"/>'
+};
+function svg(name,size){ const p=ICONS[name]||ICONS.target; size=size||18;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`; }
 
 /* ---------- formatting helpers (never show raw floats) ---------- */
 const NF=new Intl.NumberFormat('nl-NL');
@@ -256,7 +283,7 @@ function comingSoon(){
   document.getElementById('meta').textContent='binnenkort beschikbaar';
   document.getElementById('root').innerHTML=
     `<div class="card span2" style="text-align:center;padding:54px 22px">
-       <div style="font-size:2.4rem;margin-bottom:14px">🚧</div>
+       <div style="margin-bottom:14px;color:var(--orange)">${svg('wrench',34)}</div>
        <div style="font-weight:700;font-size:1.2rem;margin-bottom:8px">Binnenkort beschikbaar</div>
        <div class="muted" style="max-width:420px;margin:0 auto">De AI-coach analyseert je slagen en geeft persoonlijke tips na elk potje.</div>
      </div>`;
@@ -287,7 +314,7 @@ async function load(){
     if(LIVE && LIVE.totalSwings>=8 && !liveSaved && !wantT0){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
     else if(SESSIONS.length){ renderAll(SESSIONS, preIdx); }
     else if(LIVE && LIVE.totalSwings>=8){ renderAll([LIVE],0); }
-    else { document.getElementById('root').innerHTML='<div class="card span2 empty"><div class="ei">🎾</div>Nog geen wedstrijd. Speel een potje met de app actief.</div>'; document.getElementById('expBadge').style.display='none'; }
+    else { document.getElementById('root').innerHTML=`<div class="card span2 empty"><div class="ei">${svg('racket',34)}</div>Nog geen wedstrijd. Speel een potje met de app actief.</div>`; document.getElementById('expBadge').style.display='none'; }
   }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
 }
 
@@ -346,15 +373,15 @@ function careerAvg(){
 function heroBadges(S,I){
   const b=[];
   if(I.ground>0){
-    if(I.fhp>=60) b.push(['🟢','Forehand-dominant']);
-    else if(I.fhp<=40) b.push(['🔵','Backhand-sterk']);
-    else b.push(['⚖️','Gebalanceerd']);
+    if(I.fhp>=60) b.push(['arrows','Forehand-dominant']);
+    else if(I.fhp<=40) b.push(['arrows','Backhand-sterk']);
+    else b.push(['scales','Gebalanceerd']);
   }
-  if(Math.abs(S.fatiguePct)<8) b.push(['🔋','Stabiele kracht']);
-  else if(S.fatiguePct<=-12) b.push(['📉','Kracht zakt']);
-  else if(S.fatiguePct>=8) b.push(['📈','Eindigt sterk']);
-  if(I.fhp>=62 && I.ground>0) b.push(['🎯','Focus: backhand']);
-  else if(I.net<7) b.push(['🥅','Focus: netspel']);
+  if(Math.abs(S.fatiguePct)<8) b.push(['battery','Stabiele kracht']);
+  else if(S.fatiguePct<=-12) b.push(['battery','Kracht zakt']);
+  else if(S.fatiguePct>=8) b.push(['chartUp','Eindigt sterk']);
+  if(I.fhp>=62 && I.ground>0) b.push(['target','Focus: backhand']);
+  else if(I.net<7) b.push(['net','Focus: netspel']);
   return b.slice(0,3);
 }
 function heroSummary(S,I){
@@ -375,48 +402,48 @@ function coachTips(S,I,A){
   const t=[]; const C=S.cls;
   // backhand volume
   if(I.fhp>=62 && I.ground>0)
-    t.push({prio:'high',icon:'↔️',color:'var(--blue)',title:'Backhand heeft volume nodig',
+    t.push({prio:'high',icon:'arrows',color:'var(--blue)',title:'Backhand heeft volume nodig',
       insight:`Slechts ${formatPercent(100-I.fhp)}% van je slagen kwam van je backhand-kant.`,
       action:'Drill: 3 × 8 min cross-court backhands vóór je gaat spelen.'});
   else if(I.fhp<=38 && I.ground>0)
-    t.push({prio:'med',icon:'↔️',color:'var(--lime)',title:'Benut je forehand',
+    t.push({prio:'med',icon:'arrows',color:'var(--lime)',title:'Benut je forehand',
       insight:`Je leunde sterk op je backhand (${formatPercent(100-I.fhp)}%).`,
       action:'Loop om de bal heen en sla meer forehands — vaak je hardste slag.'});
   // backhand power
   if(S.powByCls.backhand&&S.powByCls.forehand&&S.powByCls.backhand<S.powByCls.forehand*0.8)
-    t.push({prio:'med',icon:'💪',color:'var(--orange)',title:'Backhand-kracht omhoog',
+    t.push({prio:'med',icon:'power',color:'var(--orange)',title:'Backhand-kracht omhoog',
       insight:`Je backhand komt ~${formatPercent(100-100*S.powByCls.backhand/S.powByCls.forehand)}% zachter uit dan je forehand.`,
       action:'Train rotatie en gewichtsoverdracht: 2 × 10 backhands met volledige uitzwaai.'});
   // net play
   if(I.net>=18)
-    t.push({prio:'low',icon:'🥅',color:'var(--lime)',title:'Sterk aan het net',
+    t.push({prio:'low',icon:'net',color:'var(--lime)',title:'Sterk aan het net',
       insight:`${formatPercent(I.net)}% van je slagen waren volleys — agressief spel.`,
       action:'Blijf naar voren spelen; sluit punten af bij het net.'});
   else if(I.net<7 && I.ground>0)
-    t.push({prio:'med',icon:'🥅',color:'var(--blue)',title:'Vaker naar het net',
+    t.push({prio:'med',icon:'net',color:'var(--blue)',title:'Vaker naar het net',
       insight:`Weinig volleys (${formatPercent(I.net)}%). Veel punten win je juist aan het net.`,
       action:'Drill: na elke diepe bal direct doorlopen en afronden met een volley.'});
   // smash weapon
   if((C.smash||0)>0 && (S.powByCls.smash||0)>=S.powAvg)
-    t.push({prio:'med',icon:'⚡',color:'var(--red)',title:'Smash is een wapen',
+    t.push({prio:'med',icon:'bolt',color:'var(--red)',title:'Smash is een wapen',
       insight:`Je smash-kracht is een van je sterkste categorieën (${formatPower(S.powByCls.smash||S.powPeak)}).`,
       action:'Stap in na elke hoge bal en maak bovenlangs af.'});
   // condition
   if(S.fatiguePct<=-12)
-    t.push({prio:'high',icon:'🔋',color:'var(--red)',title:'Conditie laat los',
+    t.push({prio:'high',icon:'battery',color:'var(--red)',title:'Conditie laat los',
       insight:`Je kracht zakte ${formatPercent(Math.abs(S.fatiguePct))}% in de tweede helft.`,
       action:'Bouw uithoudingsvermogen: intervaltraining of langere oefenpotjes.'});
   else if(S.fatiguePct>=8)
-    t.push({prio:'low',icon:'📈',color:'var(--lime)',title:'Je eindigt sterk',
+    t.push({prio:'low',icon:'chartUp',color:'var(--lime)',title:'Je eindigt sterk',
       insight:`Je kracht steeg ${formatPercent(S.fatiguePct)}% naar het eind — top conditie.`,
       action:'Houd dit vast; je bent gevaarlijk in lange potjes.'});
   // balance positive
   if(I.fhp>40&&I.fhp<60&&I.ground>0)
-    t.push({prio:'low',icon:'⚖️',color:'var(--lime)',title:'Goede FH/BH-balans',
+    t.push({prio:'low',icon:'scales',color:'var(--lime)',title:'Goede FH/BH-balans',
       insight:'Forehand en backhand in evenwicht — lastig te bespelen.',
       action:'Houd deze balans en varieer je richting om druk te zetten.'});
   if(!t.length)
-    t.push({prio:'low',icon:'✅',color:'var(--lime)',title:'Sterke sessie',
+    t.push({prio:'low',icon:'check',color:'var(--lime)',title:'Sterke sessie',
       insight:'Geen duidelijke zwakke plekken in deze data.',
       action:'Blijf gevarieerd spelen en houd je tempo hoog.'});
   const rank={high:0,med:1,low:2};
@@ -442,9 +469,9 @@ function renderSession(S){
   S.__I=I; S.__A=A; S.__TIPS=TIPS;
 
   const badges=heroBadges(S,I);
-  const metric=(icon,bg,val,label,trend)=>`
+  const metric=(icon,col,val,label,trend)=>`
     <div class="card metric fade-up">
-      <div class="mhead"><div class="label">${label}</div><div class="mi" style="background:${bg}">${icon}</div></div>
+      <div class="mhead"><div class="label">${label}</div><div class="mi" style="background:${hexA(col,.14)};color:${col}">${icon}</div></div>
       <div class="mv">${val}</div><div class="mt">${trend||''}</div>
     </div>`;
 
@@ -456,21 +483,21 @@ function renderSession(S){
     <div class="card hero fade-up">
       <div class="label">Sessie-inzicht</div>
       <div class="summary">${heroSummary(S,I)}</div>
-      <div class="hbadges">${badges.map(([ic,t])=>`<span class="hbadge"><span class="bi">${ic}</span>${t}</span>`).join('')}</div>
-      <div class="next"><div class="ni">🎯</div><div><div class="nl">Volgende drill</div><div class="nt">${nextDrill(TIPS)}</div></div></div>
+      <div class="hbadges">${badges.map(([ic,t])=>`<span class="hbadge"><span class="bi">${svg(ic,15)}</span>${t}</span>`).join('')}</div>
+      <div class="next"><div class="ni" style="color:var(--lime)">${svg('target',19)}</div><div><div class="nl">Volgende drill</div><div class="nt">${nextDrill(TIPS)}</div></div></div>
     </div>
 
     <div class="metrics">
-      ${metric('🎾','rgba(167,244,50,.14)',formatNumber(S.totalSwings),'Slagen', A?cmp(S.totalSwings,A.sw,'vs gem. potje'):'')}
-      ${metric('⏱️','rgba(78,163,255,.14)',`${formatMinutes(S.durationMin)}<small>min</small>`,'Duur','speeltijd deze sessie')}
-      ${metric('⚡','rgba(255,184,77,.14)',`${formatRate(S.swPerMin)}<small>/min</small>`,'Tempo','slagen per minuut')}
-      ${metric('💥','rgba(255,107,90,.14)',formatPower(S.powPeak),'Hardste slag','piek-slagkracht')}
+      ${metric(svg('racket'),'var(--lime)',formatNumber(S.totalSwings),'Slagen', A?cmp(S.totalSwings,A.sw,'vs gem. potje'):'')}
+      ${metric(svg('clock'),'var(--blue)',`${formatMinutes(S.durationMin)}<small>min</small>`,'Duur','speeltijd deze sessie')}
+      ${metric(svg('bolt'),'var(--orange)',`${formatRate(S.swPerMin)}<small>/min</small>`,'Tempo','slagen per minuut')}
+      ${metric(svg('flame'),'var(--red)',formatPower(S.powPeak),'Hardste slag','piek-slagkracht')}
     </div>
 
     <div class="tabs">${tabs.map(t=>`<div class="tab ${t===ACTIVE_TAB?'active':''}" data-tab="${t}">${tabNames[t]}</div>`).join('')}</div>
     <div id="tabpanel"></div>
 
-    ${isLive?'<div style="margin-top:18px"><button class="ghost-btn" id="saveBtn">💾 Bewaar deze sessie</button></div>':''}
+    ${isLive?'<div style="margin-top:18px"><button class="ghost-btn" id="saveBtn">Bewaar deze sessie</button></div>':''}
   `;
   renderTab(S);
 }
@@ -487,7 +514,6 @@ function renderTab(S){
   else if(ACTIVE_TAB==='career') p.innerHTML=tabCareer();
   // post-render: animate bars + draw charts
   requestAnimationFrame(()=>{
-    p.querySelectorAll('.bf[data-w]').forEach(el=>el.style.width=el.dataset.w);
     if(ACTIVE_TAB==='overview'){ drawDonut(S,I); drawProgress('ovProgress',S); }
     if(ACTIVE_TAB==='power'){ drawProgress('pwProgress',S,'power'); }
     if(ACTIVE_TAB==='condition'){ drawProgress('cdProgress',S); }
@@ -503,7 +529,7 @@ function strokeBars(S,I,mode){ // mode: 'count' | 'power'
     const v=mode==='power'?(S.powByCls[k]||0):(C[k]||0);
     const w=Math.round(100*v/maxv);
     const val=mode==='power'?formatPower(v):`${formatNumber(v)} · ${formatPercent(pct(C[k],N))}%`;
-    return `<div class="brow"><span class="bl">${lbl(k)}</span><span class="bt"><span class="bf" data-w="${w}%" style="background:${COL[k]}"></span></span><span class="bv">${val}</span></div>`;
+    return `<div class="brow"><span class="bl">${lbl(k)}</span><span class="bt"><span class="bf" style="--fw:${w}%;background:${COL[k]}"></span></span><span class="bv">${val}</span></div>`;
   }).join('');
 }
 
@@ -512,7 +538,7 @@ function tabOverview(S,I,TIPS){
   const best=I.segs.length>1?I.tr(I.bi):formatMinutes(S.durationMin)+' min';
   return `<div class="grid">
     <div class="card fade-up">
-      <div class="ctitle"><span class="ci">🎯</span>Slagmix</div>
+      <div class="ctitle"><span class="ci">${svg('target',15)}</span>Slagmix</div>
       <div class="donut-wrap">
         <div class="donut"><canvas id="donutC" width="296" height="296"></canvas>
           <div class="center"><div class="dv">${formatNumber(S.totalSwings)}</div><div class="dl">slagen</div></div></div>
@@ -520,29 +546,29 @@ function tabOverview(S,I,TIPS){
       </div>
     </div>
     <div class="card fade-up">
-      <div class="ctitle"><span class="ci">⭐</span>Hoogtepunten</div>
+      <div class="ctitle"><span class="ci">${svg('star',15)}</span>Hoogtepunten</div>
       <div class="hls">
-        <div class="hlrow"><span class="hi">🔥</span><div><div class="hv">${best}</div><div class="hl2">drukste periode · ${formatNumber(I.segs[I.bi]?I.segs[I.bi].swings:I.N)} slagen</div></div></div>
-        <div class="hlrow"><span class="hi">💥</span><div><div class="hv">${formatPower(S.powPeak)}</div><div class="hl2">hardste slag (piek-kracht)</div></div></div>
-        <div class="hlrow"><span class="hi">⚙️</span><div><div class="hv">${formatNumber(I.peakRate)}/min</div><div class="hl2">piek-werkdruk</div></div></div>
-        <div class="hlrow"><span class="hi">💪</span><div><div class="hv">${formatPower(I.sp>0?I.sp:S.powAvg)}</div><div class="hl2">sterkste periode${I.segs.length>1?' · '+I.tr(I.si):''}</div></div></div>
+        <div class="hlrow"><span class="hi">${svg('flame',18)}</span><div><div class="hv">${best}</div><div class="hl2">drukste periode · ${formatNumber(I.segs[I.bi]?I.segs[I.bi].swings:I.N)} slagen</div></div></div>
+        <div class="hlrow"><span class="hi">${svg('flame',18)}</span><div><div class="hv">${formatPower(S.powPeak)}</div><div class="hl2">hardste slag (piek-kracht)</div></div></div>
+        <div class="hlrow"><span class="hi">${svg('gauge',18)}</span><div><div class="hv">${formatNumber(I.peakRate)}/min</div><div class="hl2">piek-werkdruk</div></div></div>
+        <div class="hlrow"><span class="hi">${svg('power',18)}</span><div><div class="hv">${formatPower(I.sp>0?I.sp:S.powAvg)}</div><div class="hl2">sterkste periode${I.segs.length>1?' · '+I.tr(I.si):''}</div></div></div>
       </div>
     </div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">📈</span>Verloop over de sessie</div>
+      <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Verloop over de sessie</div>
       <canvas id="ovProgress" height="240"></canvas>
       <div class="legend"><span><i style="background:var(--lime)"></i>slagen per periode</span><span><i style="background:var(--orange)"></i>gem. slagkracht</span></div>
       <div class="chart-note">De wedstrijd in stukjes (links = begin, rechts = eind). Zakt de oranje lijn naar rechts? Dan neemt je slagkracht af.</div>
     </div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">🧠</span>Coach-focus</div>
+      <div class="ctitle"><span class="ci">${svg('bulb',15)}</span>Coach-focus</div>
       <div class="tips">${top3.map(tipCard).join('')}</div>
     </div>
   </div>`;
 }
 function tipCard(t){
   return `<div class="tip">
-    <div class="ti" style="background:${hexA(t.color,.14)};color:${t.color}">${t.icon}</div>
+    <div class="ti" style="background:${hexA(t.color,.14)};color:${t.color}">${svg(t.icon,20)}</div>
     <div style="flex:1;min-width:0">
       <div class="tt">${t.title}<span class="prio ${t.prio}">${t.prio==='high'?'Hoog':t.prio==='med'?'Middel':'Laag'}</span></div>
       <div class="tin">${t.insight}</div>
@@ -559,11 +585,11 @@ function tabStrokes(S,I){
   const strong=I.strongK,weak=I.weakK;
   return `<div class="grid">
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">📊</span>Slagverdeling</div>
+      <div class="ctitle"><span class="ci">${svg('bars',15)}</span>Slagverdeling</div>
       <div class="barlist">${strokeBars(S,I,'count')}</div>
     </div>
     <div class="card fade-up">
-      <div class="ctitle"><span class="ci">⚖️</span>Forehand / backhand-balans</div>
+      <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Forehand / backhand-balans</div>
       <div class="brow" style="grid-template-columns:1fr;margin-bottom:10px">
         <div class="bt" style="height:14px;display:flex"><span style="background:${COL.forehand};width:${I.fhp}%"></span><span style="background:${COL.backhand};flex:1"></span></div>
       </div>
@@ -574,14 +600,14 @@ function tabStrokes(S,I){
       <div class="chart-note">${formatNumber(I.fh)} forehands tegen ${formatNumber(I.bh)} backhands aan de baseline.</div>
     </div>
     <div class="card fade-up">
-      <div class="ctitle"><span class="ci">🏅</span>Sterkste & zwakste slag</div>
+      <div class="ctitle"><span class="ci">${svg('medal',15)}</span>Sterkste &amp; zwakste slag</div>
       <div class="sgrid" style="grid-template-columns:1fr 1fr">
         <div class="scard"><div class="sl">Sterkste</div><div class="sv" style="color:${strong?COL[strong]:'var(--text)'};font-size:20px">${strong?lbl(strong):'–'}</div><div class="ss">${strong?formatPower(S.powByCls[strong])+' kracht':''}</div></div>
         <div class="scard"><div class="sl">Zwakste</div><div class="sv" style="font-size:20px">${weak?lbl(weak):'–'}</div><div class="ss">${weak?formatPower(S.powByCls[weak])+' kracht':''}</div></div>
       </div>
     </div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">💪</span>Gemiddelde slagkracht per type</div>
+      <div class="ctitle"><span class="ci">${svg('power',15)}</span>Gemiddelde slagkracht per type</div>
       <div class="barlist">${strokeBars(S,I,'power')}</div>
       <div class="chart-note">Kracht = piek-zwaaiversnelling. Vergelijk je eigen slagen onderling, niet met anderen.</div>
     </div>
@@ -590,14 +616,14 @@ function tabStrokes(S,I){
 
 function tabPower(S,I){
   return `<div class="grid">
-    <div class="card fade-up"><div class="ctitle"><span class="ci">💪</span>Gem. slagkracht</div><div class="metric" style="padding:0"><div class="mv">${formatPower(S.powAvg)}</div><div class="mt">over alle ${formatNumber(S.totalSwings)} slagen</div></div></div>
-    <div class="card fade-up"><div class="ctitle"><span class="ci">💥</span>Hardste slag</div><div class="metric" style="padding:0"><div class="mv" style="color:var(--red)">${formatPower(S.powPeak)}</div><div class="mt">piek deze sessie</div></div></div>
+    <div class="card fade-up"><div class="ctitle"><span class="ci">${svg('power',15)}</span>Gem. slagkracht</div><div class="metric" style="padding:0"><div class="mv">${formatPower(S.powAvg)}</div><div class="mt">over alle ${formatNumber(S.totalSwings)} slagen</div></div></div>
+    <div class="card fade-up"><div class="ctitle"><span class="ci">${svg('flame',15)}</span>Hardste slag</div><div class="metric" style="padding:0"><div class="mv" style="color:var(--red)">${formatPower(S.powPeak)}</div><div class="mt">piek deze sessie</div></div></div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">📊</span>Kracht per slagtype</div>
+      <div class="ctitle"><span class="ci">${svg('bars',15)}</span>Kracht per slagtype</div>
       <div class="barlist">${strokeBars(S,I,'power')}</div>
     </div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">📈</span>Kracht over tijd</div>
+      <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Kracht over tijd</div>
       <canvas id="pwProgress" height="240"></canvas>
       <div class="legend"><span><i style="background:var(--orange)"></i>gem. slagkracht per periode</span></div>
       <div class="chart-note">Een dalende lijn naar rechts betekent dat je slagen zachter werden — meestal vermoeidheid.</div>
@@ -609,14 +635,14 @@ function tabCondition(S,I){
   const fc=S.fatiguePct, col=fc<=-12?'var(--red)':fc>=8?'var(--lime)':'var(--text)';
   const verdict=fc<=-12?'Je kracht liet los in de tweede helft.':fc>=8?'Je werd sterker naar het eind — sterke conditie.':'Je kracht bleef stabiel — goede conditie.';
   return `<div class="grid">
-    <div class="card fade-up"><div class="ctitle"><span class="ci">🔋</span>Verval</div>
+    <div class="card fade-up"><div class="ctitle"><span class="ci">${svg('battery',15)}</span>Verval</div>
       <div class="metric" style="padding:0"><div class="mv" style="color:${col}">${fc>0?'+':''}${formatPercent(fc)}<small>%</small></div>
       <div class="mt">${verdict}</div></div></div>
-    <div class="card fade-up"><div class="ctitle"><span class="ci">⚡</span>Piek-werkdruk</div>
+    <div class="card fade-up"><div class="ctitle"><span class="ci">${svg('bolt',15)}</span>Piek-werkdruk</div>
       <div class="metric" style="padding:0"><div class="mv">${formatNumber(I.peakRate)}<small>/min</small></div>
       <div class="mt">drukste periode${I.segs.length>1?' · '+I.tr(I.bi):''}</div></div></div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">⚖️</span>Eerste helft vs tweede helft</div>
+      <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Eerste helft vs tweede helft</div>
       <div class="compare">
         <div class="cside"><div class="ch">Eerste helft</div>
           <div class="crow"><span class="muted">Slagen</span><b>${formatNumber(I.fAct)}</b></div>
@@ -627,7 +653,7 @@ function tabCondition(S,I){
       </div>
     </div>
     <div class="card span2 fade-up">
-      <div class="ctitle"><span class="ci">📈</span>Tempo & kracht over tijd</div>
+      <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Tempo & kracht over tijd</div>
       <canvas id="cdProgress" height="240"></canvas>
       <div class="legend"><span><i style="background:var(--lime)"></i>slagen per periode</span><span><i style="background:var(--orange)"></i>gem. slagkracht</span></div>
     </div>
@@ -636,7 +662,7 @@ function tabCondition(S,I){
 
 function tabCareer(){
   const saved=SESSIONS;
-  if(!saved.length) return `<div class="card span2 empty"><div class="ei">📭</div>Nog geen opgeslagen potjes.</div>`;
+  if(!saved.length) return `<div class="card span2 empty"><div class="ei">${svg('inbox',34)}</div>Nog geen opgeslagen potjes.</div>`;
   const totalSw=saved.reduce((s,x)=>s+x.totalSwings,0);
   const totalMin=saved.reduce((s,x)=>s+(x.durationMin||0),0);
   const maxSw=Math.max(...saved.map(s=>s.totalSwings));
@@ -646,7 +672,7 @@ function tabCareer(){
   const chron=saved.slice().sort((a,b)=>(a.t0||0)-(b.t0||0));
   const scard=(l,v,s)=>`<div class="scard"><div class="sl">${l}</div><div class="sv">${v}</div>${s?`<div class="ss">${s}</div>`:''}</div>`;
   let html=`<div class="card span2 fade-up">
-    <div class="ctitle"><span class="ci">🏆</span>Loopbaan · ${saved.length} ${saved.length===1?'potje':'potjes'}</div>
+    <div class="ctitle"><span class="ci">${svg('trophy',15)}</span>Loopbaan · ${saved.length} ${saved.length===1?'potje':'potjes'}</div>
     <div class="sgrid">
       ${scard('Totaal slagen',formatNumber(totalSw),'ooit geteld')}
       ${scard('Totale speeltijd',`${formatMinutes(totalMin)}<small> min</small>`,'')}
@@ -656,7 +682,7 @@ function tabCareer(){
       ${scard('Forehand-aandeel',`${formatPercent(fhpAll)}<small>%</small>`,'gemiddeld')}
     </div></div>`;
   if(chron.length>=2){
-    html+=`<div class="card span2 fade-up"><div class="ctitle"><span class="ci">📈</span>Voortgang · ${chron.length} potjes</div>
+    html+=`<div class="card span2 fade-up"><div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Voortgang · ${chron.length} potjes</div>
       <canvas id="trSwings" height="120"></canvas><div class="chart-note" style="margin:8px 0 18px">Slagen per potje</div>
       <canvas id="trPower" height="120"></canvas><div class="chart-note" style="margin:8px 0 18px">Gem. slagkracht per potje</div>
       <canvas id="trBalance" height="120"></canvas><div class="chart-note" style="margin-top:8px">Forehand-aandeel (%)</div></div>`;
