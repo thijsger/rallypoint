@@ -213,6 +213,25 @@
   .shot-row .s-track { flex:1; height:14px; background:rgba(255,255,255,.05); border-radius:7px; overflow:hidden; }
   .shot-row .s-fill { height:100%; border-radius:7px; }
   .shot-row .s-num { width:70px; text-align:right; font-size:13px; font-weight:600; flex-shrink:0; }
+  /* coach analyse inline op detailpagina */
+  .coach-summary { font-size:16px; line-height:1.5; font-weight:600; }
+  .coach-summary b { color:var(--ball); }
+  .cmp2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cmp-side { background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:13px 15px; }
+  .cmp-side .ch { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin-bottom:9px; }
+  .cmp-side .cr { display:flex; justify-content:space-between; font-size:13.5px; padding:3px 0; }
+  .cmp-side .cr b { font-weight:700; }
+  .ctip { display:flex; gap:13px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:13px; padding:14px 15px; margin-bottom:10px; }
+  .ctip .cti { width:34px; height:34px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .ctip .ctt { font-size:14.5px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ctip .ctin { font-size:13px; color:var(--text-dim); margin-top:3px; line-height:1.45; }
+  .ctip .ctac { font-size:13px; margin-top:7px; font-weight:500; }
+  .ctip .ctac .ar { color:var(--ball); }
+  .cprio { font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:999px; }
+  .cprio.high { color:#ffb0a6; background:rgba(255,107,90,.14); }
+  .cprio.med { color:#ffd089; background:rgba(255,184,77,.13); }
+  .cprio.low { color:#bfe87f; background:rgba(167,244,50,.12); }
+  @media(max-width:520px){ .cmp2{grid-template-columns:1fr} }
   .stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -715,6 +734,13 @@ const I18N = {
                       de:'Schlagerkennung ist in Entwicklung — die Zählung stimmt, der Typ pro Schlag ist eine Schätzung.',
                       es:'El reconocimiento de golpes está en desarrollo — el conteo es fiable, el tipo por golpe es una estimación.',
                       fr:'La reconnaissance des coups est en développement — le comptage est fiable, le type par coup est une estimation.' },
+  coachInsightT:    { nl:'Coach-inzicht', en:'Coach insight', de:'Coach-Einblick', es:'Análisis', fr:'Analyse' },
+  conditionT:       { nl:'Conditie & verloop', en:'Condition & trend', de:'Kondition & Verlauf', es:'Condición', fr:'Condition' },
+  coachTipsT:       { nl:'Coaching-tips', en:'Coaching tips', de:'Coaching-Tipps', es:'Consejos', fr:'Conseils' },
+  firstHalfT:       { nl:'Eerste helft', en:'First half', de:'Erste Hälfte', es:'Primera mitad', fr:'1re mi-temps' },
+  secondHalfT:      { nl:'Tweede helft', en:'Second half', de:'Zweite Hälfte', es:'Segunda mitad', fr:'2e mi-temps' },
+  shotsLabel:       { nl:'Slagen', en:'Strokes', de:'Schläge', es:'Golpes', fr:'Coups' },
+  avgPowerLabel:    { nl:'Gem. kracht', en:'Avg power', de:'Ø Kraft', es:'Potencia media', fr:'Puiss. moy.' },
   dominanceTitle:   { nl:'Wie speelde beter (per periode)', en:'Who played better (by period)', de:'Wer spielte besser', es:'Quién jugó mejor', fr:'Qui a mieux joué' },
   powerByShotTitle: { nl:'Kracht per slag',    en:'Power by shot',  de:'Kraft pro Schlag', es:'Potencia por golpe', fr:'Puissance par coup' },
   shotsTimelineTitle:{ nl:'Slagen over tijd',  en:'Shots over time', de:'Schläge über Zeit', es:'Golpes en el tiempo', fr:'Coups dans le temps' },
@@ -1528,6 +1554,7 @@ function renderMatchDetail(m) {
       <div class="exp-note">${t('shotsBeta')}</div>
       <div id="shotsBody"></div>
     </div>
+    <div id="coachExtra"></div>
 
     <div class="dcard">
       <div class="dcard-title">${t('allStatsTitle')}</div>
@@ -1653,6 +1680,8 @@ function drawDominance(canvas) {
 // Haal coach-data (slagen) op en koppel de sessie die qua tijd het dichtst bij
 // deze match ligt. Toont een slagverdeling als er een match is.
 async function loadShotsForMatch(m) {
+  // Ingebedde shots (bv. demo-match) → direct renderen, geen fetch.
+  if (m && m._shots) { renderShots(m._shots); return; }
   try {
     const r = await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(BETA_KEY)}`);
     if (!r.ok) return;
@@ -1702,15 +1731,96 @@ function renderShots(s) {
     ? `<div class="dcard-title" style="margin-top:18px">${t('shotsTimelineTitle')}</div>
        <canvas class="shots-timeline" data-segs="${segs.map(x=>x.swings||0).join(',')}" height="90"></canvas>` : '';
 
-  const coachUrl = `/beta/coach/${PIN}?beta=${encodeURIComponent(BETA_KEY)}${s.t0?`&t0=${s.t0}`:''}`;
   document.getElementById('shotsBody').innerHTML =
     `<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">${t('totalShots')}: <b style="color:var(--text)">${s.totalSwings||total}</b>${s.powAvg?` · ${t('power')} ⌀ ${Math.round(s.powAvg)}`:''}</div>${rows}
      ${powBlock}
-     ${segBlock}
-     <a class="detail-back" style="margin:14px 0 0;color:var(--ball)" href="${coachUrl}">${t('openCoach')}</a>`;
+     ${segBlock}`;
   document.getElementById('shotsCard').style.display = 'block';
   document.querySelectorAll('canvas.shots-timeline').forEach(c => drawSegmentBars(c));
+  renderCoachAnalysis(s);
 }
+
+// L: kleine taalkiezer voor de coach-teksten (NL primair, anders EN).
+function L(nl,en){ return currentLang==='nl'?nl:en; }
+
+// Volledige coach-analyse (samenvatting, conditie, tips) ná de slagen-kaart.
+function renderCoachAnalysis(s){
+  const host = document.getElementById('coachExtra');
+  if(!host) return;
+  const C=s.cls||{}, N=s.totalSwings||0;
+  const fh=C.forehand||0, bh=C.backhand||0, ground=fh+bh;
+  const vol=(C.volley_forehand||0)+(C.volley_backhand||0), sm=C.smash||0;
+  const fhp=ground?Math.round(100*fh/ground):0, net=N?Math.round(100*vol/N):0;
+  const fc=Number(s.fatiguePct)||0;
+
+  let sum;
+  if(ground===0) sum=L(`Sterke sessie met <b>${N} slagen</b>. Blijf variëren.`,`Strong session with <b>${N} strokes</b>. Keep varying.`);
+  else if(fhp>=60) sum=L(`Je speelde <b>forehand-zwaar</b> (${fhp}%) ${fc<=-12?'maar je kracht zakte tegen het eind':'met stabiele kracht'}. Je backhand bleef achter — daar ligt je grootste winst.`,
+                         `Forehand-heavy session (${fhp}%) ${fc<=-12?'but power dropped late':'with stable power'}. Your backhand lagged — biggest gain there.`);
+  else if(fhp<=40) sum=L(`Backhand-gedreven (${100-fhp}%). Je backhand draagt het spel — zoek je forehand vaker als wapen.`,
+                         `Backhand-driven (${100-fhp}%). Use your forehand more as a weapon.`);
+  else sum=L(`Mooi gebalanceerd: forehand en backhand in evenwicht. Lastig te bespelen — houd dit vast.`,
+             `Nicely balanced forehand/backhand. Hard to play against — keep it up.`);
+
+  const segs=Array.isArray(s.segments)?s.segments:[];
+  const half=Math.max(1,Math.floor(segs.length/2));
+  const fAct=segs.slice(0,half).reduce((a,x)=>a+(x.swings||0),0);
+  const lAct=segs.slice(segs.length-half).reduce((a,x)=>a+(x.swings||0),0);
+  const fpA=segs.slice(0,half).filter(x=>x.power>0).map(x=>x.power);
+  const lpA=segs.slice(segs.length-half).filter(x=>x.power>0).map(x=>x.power);
+  const fp=fpA.length?Math.round(fpA.reduce((a,b)=>a+b,0)/fpA.length):0;
+  const lp=lpA.length?Math.round(lpA.reduce((a,b)=>a+b,0)/lpA.length):0;
+  const fcCol=fc<=-12?'var(--them)':fc>=8?'var(--us)':'var(--text)';
+
+  const tips=[];
+  if(fhp>=62&&ground>0) tips.push(['high',L('Backhand heeft volume nodig','Backhand needs volume'),
+    L(`Slechts ${100-fhp}% van je slagen kwam van je backhand-kant.`,`Only ${100-fhp}% came from your backhand.`),
+    L('Drill: 3 × 8 min cross-court backhands vóór je speelt.','Drill: 3 × 8 min cross-court backhands before play.')]);
+  if(s.powByCls&&s.powByCls.backhand&&s.powByCls.forehand&&s.powByCls.backhand<s.powByCls.forehand*0.8)
+    tips.push(['med',L('Backhand-kracht omhoog','More backhand power'),
+    L(`Je backhand komt ~${Math.round(100-100*s.powByCls.backhand/s.powByCls.forehand)}% zachter uit dan je forehand.`,`Backhand ~${Math.round(100-100*s.powByCls.backhand/s.powByCls.forehand)}% softer than forehand.`),
+    L('Train rotatie en gewichtsoverdracht.','Train rotation and weight transfer.')]);
+  if(net<7&&ground>0) tips.push(['med',L('Vaker naar het net','Go to the net more'),
+    L(`Weinig volleys (${net}%). Veel punten win je aan het net.`,`Few volleys (${net}%). You win a lot at the net.`),
+    L('Drill: na elke diepe bal doorlopen en afronden.','Drill: after each deep ball, move in and finish.')]);
+  if(sm>0) tips.push(['low',L('Smash is een wapen','Smash is a weapon'),
+    L(`${sm} smash${sm>1?'es':''} geraakt.`,`${sm} smash${sm>1?'es':''} hit.`),
+    L('Stap in na elke hoge bal en maak bovenlangs af.','Step in on every high ball and finish overhead.')]);
+  if(fc<=-12) tips.push(['high',L('Conditie laat los','Condition fades'),
+    L(`Je kracht zakte ${Math.abs(fc)}% in de tweede helft.`,`Power dropped ${Math.abs(fc)}% in the second half.`),
+    L('Bouw uithoudingsvermogen met intervaltraining.','Build endurance with interval training.')]);
+  if(!tips.length) tips.push(['low',L('Sterke sessie','Strong session'),
+    L('Geen duidelijke zwakke plekken.','No clear weak spots.'),L('Blijf gevarieerd spelen.','Keep playing varied.')]);
+  const rank={high:0,med:1,low:2}; tips.sort((a,b)=>rank[a[0]]-rank[b[0]]);
+  const prioL={high:L('Hoog','High'),med:L('Middel','Med'),low:L('Laag','Low')};
+
+  host.innerHTML=`
+    <div class="dcard"><div class="dcard-title">${t('coachInsightT')}</div>
+      <div class="coach-summary">${sum}</div></div>
+    <div class="dcard"><div class="dcard-title">${t('conditionT')}</div>
+      <div class="cmp2">
+        <div class="cmp-side"><div class="ch">${t('firstHalfT')}</div>
+          <div class="cr"><span style="color:var(--text-dim)">${t('shotsLabel')}</span><b>${fAct}</b></div>
+          <div class="cr"><span style="color:var(--text-dim)">${t('avgPowerLabel')}</span><b>${fp||'–'}</b></div></div>
+        <div class="cmp-side"><div class="ch">${t('secondHalfT')}</div>
+          <div class="cr"><span style="color:var(--text-dim)">${t('shotsLabel')}</span><b>${lAct}</b></div>
+          <div class="cr"><span style="color:var(--text-dim)">${t('avgPowerLabel')}</span><b>${lp||'–'}</b></div></div>
+      </div>
+      <div style="margin-top:12px;font-size:13.5px;color:var(--text-dim)">${L('Verval','Drop-off')}: <b style="color:${fcCol}">${fc>0?'+':''}${fc}%</b></div>
+    </div>
+    <div class="dcard"><div class="dcard-title">${t('coachTipsT')}</div>
+      ${tips.map(([prio,title,insight,action])=>{const col=prio==='high'?'var(--them)':prio==='med'?'var(--ball)':'var(--us)';
+        return `<div class="ctip">
+        <div class="cti" style="background:${rgbaOf(col,.14)};color:${col}">${tipIcon()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="ctt">${title}<span class="cprio ${prio}">${prioL[prio]}</span></div>
+          <div class="ctin">${insight}</div>
+          <div class="ctac"><span class="ar">→</span> ${action}</div>
+        </div></div>`;}).join('')}
+    </div>`;
+}
+function rgbaOf(v,a){ const m={'var(--us)':'51,217,75','var(--them)':'224,86,79','var(--ball)':'196,255,0'}; return m[v]?`rgba(${m[v]},${a})`:v; }
+function tipIcon(){ return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4M12 16h.01"/></svg>`; }
 
 // Staafdiagram: slagen per tijd-segment (graph 8).
 function drawSegmentBars(canvas) {
@@ -1943,10 +2053,50 @@ async function load() {
     server = Array.isArray(data) ? data : [];
   } catch (e) {}
 
-  const merged = mergeMatches(server, cached);
+  let merged = mergeMatches(server, cached);
   saveCached(PIN, merged);
+  // Demo-match (alleen tonen als de link er expliciet naar verwijst).
+  if (selectedMatchId() === String(DEMO_MATCH.savedAt) && !merged.some(m => m.savedAt === DEMO_MATCH.savedAt)) {
+    merged = [DEMO_MATCH, ...merged];
+  }
   render(merged);
 }
+
+/* ---- Demo-match met verzonnen stats (voor preview van de detailpagina) ---- */
+const DEMO_MATCH = (function(){
+  // deterministische puntreeks: spannend potje, comeback in set 3
+  const seq=[];
+  const push=(who,n)=>{for(let i=0;i<n;i++)seq.push(who);};
+  // set 1 (wij pakt 'm), set 2 (zij), set 3 (wij na achterstand)
+  [[0,4],[1,2],[0,3],[1,3],[0,4],[1,1],[0,3],[1,2],[0,2],[1,4],[1,3],[0,2],[1,3],[0,4],
+   [1,4],[1,2],[0,3],[1,3],[0,2],[1,2],[0,4],[0,3],[0,2],[1,2],[0,3],[1,1],[0,4],[0,3]]
+   .forEach(([w,n])=>push(w,n));
+  let us=0,them=0; seq.forEach(p=>p===1?them++:us++);
+  const segs=[];
+  const SEG=12, per=Math.ceil(seq.length/SEG);
+  for(let k=0;k<SEG;k++){ const slfrom=k*per, sto=Math.min(seq.length,(k+1)*per);
+    const cnt=24+Math.round(8*Math.sin(k))-(k>8?k:0);
+    const pw=8200-(k*70)+Math.round(220*Math.cos(k));
+    segs.push({swings:Math.max(12,cnt), power:Math.max(6800,pw)}); }
+  return {
+    savedAt:1782409734375, sport:0, fmt:1, golden:false, manuallySaved:false, over:true, winner:0,
+    teamUs:'Wij', teamThem:'Zij',
+    sets:[2,1], setHistory:[[6,4],[4,6],[6,3]],
+    pointSeq:seq, pointsByTeam:[us,them],
+    setStats:[
+      {gamesUs:6,gamesThem:4,pointsUs:42,pointsThem:33,winner:0,streak:5},
+      {gamesUs:4,gamesThem:6,pointsUs:31,pointsThem:40,winner:1,streak:4},
+      {gamesUs:6,gamesThem:3,pointsUs:38,pointsThem:27,winner:0,streak:6}],
+    totalPoints:us+them, durationMin:78, ptsPerMin:(us+them)/78, avgPtsGame:6.4,
+    longestStreak:[6,4], tiebreaks:1, deuceGames:5, sideSwitches:8,
+    _shots:{
+      totalSwings:289, durationMin:78, swPerMin:3.71, powAvg:7840, powPeak:13420, fatiguePct:-11,
+      cls:{forehand:148,backhand:79,volley_forehand:9,volley_backhand:22,smash:18,lob:13,service:0},
+      powByCls:{forehand:8600,backhand:6300,volley_forehand:5400,volley_backhand:5100,smash:13420,lob:4200,service:0},
+      segments:segs
+    }
+  };
+})();
 
 function showWatchPickerHistory(pins) {
   const main = document.getElementById('main');
