@@ -1424,9 +1424,12 @@ function renderMatchList(list, matches) {
     `;
   }).join('');
 
-  // Hele kaart klikbaar → detailpagina van die ene match
+  // Hele kaart klikbaar → de premium AI-coach pagina voor die wedstrijd.
   list.querySelectorAll('.match[data-id]').forEach(card => {
-    card.addEventListener('click', () => { location.hash = 'm=' + card.getAttribute('data-id'); });
+    card.addEventListener('click', () => {
+      const sa = card.getAttribute('data-id');
+      location.href = `/beta/coach/${PIN}?beta=${encodeURIComponent(BETA_KEY)}&ms=${sa}`;
+    });
   });
 
   // Na render: alle flow-canvasses tekenen

@@ -410,10 +410,14 @@ async function load(){
     // Demo-modus: ?demo=1 toont een verzonnen sessie + wedstrijd om te previewen.
     if(new URLSearchParams(location.search).get('demo')==='1'){ SESSIONS=[DEMO_SESSION,...SESSIONS]; MATCHES=[DEMO_MATCH,...MATCHES]; document.getElementById('expBadge').style.display=''; renderAll(SESSIONS,0); return; }
     const wantT0 = new URLSearchParams(location.search).get('t0');
-    const preIdx = wantT0 ? Math.max(0, SESSIONS.findIndex(s=>String(s.t0)===String(wantT0))) : 0;
+    // ?ms=<match savedAt> (vanuit history): selecteer de sessie die qua tijd het
+    // dichtst bij die wedstrijd ligt.
+    const wantMs = new URLSearchParams(location.search).get('ms');
+    let preIdx = wantT0 ? Math.max(0, SESSIONS.findIndex(s=>String(s.t0)===String(wantT0))) : 0;
+    if(!wantT0 && wantMs){ let bd=Infinity; SESSIONS.forEach((s,i)=>{const d=Math.abs((s.savedTs||s.t0||0)-(+wantMs)); if(d<bd){bd=d;preIdx=i;}}); }
     const liveSaved = LIVE && SESSIONS.some(s=>s.t0===LIVE.t0);
     document.getElementById('expBadge').style.display='';
-    if(LIVE && LIVE.totalSwings>=8 && !liveSaved && !wantT0){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
+    if(LIVE && LIVE.totalSwings>=8 && !liveSaved && !wantT0 && !wantMs){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
     else if(SESSIONS.length){ renderAll(SESSIONS, preIdx); }
     else if(LIVE && LIVE.totalSwings>=8){ renderAll([LIVE],0); }
     else { document.getElementById('root').innerHTML=`<div class="card span2 empty"><div class="ei">${svg('racket',34)}</div>Nog geen wedstrijd. Speel een potje met de app actief.</div>`; document.getElementById('expBadge').style.display='none'; }
