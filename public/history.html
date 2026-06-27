@@ -152,8 +152,19 @@
     padding: 14px 16px;
     margin-bottom: 10px;
     transition: background 0.15s, border-color .15s;
+    position: relative;
   }
   .match:hover { background: var(--bg-card-hover); }
+  .match-del {
+    position: absolute; top: 10px; right: 10px; z-index: 2;
+    width: 30px; height: 30px; border-radius: 9px;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    color: var(--text-dim); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: .15s;
+  }
+  .match:hover .match-del { opacity: 1; }
+  .match-del:hover { color: var(--them); border-color: var(--them); background: rgba(255,107,84,.12); }
+  @media (hover: none) { .match-del { opacity: 1; } }
   .match.win  { border-left: 3px solid var(--green); }
   .match.loss { border-left: 3px solid var(--them); }
   .match.over { border-left: 3px solid var(--green); }
@@ -1448,7 +1459,10 @@ function renderMatchList(list, matches) {
          </div>` : '';
 
     return `
-      <div class="match ${cls}" data-id="${m.savedAt}" style="cursor:pointer">
+      <div class="match ${cls}" data-id="${m.savedAt}" ${m._aiOnly?`data-aionly="1" data-t0="${m._t0}"`:''} style="cursor:pointer">
+        <button class="match-del" title="${L2('Verwijderen','Delete')}" aria-label="${L2('Verwijderen','Delete')}">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+        </button>
         <div class="match-head">
           <div class="match-meta">
             <span class="match-sport">${sportLabel(m.sport)}</span>
@@ -1469,6 +1483,26 @@ function renderMatchList(list, matches) {
       </div>
     `;
   }).join('');
+
+  // Verwijder-knop per kaart (stopt door-klik naar de coach).
+  list.querySelectorAll('.match-del').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const card = btn.closest('.match[data-id]');
+      const sa = card.getAttribute('data-id');
+      if (!confirm(L2('Deze wedstrijd verwijderen?','Delete this match?'))) return;
+      try {
+        if (card.getAttribute('data-aionly')) {
+          // AI-only kaart → verwijder de slag-sessie
+          await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(BETA_KEY)}&t0=${card.getAttribute('data-t0')}`, { method:'DELETE' });
+        } else {
+          await fetch(`/history/${PIN}?at=${sa}`, { method:'DELETE' });
+        }
+        card.remove();
+        load();
+      } catch (_) { alert(L2('Verwijderen mislukt','Delete failed')); }
+    });
+  });
 
   // Hele kaart klikbaar → de premium AI-coach pagina voor die wedstrijd.
   list.querySelectorAll('.match[data-id]').forEach(card => {
@@ -2123,7 +2157,7 @@ async function load() {
     for (const s of COACH_SESSIONS) {
       const id = s.savedTs || s.t0 || 0;
       if (used.has(id) || (s.totalSwings || 0) < 8 || id < 1.5e12) continue;   // skip dubbele, mini-tests, kapotte oude timestamps
-      merged.push({ savedAt: id, sport: s.sport || 0, _aiOnly: true, over: true, manuallySaved: false,
+      merged.push({ savedAt: id, sport: s.sport || 0, _aiOnly: true, _t0: s.t0 || id, over: true, manuallySaved: false,
         winner: -1, sets: [0,0], games: [0,0], points: [0,0], totalPoints: 0, durationMin: 0,
         longestStreak: [0,0], setHistory: [], teamUs: '', teamThem: '' });
     }

@@ -854,7 +854,7 @@ const server = http.createServer((req, res) => {
     const file = parts[1] === 'stats' ? 'stats.html' : parts[1] === 'coach' ? 'coach.html' : 'view.html';
     return fs.readFile(path.join(__dirname, 'public', 'beta', file), (err, data) => {
       if (err) { res.writeHead(404); return res.end('pagina ontbreekt'); }
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, must-revalidate' });
       res.end(data);
     });
   }
@@ -1050,13 +1050,20 @@ const server = http.createServer((req, res) => {
       return sendJSON(res, 200, list);
     }
     if (req.method === 'DELETE') {
-      // Alleen de ingelogde eigenaar mag de geschiedenis wissen.
+      // Alleen de ingelogde eigenaar mag (de) geschiedenis wissen.
       const owner = db.getPinOwner(pin);
       if (owner) {
         const user = getUserFromReq(req);
         if (!user || owner.user_id !== user.id) {
           return sendJSON(res, 403, { error: 'forbidden' });
         }
+      }
+      // ?at=<savedAt> verwijdert één wedstrijd; zonder param de hele history.
+      const at = url.searchParams.get('at');
+      if (at && Array.isArray(history[pin])) {
+        history[pin] = history[pin].filter(m => String(m.savedAt) !== String(at));
+        persistHistory();
+        return sendJSON(res, 200, { ok: true, removed: 1 });
       }
       delete history[pin];
       delete seenSaveIds[pin];
