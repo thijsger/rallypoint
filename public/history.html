@@ -1495,9 +1495,13 @@ function renderMatchList(list, matches) {
         if (card.getAttribute('data-aionly')) {
           // AI-only kaart → verwijder de slag-sessie
           await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(BETA_KEY)}&t0=${card.getAttribute('data-t0')}`, { method:'DELETE' });
+          COACH_SESSIONS = COACH_SESSIONS.filter(s => String(s.t0 || s.savedTs) !== String(card.getAttribute('data-t0')) && String(s.savedTs) !== String(sa));
         } else {
           await fetch(`/history/${PIN}?at=${sa}`, { method:'DELETE' });
         }
+        // Ook uit de lokale cache halen, anders komt 'ie terug bij het herladen.
+        saveCached(PIN, loadCached(PIN).filter(m => String(m.savedAt) !== String(sa)));
+        allMatches = allMatches.filter(m => String(m.savedAt) !== String(sa));
         card.remove();
         load();
       } catch (_) { alert(L2('Verwijderen mislukt','Delete failed')); }
