@@ -1309,9 +1309,11 @@ function renderRecords(matches) {
 // === MAIN RENDER ENTRY ===
 
 function renderStatsAndList(matches) {
-  renderSummary(matches);
-  renderCharts(matches);
-  renderRecords(matches);
+  // Aggregaat-stats negeren AI-only kaarten (geen score); de lijst toont alles.
+  const real = matches.filter(m => !m._aiOnly);
+  renderSummary(real);
+  renderCharts(real);
+  renderRecords(real);
 
   const list = document.getElementById('list');
   const matchListTitle = document.getElementById('matchListTitle');
@@ -2112,6 +2114,20 @@ async function load() {
   // Demo-match alleen tonen als de link er expliciet naar verwijst (preview).
   if (selectedMatchId() === String(DEMO_MATCH.savedAt) && !merged.some(m => m.savedAt === DEMO_MATCH.savedAt)) {
     merged = [DEMO_MATCH, ...merged];
+  }
+  // AI-sessies zonder bijbehorende match toch tonen (bv. potje wel met AI maar
+  // zonder score opgeslagen, of de match-upload is mislukt).
+  if (COACH_SESSIONS.length) {
+    const used = new Set();
+    for (const m of merged) { const s = sessionForMatch(m); if (s) used.add(s.savedTs || s.t0); }
+    for (const s of COACH_SESSIONS) {
+      const id = s.savedTs || s.t0 || 0;
+      if (used.has(id) || (s.totalSwings || 0) < 8 || id < 1.5e12) continue;   // skip dubbele, mini-tests, kapotte oude timestamps
+      merged.push({ savedAt: id, sport: s.sport || 0, _aiOnly: true, over: true, manuallySaved: false,
+        winner: -1, sets: [0,0], games: [0,0], points: [0,0], totalPoints: 0, durationMin: 0,
+        longestStreak: [0,0], setHistory: [], teamUs: '', teamThem: '' });
+    }
+    merged.sort((a,b) => (b.savedAt||0) - (a.savedAt||0));
   }
   render(merged);
 }
