@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>AI Coach</title>
+<script src="/js/theme-init.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,9 +13,15 @@
   --bg:#0a0d10; --card:rgba(255,255,255,.035); --card-strong:rgba(255,255,255,.055);
   --border:#232a33; --border-soft:rgba(255,255,255,.05);
   --text:#F1F4F2; --muted:#8b95a3; --subtle:#5a6470;
-  --lime:#aee05a; --blue:#4EA3FF; --orange:#FFB84D; --red:#FF6B54; --purple:#A78BFA;
+  --lime:#c4ff00; --bg-glow:rgba(196,255,0,.045); --bg-glow-strong:rgba(196,255,0,.09);
+  --blue:#4EA3FF; --orange:#FFB84D; --red:#FF6B54; --purple:#A78BFA;
   --radius:20px;
 }
+/* volg het site-thema (court = groen is standaard) */
+html[data-theme="ice"]    { --lime:#00d4ff; --bg-glow:rgba(0,212,255,.045); --bg-glow-strong:rgba(0,212,255,.09); }
+html[data-theme="sunset"] { --lime:#ff9533; --bg-glow:rgba(255,149,51,.045); --bg-glow-strong:rgba(255,149,51,.10); }
+html[data-theme="mono"]   { --lime:#ffffff; --bg-glow:rgba(255,255,255,.03); --bg-glow-strong:rgba(255,255,255,.06); }
+html[data-theme="court"]  { --lime:#4ade80; --bg-glow:rgba(74,222,128,.045); --bg-glow-strong:rgba(74,222,128,.09); }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro',sans-serif;font-feature-settings:"tnum" 1;line-height:1.5;-webkit-font-smoothing:antialiased}
 body{
@@ -22,8 +29,8 @@ body{
   background-color:var(--bg);
   /* zelfde groene glow-sfeer als de rest van de site (boven sterk, onder zacht) */
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(196,255,0,.10), transparent 60%),
-    radial-gradient(ellipse 70% 45% at 50% 100%, rgba(196,255,0,.05), transparent 70%);
+    radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow-strong), transparent 60%),
+    radial-gradient(ellipse 70% 45% at 50% 100%, var(--bg-glow), transparent 70%);
   background-attachment:fixed;
 }
 .wrap{max-width:1320px;margin:0 auto;padding:22px clamp(14px,3vw,32px) 80px}
@@ -829,7 +836,7 @@ function tabMatch(S){
       <canvas id="mWho" data-flow="${seq.join(',')}" height="120"></canvas>
       <div class="legend"><span><i style="background:var(--lime)"></i>${esc(teamUs)}</span><span><i style="background:var(--red)"></i>${esc(teamThem)}</span></div>
     </div>`:''}
-    ${hasFlow?`<div class="card span2 fade-up">
+    ${hasFlow?`<div class="card fade-up">
       <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Eerste helft vs tweede helft</div>
       <div class="cmp2">
         <div class="cmp-side"><div class="ch">Eerste helft</div>
@@ -840,7 +847,7 @@ function tabMatch(S){
           <div class="cr"><span class="muted">${esc(teamThem)}</span><b style="color:var(--red)">${X.sh[1]}</b></div></div>
       </div>
     </div>`:''}
-    ${setRows?`<div class="card span2 fade-up"><div class="ctitle"><span class="ci">${svg('bars',15)}</span>Per set</div>${setRows}</div>`:''}
+    ${setRows?`<div class="card fade-up"><div class="ctitle"><span class="ci">${svg('bars',15)}</span>Per set</div>${setRows}</div>`:''}
     <div class="card span2 fade-up">
       <div class="ctitle"><span class="ci">${svg('star',15)}</span>Wedstrijd-stats</div>
       <div class="sgrid">
