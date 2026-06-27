@@ -918,8 +918,8 @@ function renderSummary(matches) {
     `;
   }
 
-  const losses = finished.length - wins;
-  const winCirclePct = finished.length > 0 ? Math.round((wins / finished.length) * 100) : 0;
+  const losses = scored.length - wins;
+  const winCirclePct = scored.length > 0 ? Math.round((wins / scored.length) * 100) : 0;
 
   summary.innerHTML = `
     <div class="summary-head">
