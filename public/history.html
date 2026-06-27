@@ -507,7 +507,12 @@
   .chart-svg {
     width: 100%;
     display: block;
-    height: 140px;
+    height: 120px;
+  }
+  .chart-xlabels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim);
+    margin-top: 6px; padding: 0 4px;
   }
   .chart-svg .axis-label {
     font-size: 10px;
@@ -1069,13 +1074,10 @@ function chartMatchesPerWeek(matches, weeks) {
       <title>${v} match${v === 1 ? '' : 'es'}</title>
     </rect>`;
   }).join('');
-  // Labels: alleen eerste, midden, laatste week tonen
-  const labels = [0, Math.floor(weeks / 2), weeks - 1].map(i => {
-    const d = new Date(startMs + i * 7 * 24 * 60 * 60 * 1000);
-    const x = pad + i * ((w - pad * 2) / weeks) + barW / 2;
-    return `<text class="axis-label" x="${x}" y="${h - 4}" text-anchor="middle">${d.getDate()}/${d.getMonth() + 1}</text>`;
-  }).join('');
-  return `<svg class="chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}${labels}</svg>`;
+  // Labels buiten de SVG (anders rekt preserveAspectRatio=none ze uit).
+  const lab = i => { const d = new Date(startMs + i * 7 * 24 * 60 * 60 * 1000); return `${d.getDate()}/${d.getMonth() + 1}`; };
+  return `<svg class="chart-svg" viewBox="0 0 ${w} ${h - 16}" preserveAspectRatio="none">${bars}</svg>
+    <div class="chart-xlabels"><span>${lab(0)}</span><span>${lab(Math.floor(weeks/2))}</span><span>${lab(weeks-1)}</span></div>`;
 }
 
 function chartTempoTrend(matches) {

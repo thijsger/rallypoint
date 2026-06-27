@@ -13,24 +13,26 @@
   --bg:#0a0d10; --card:rgba(255,255,255,.035); --card-strong:rgba(255,255,255,.055);
   --border:#232a33; --border-soft:rgba(255,255,255,.05);
   --text:#F1F4F2; --muted:#8b95a3; --subtle:#5a6470;
-  --lime:#c4ff00; --bg-glow:rgba(196,255,0,.045); --bg-glow-strong:rgba(196,255,0,.09);
+  --lime:#c4ff00; --bg-glow:rgba(196,255,0,.045); --bg-glow-strong:rgba(196,255,0,.09); --ball-glow:rgba(196,255,0,.15); --ball-soft:rgba(196,255,0,.06);
   --blue:#4EA3FF; --orange:#FFB84D; --red:#FF6B54; --purple:#A78BFA;
   --radius:20px;
 }
 /* volg het site-thema (court = groen is standaard) */
-html[data-theme="ice"]    { --lime:#00d4ff; --bg-glow:rgba(0,212,255,.045); --bg-glow-strong:rgba(0,212,255,.09); }
-html[data-theme="sunset"] { --lime:#ff9533; --bg-glow:rgba(255,149,51,.045); --bg-glow-strong:rgba(255,149,51,.10); }
-html[data-theme="mono"]   { --lime:#ffffff; --bg-glow:rgba(255,255,255,.03); --bg-glow-strong:rgba(255,255,255,.06); }
-html[data-theme="court"]  { --lime:#4ade80; --bg-glow:rgba(74,222,128,.045); --bg-glow-strong:rgba(74,222,128,.09); }
+html[data-theme="ice"]    { --lime:#00d4ff; --bg-glow:rgba(0,212,255,.045); --bg-glow-strong:rgba(0,212,255,.09); --ball-glow:rgba(0,212,255,.15); --ball-soft:rgba(0,212,255,.06); }
+html[data-theme="sunset"] { --lime:#ff9533; --bg-glow:rgba(255,149,51,.045); --bg-glow-strong:rgba(255,149,51,.10); --ball-glow:rgba(255,149,51,.15); --ball-soft:rgba(255,149,51,.06); }
+html[data-theme="mono"]   { --lime:#ffffff; --bg-glow:rgba(255,255,255,.03); --bg-glow-strong:rgba(255,255,255,.06); --ball-glow:rgba(255,255,255,.12); --ball-soft:rgba(255,255,255,.05); }
+html[data-theme="court"]  { --lime:#4ade80; --bg-glow:rgba(74,222,128,.045); --bg-glow-strong:rgba(74,222,128,.09); --ball-glow:rgba(74,222,128,.15); --ball-soft:rgba(74,222,128,.06); }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro',sans-serif;font-feature-settings:"tnum" 1;line-height:1.5;-webkit-font-smoothing:antialiased}
 body{
   min-height:100vh;
-  background-color:var(--bg);
-  /* zelfde groene glow-sfeer als de rest van de site (boven sterk, onder zacht) */
-  background-image:
+  /* zelfde achtergrond als de rest van de site: respecteert de gekozen
+     achtergrond/kleur uit settings (--user-bg / --user-bg-image van theme-init),
+     met de thema-glow als standaard. */
+  background-color:var(--user-bg, var(--bg));
+  background-image:var(--user-bg-image,
     radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow-strong), transparent 60%),
-    radial-gradient(ellipse 70% 45% at 50% 100%, var(--bg-glow), transparent 70%);
+    radial-gradient(ellipse 70% 45% at 50% 100%, var(--bg-glow), transparent 70%));
   background-attachment:fixed;
 }
 .wrap{max-width:1320px;margin:0 auto;padding:22px clamp(14px,3vw,32px) 80px}
