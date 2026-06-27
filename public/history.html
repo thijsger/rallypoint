@@ -974,12 +974,31 @@ function matchHasScore(m){
   const sh = Array.isArray(m.setHistory) ? m.setHistory.length : 0;
   return (s[0]||0) > 0 || (s[1]||0) > 0 || (m.totalPoints||0) > 0 || sh > 0;
 }
-// Slag-sessie die qua tijd bij deze match hoort (binnen 30 min).
+// Slag-sessie die bij deze match hoort. Koppelt op het tijdsINTERVAL van de
+// sessie (start→opslag), niet alleen het opslagmoment — zodat een lang potje
+// niet per ongeluk aan een kort testsessietje vlak ervoor/erna wordt gekoppeld.
 function sessionForMatch(m){
   if(!COACH_SESSIONS.length) return null;
-  let best=null,bd=30*60*1000;
-  for(const s of COACH_SESSIONS){ const d=Math.abs((s.savedTs||s.t0||0)-(m.savedAt||0)); if(d<bd){bd=d;best=s;} }
-  return best;
+  const at = m.savedAt || 0;
+  let best=null, bestScore=null;
+  for(const s of COACH_SESSIONS){
+    const end = s.savedTs || s.t0 || 0;
+    const durMs = (s.durationMin||0)*60000;
+    // t0 is soms corrupt (oude bug, jaartal 1970); val dan terug op savedTs-duur.
+    let start = (s.t0 && s.t0 > 1.5e12) ? s.t0 : (end - durMs);
+    if(!(start < end)) start = end - durMs;
+    const pad = 6*60000; // 6 min speling rond start/eind
+    let dist;
+    if(at >= start - pad && at <= end + pad) dist = 0;          // binnen het potje
+    else dist = Math.min(Math.abs(at-end), Math.abs(at-start));
+    // score: dichterbij = beter; bij gelijke afstand wint de grootste sessie.
+    const score = [dist, -(s.totalSwings||0)];
+    if(!best || score[0] < bestScore[0] || (score[0]===bestScore[0] && score[1]<bestScore[1])){
+      best=s; bestScore=score;
+    }
+  }
+  // alleen koppelen als het redelijk dichtbij is (binnen ~45 min van het potje)
+  return (best && bestScore[0] <= 45*60000) ? best : null;
 }
 
 function filterByRange(matches, range) {
