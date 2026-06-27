@@ -36,8 +36,10 @@
     margin: 0; padding: 0;
     background-color: var(--user-bg, #0a0d10);
     background-image: var(--user-bg-image,
-      radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow), transparent 60%)
+      radial-gradient(ellipse 80% 50% at 50% 0%, var(--bg-glow-strong), transparent 60%),
+      radial-gradient(ellipse 70% 45% at 50% 100%, var(--bg-glow), transparent 70%)
     );
+    background-attachment: fixed;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
