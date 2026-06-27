@@ -759,12 +759,12 @@ const I18N = {
   setEndLabel:      { nl:'einde set',          en:'set end',        de:'Satzende',       es:'fin de set',       fr:'fin de set' },
 };
 const SPORTS = [
-  { id:0, key:'padel',      icon:'🎾', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
-  { id:1, key:'tennis',     icon:'🎾', nl:'Tennis',      en:'Tennis',      de:'Tennis',      es:'Tenis',      fr:'Tennis' },
-  { id:2, key:'pickleball', icon:'🥒', nl:'Pickleball',  en:'Pickleball',  de:'Pickleball',  es:'Pickleball', fr:'Pickleball' },
-  { id:3, key:'tt',         icon:'🏓', nl:'Tafeltennis', en:'Table tennis',de:'Tischtennis', es:'Tenis de mesa', fr:'Tennis de table' },
-  { id:4, key:'badminton',  icon:'🏸', nl:'Badminton',   en:'Badminton',   de:'Badminton',   es:'Bádminton',  fr:'Badminton' },
-  { id:5, key:'squash',     icon:'🟦', nl:'Squash',      en:'Squash',      de:'Squash',      es:'Squash',     fr:'Squash' },
+  { id:0, key:'padel',      icon:'🎾', color:'#4ade80', nl:'Padel',       en:'Padel',       de:'Padel',       es:'Pádel',      fr:'Padel' },
+  { id:1, key:'tennis',     icon:'🎾', color:'#4ea3ff', nl:'Tennis',      en:'Tennis',      de:'Tennis',      es:'Tenis',      fr:'Tennis' },
+  { id:2, key:'pickleball', icon:'🥒', color:'#ffb84d', nl:'Pickleball',  en:'Pickleball',  de:'Pickleball',  es:'Pickleball', fr:'Pickleball' },
+  { id:3, key:'tt',         icon:'🏓', color:'#ff6b54', nl:'Tafeltennis', en:'Table tennis',de:'Tischtennis', es:'Tenis de mesa', fr:'Tennis de table' },
+  { id:4, key:'badminton',  icon:'🏸', color:'#a78bfa', nl:'Badminton',   en:'Badminton',   de:'Badminton',   es:'Bádminton',  fr:'Badminton' },
+  { id:5, key:'squash',     icon:'🟦', color:'#e8c84d', nl:'Squash',      en:'Squash',      de:'Squash',      es:'Squash',     fr:'Squash' },
 ];
 
 const path = location.pathname.split('/').filter(Boolean);
@@ -967,6 +967,20 @@ function renderSetTable(m) {
 // === STATS PAGE ===
 let allMatches = [];
 let activeRange = 'all';      // '7' | '30' | '90' | 'all'
+let COACH_SESSIONS = [];      // slag-sessies (voor matches zonder score)
+// Heeft deze match een echte score ingevuld?
+function matchHasScore(m){
+  const s = Array.isArray(m.sets) ? m.sets : [0,0];
+  const sh = Array.isArray(m.setHistory) ? m.setHistory.length : 0;
+  return (s[0]||0) > 0 || (s[1]||0) > 0 || (m.totalPoints||0) > 0 || sh > 0;
+}
+// Slag-sessie die qua tijd bij deze match hoort (binnen 30 min).
+function sessionForMatch(m){
+  if(!COACH_SESSIONS.length) return null;
+  let best=null,bd=30*60*1000;
+  for(const s of COACH_SESSIONS){ const d=Math.abs((s.savedTs||s.t0||0)-(m.savedAt||0)); if(d<bd){bd=d;best=s;} }
+  return best;
+}
 
 function filterByRange(matches, range) {
   if (range === 'all') return matches;
@@ -1093,23 +1107,23 @@ function chartSportDonut(matches) {
   const total = entries.reduce((s, e) => s + e.count, 0);
   const r = 50, cx = 60, cy = 60, stroke = 18;
   const circ = 2 * Math.PI * r;
-  // Color palette per sport (cycle through theme colors)
-  const colors = ['var(--us)', 'var(--ball)', 'var(--them)', 'var(--green)', 'var(--amber)', '#a78bfa'];
+  // Elke sport een eigen, vaste kleur (uit SPORTS.color).
+  const col = e => e.sport.color || '#8b95a3';
   let acc = 0;
-  const slices = entries.map((e, i) => {
+  const slices = entries.map((e) => {
     const frac = e.count / total;
     const dash = frac * circ;
     const gap = circ - dash;
     const offset = -acc;
     acc += dash;
-    return `<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${colors[i % colors.length]}"
+    return `<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${col(e)}"
       stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${offset}"
       transform="rotate(-90 ${cx} ${cy})"/>`;
   }).join('');
-  const list = entries.map((e, i) => {
+  const list = entries.map((e) => {
     const pct = Math.round((e.count / total) * 100);
     return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[i % colors.length]}"></span>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col(e)}"></span>
       <span style="flex:1">${e.sport.icon} ${e.sport[currentLang] || e.sport.en}</span>
       <span style="color:var(--text-dim);font-variant-numeric:tabular-nums">${e.count} · ${pct}%</span>
     </div>`;
@@ -1374,11 +1388,21 @@ function renderMatchList(list, matches) {
     if (typeof m.fmt === 'number' && m.fmt in fmtLabels) { meta.push('<span class="meta-tag">' + fmtLabels[m.fmt] + '</span>'); }
     if (m.golden) { meta.push('<span class="meta-tag">⚡ ' + t('golden') + '</span>'); }
 
+    const hasScore = matchHasScore(m);
+    const sess = hasScore ? null : sessionForMatch(m);
     const stats = [];
-    stats.push(`<div class="stat"><span class="stat-label">${t('duration')}</span><span class="stat-value">${m.durationMin} ${t('minutes')}</span></div>`);
-    stats.push(`<div class="stat"><span class="stat-label">${t('points')}</span><span class="stat-value">${m.totalPoints}</span></div>`);
-    stats.push(`<div class="stat"><span class="stat-label">${t('streak')}</span><span class="stat-value">${m.longestStreak[0]} / ${m.longestStreak[1]}</span></div>`);
-    if (m.ptsPerMin > 0) {
+    if (!hasScore && sess) {
+      // Geen score → toon slag-stats van de gekoppelde AI-sessie
+      stats.push(`<div class="stat"><span class="stat-label">${t('shotsLabel')||'Slagen'}</span><span class="stat-value">${sess.totalSwings||0}</span></div>`);
+      if (sess.durationMin) stats.push(`<div class="stat"><span class="stat-label">${t('duration')}</span><span class="stat-value">${Math.round(sess.durationMin)} ${t('minutes')}</span></div>`);
+      if (sess.powAvg) stats.push(`<div class="stat"><span class="stat-label">${t('avgPowerLabel')||'Gem. kracht'}</span><span class="stat-value">${Math.round(sess.powAvg)}</span></div>`);
+      if (sess.powPeak) stats.push(`<div class="stat"><span class="stat-label">${t('power')||'Kracht'}</span><span class="stat-value">${Math.round(sess.powPeak)}</span></div>`);
+    } else if (hasScore) {
+      stats.push(`<div class="stat"><span class="stat-label">${t('duration')}</span><span class="stat-value">${m.durationMin} ${t('minutes')}</span></div>`);
+      stats.push(`<div class="stat"><span class="stat-label">${t('points')}</span><span class="stat-value">${m.totalPoints}</span></div>`);
+      stats.push(`<div class="stat"><span class="stat-label">${t('streak')}</span><span class="stat-value">${m.longestStreak[0]} / ${m.longestStreak[1]}</span></div>`);
+    }
+    if (hasScore && m.ptsPerMin > 0) {
       stats.push(`<div class="stat"><span class="stat-label">${t('tempo')}</span><span class="stat-value">${m.ptsPerMin.toFixed(1)} ${t('ptsMin')}</span></div>`);
     }
     if (m.avgPtsGame > 0) {
@@ -1411,12 +1435,13 @@ function renderMatchList(list, matches) {
           </div>
           <div class="match-date">${formatDate(m.savedAt)} · ${badge}</div>
         </div>
-        <div class="match-score">
+        ${hasScore ? `<div class="match-score">
           <div class="team us ${usWin ? 'winner' : ''}">${esc(teamUs)}</div>
           <div class="sets ${usWin ? 'us-won' : themWin ? 'them-won' : ''}">${m.sets[0]}<span class="sep">–</span>${m.sets[1]}</div>
           <div class="team them ${themWin ? 'winner' : ''}">${esc(teamThem)}</div>
         </div>
-        ${history ? `<div class="set-history">${history}</div>` : ''}
+        ${history ? `<div class="set-history">${history}</div>` : ''}`
+        : `<div class="set-history" style="text-align:center">${sess ? (L2('AI-sessie · slag-analyse','AI session · shot analysis')) : L2('Geen score vastgelegd','No score recorded')}</div>`}
         ${flowHtml}
         <div class="stats">${stats.join('')}</div>
         <div class="view-hint">${t('viewDetail')}</div>
@@ -2055,6 +2080,12 @@ async function load() {
     const r = await fetch('/history/' + PIN, { headers: { 'Accept': 'application/json' } });
     const data = await r.json();
     server = Array.isArray(data) ? data : [];
+  } catch (e) {}
+
+  // Slagdata één keer ophalen — voor matches zonder score tonen we slag-stats.
+  try {
+    const cr = await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(BETA_KEY)}`);
+    if (cr.ok) { const cd = await cr.json(); COACH_SESSIONS = Array.isArray(cd.sessions) ? cd.sessions : []; }
   } catch (e) {}
 
   let merged = mergeMatches(server, cached);

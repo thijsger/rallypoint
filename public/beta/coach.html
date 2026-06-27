@@ -597,7 +597,9 @@ function renderSession(S){
       <div class="mv">${val}</div><div class="mt">${trend||''}</div>
     </div>`;
 
-  const hasMatch=!!matchFor(S);
+  const _mf=matchFor(S);
+  // Alleen een Wedstrijd-tab als die match ook echt een score heeft.
+  const hasMatch=!!_mf && (((_mf.sets&&(_mf.sets[0]||_mf.sets[1]))||0)>0 || (_mf.totalPoints||0)>0 || (Array.isArray(_mf.setHistory)&&_mf.setHistory.length>0));
   const tabs=['overview',...(hasMatch?['match']:[]),'strokes','power','condition','career'];
   const tabNames={overview:'Overzicht',match:'Wedstrijd',strokes:'Slagen',power:'Kracht',condition:'Conditie',career:'Loopbaan'};
   if(!tabs.includes(ACTIVE_TAB))ACTIVE_TAB='overview';
@@ -663,7 +665,8 @@ function tabOverview(S,I,TIPS){
   const best=I.segs.length>1?I.tr(I.bi):formatMinutes(S.durationMin)+' min';
   // Compacte uitslag-strip als er een gekoppelde wedstrijd is.
   const m=matchFor(S); let resultCard='';
-  if(m){
+  const mScore = m && (((m.sets&&(m.sets[0]||m.sets[1]))||0)>0 || (m.totalPoints||0)>0 || (Array.isArray(m.setHistory)&&m.setHistory.length>0));
+  if(m && mScore){
     const tu=m.teamUs||'Wij', tt=m.teamThem||'Zij';
     const realWin=m.over&&m.winner!==-1&&!m.manuallySaved;
     const usWin=realWin&&m.winner===0, themWin=realWin&&m.winner===1;
