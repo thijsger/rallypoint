@@ -161,7 +161,7 @@ function validPassword(p) { return typeof p === 'string' && p.length >= 8 && p.l
 // Verzamelt totaal aantal, finished, wins, duration, points en sport-counts.
 function statsForUser(userId) {
   const pins = db.getPinsForUser(userId).map(p => p.pin);
-  let total = 0, finished = 0, wins = 0, totalDuration = 0, totalPoints = 0;
+  let total = 0, decided = 0, wins = 0, totalDuration = 0, totalPoints = 0;
   let longestMatchPts = 0;
   const sportCounts = {};
   for (const pin of pins) {
@@ -173,10 +173,26 @@ function statsForUser(userId) {
       if ((Number(m.totalPoints) || 0) > longestMatchPts) longestMatchPts = Number(m.totalPoints) || 0;
       const sport = typeof m.sport === 'number' ? m.sport : 0;
       sportCounts[sport] = (sportCounts[sport] || 0) + 1;
-      if (m.over && !m.manuallySaved) {
-        finished++;
+      // Beslist potje = heeft een winnaar (finished OF handmatig opgeslagen met uitslag).
+      if (m.winner === 0 || m.winner === 1) {
+        decided++;
         if (m.winner === 0) wins++;
       }
+    }
+    // AI-only slag-sessies (geen match) ook meetellen voor aantal + speeltijd.
+    const sessions = betaCoach[pin] || [];
+    for (const s of sessions) {
+      if ((s.totalSwings || 0) < 8) continue;
+      const ts = s.savedTs || s.t0 || 0;
+      if (ts < 1.5e12) continue;                       // kapotte oude timestamps overslaan
+      const dur = (Number(s.durationMin) || 0) * 60000;
+      const start = (s.t0 && s.t0 > 1.5e12) ? s.t0 : ts - dur;
+      const linked = list.some(m => { const at = m.savedAt || 0; return at >= start - 6*60000 && at <= ts + 6*60000; });
+      if (linked) continue;                            // al als match geteld
+      total++;
+      totalDuration += Math.round(Number(s.durationMin) || 0);
+      const sp = typeof s.sport === 'number' ? s.sport : 0;
+      sportCounts[sp] = (sportCounts[sp] || 0) + 1;
     }
   }
   // Favorite sport: sport met de hoogste count
@@ -186,9 +202,9 @@ function statsForUser(userId) {
   }
   return {
     total_matches: total,
-    finished_matches: finished,
+    finished_matches: decided,
     wins,
-    win_rate: finished > 0 ? Math.round((wins / finished) * 100) : null,
+    win_rate: decided > 0 ? Math.round((wins / decided) * 100) : null,
     total_duration_min: totalDuration,
     total_points: totalPoints,
     longest_match_pts: longestMatchPts,
