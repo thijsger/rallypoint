@@ -833,10 +833,10 @@ function renderSummary(matches) {
   if (!matches.length) { summary.style.display = 'none'; return; }
   summary.style.display = 'block';
 
-  const finished = matches.filter(m => m.over && !m.manuallySaved);
-  const wins = finished.filter(m => m.winner === 0).length;
-  const winRate = finished.length > 0 ? Math.round((wins / finished.length) * 100) : null;
-  const total = matches.length;
+  const scored = matches.filter(isScored);   // finished + saved-met-uitslag
+  const wins = scored.filter(m => m.winner === 0).length;
+  const winRate = scored.length > 0 ? Math.round((wins / scored.length) * 100) : null;
+  const total = matches.length;              // alle sessies (incl. AI-only)
 
   const totalMin = matches.reduce((sum, m) => sum + (Number(m.durationMin) || 0), 0);
   const hours = Math.floor(totalMin / 60);
@@ -847,7 +847,7 @@ function renderSummary(matches) {
   const chrono = matches.slice().sort((a, b) => a.savedAt - b.savedAt);
   let bestStreak = 0, curStreak = 0;
   for (const m of chrono) {
-    if (!m.over || m.manuallySaved) { continue; }
+    if (!isScored(m)) { continue; }
     if (m.winner === 0) {
       curStreak += 1;
       if (curStreak > bestStreak) bestStreak = curStreak;
@@ -871,7 +871,7 @@ function renderSummary(matches) {
   let bestComeback = 0;
   for (const m of matches) {
     if (!Array.isArray(m.pointLog) || !m.pointLog.length) continue;
-    if (!m.over || m.winner !== 0) continue;
+    if (!isScored(m) || m.winner !== 0) continue;
     let diff = 0, minDiff = 0;
     for (const t of m.pointLog) {
       diff += (Number(t) === 0 ? 1 : -1);
@@ -886,7 +886,7 @@ function renderSummary(matches) {
     const sId = typeof m.sport === 'number' ? m.sport : 0;
     if (!sportAgg[sId]) sportAgg[sId] = { total: 0, wins: 0, finished: 0 };
     sportAgg[sId].total += 1;
-    if (m.over && !m.manuallySaved) {
+    if (isScored(m)) {
       sportAgg[sId].finished += 1;
       if (m.winner === 0) sportAgg[sId].wins += 1;
     }
@@ -985,6 +985,9 @@ function matchHasScore(m){
   const sh = Array.isArray(m.setHistory) ? m.setHistory.length : 0;
   return (s[0]||0) > 0 || (s[1]||0) > 0 || (m.totalPoints||0) > 0 || sh > 0;
 }
+// Telt deze match mee voor winst/records? = heeft een bepaalde winnaar
+// (zowel "finished" als handmatig opgeslagen met uitslag). AI-only niet.
+function isScored(m){ return !m._aiOnly && (m.winner === 0 || m.winner === 1); }
 // Slag-sessie die bij deze match hoort. Koppelt op het tijdsINTERVAL van de
 // sessie (start→opslag), niet alleen het opslagmoment — zodat een lang potje
 // niet per ongeluk aan een kort testsessietje vlak ervoor/erna wordt gekoppeld.
@@ -1235,7 +1238,7 @@ function computeRecords(matches) {
   }
 
   // Grootste overwinning (verschil in sets, alleen winst voor "us")
-  const wins = matches.filter(m => m.over && !m.manuallySaved && m.winner === 0 && Array.isArray(m.sets));
+  const wins = matches.filter(m => isScored(m) && m.winner === 0 && Array.isArray(m.sets));
   wins.sort((a, b) => (b.sets[0] - b.sets[1]) - (a.sets[0] - a.sets[1]));
   if (wins[0]) {
     recs.bestWin = { value: `${wins[0].sets[0]}-${wins[0].sets[1]}`, m: wins[0] };
@@ -1245,7 +1248,7 @@ function computeRecords(matches) {
   const chrono = matches.slice().sort((a, b) => a.savedAt - b.savedAt);
   let cur = 0, best = 0, bestEndMatch = null, curStart = null;
   for (const m of chrono) {
-    if (!m.over || m.manuallySaved) continue;
+    if (!isScored(m)) continue;
     if (m.winner === 0) {
       if (cur === 0) curStart = m;
       cur += 1;
@@ -1320,11 +1323,11 @@ function renderRecords(matches) {
 // === MAIN RENDER ENTRY ===
 
 function renderStatsAndList(matches) {
-  // Aggregaat-stats negeren AI-only kaarten (geen score); de lijst toont alles.
-  const real = matches.filter(m => !m._aiOnly);
-  renderSummary(real);
-  renderCharts(real);
-  renderRecords(real);
+  // Alles doorgeven; de functies splitsen zelf tel-/tijd-stats (incl. AI-only)
+  // van score-stats (alleen wedstrijden met uitslag).
+  renderSummary(matches);
+  renderCharts(matches);
+  renderRecords(matches);
 
   const list = document.getElementById('list');
   const matchListTitle = document.getElementById('matchListTitle');
@@ -1383,7 +1386,7 @@ function renderMatchList(list, matches) {
   list.innerHTML = matches.map(m => {
     const teamUs = m.teamUs || t('teamUs');
     const teamThem = m.teamThem || t('teamThem');
-    const realWin = m.over && m.winner !== -1 && !m.manuallySaved;
+    const realWin = isScored(m);
     const usWin = realWin && m.winner === 0;
     const themWin = realWin && m.winner === 1;
     const cls = [
@@ -2162,7 +2165,7 @@ async function load() {
       const id = s.savedTs || s.t0 || 0;
       if (used.has(id) || (s.totalSwings || 0) < 8 || id < 1.5e12) continue;   // skip dubbele, mini-tests, kapotte oude timestamps
       merged.push({ savedAt: id, sport: s.sport || 0, _aiOnly: true, _t0: s.t0 || id, over: true, manuallySaved: false,
-        winner: -1, sets: [0,0], games: [0,0], points: [0,0], totalPoints: 0, durationMin: 0,
+        winner: -1, sets: [0,0], games: [0,0], points: [0,0], totalPoints: 0, durationMin: Math.round(s.durationMin || 0),
         longestStreak: [0,0], setHistory: [], teamUs: '', teamThem: '' });
     }
     merged.sort((a,b) => (b.savedAt||0) - (a.savedAt||0));
