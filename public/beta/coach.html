@@ -292,6 +292,7 @@ canvas{display:block;width:100%}
     <div class="top-right">
       <span class="exp" id="expBadge" style="display:none"><span class="dot"></span>Experimentele analyse</span>
       <a class="ghost-btn" id="backBtn" href="#">← Terug</a>
+      <button class="ghost-btn" id="delBtn" style="display:none">Verwijder</button>
       <button class="ghost-btn" id="refreshBtn">Ververs</button>
     </div>
   </div>
@@ -587,6 +588,8 @@ function renderSession(S){
   // Eerste keer: open direct de Wedstrijd-tab als er een gekoppelde wedstrijd is.
   if(!_tabInit){ _tabInit=true; if(matchFor(S)) ACTIVE_TAB='match'; }
   document.getElementById('meta').textContent=(isLive?'Live · ':'')+`${formatDate(S.savedTs||S.t0)} · ${formatMinutes(S.durationMin)} min · ${formatNumber(S.totalSwings)} slagen`;
+  // Verwijder-knop alleen voor opgeslagen (echte) sessies — niet live of demo.
+  var _del=document.getElementById('delBtn'); if(_del) _del.style.display=(isLive||S._demo)?'none':'';
   const I=insights(S), A=careerAvg(), TIPS=coachTips(S,I,A);
   S.__I=I; S.__A=A; S.__TIPS=TIPS;
 
@@ -1058,8 +1061,11 @@ document.addEventListener('click', async e=>{
   if(e.target.id==='delBtn'){
     const S=SESSIONS_VIEW[SELECTED];
     if(!confirm('Deze sessie verwijderen?')) return;
-    await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}&t0=${S.t0}`,{method:'DELETE'});
-    return load();
+    e.target.textContent='Verwijderen…'; e.target.disabled=true;
+    try{ await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}&t0=${S.t0}`,{method:'DELETE'}); }catch(_){}
+    // Volledige navigatie naar history zodat die vers laadt (sessie is weg).
+    location.href = PIN ? ('/history/'+PIN) : '/history';
+    return;
   }
   if(e.target.id==='saveBtn' && LIVE){
     e.target.textContent='Bewaren…'; e.target.disabled=true;
