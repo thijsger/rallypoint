@@ -855,7 +855,10 @@ function tabMatch(S){
       <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Wedstrijdverloop</div>
       <canvas id="mFlow" data-flow="${seq.join(',')}" height="150"></canvas>
       <div class="chart-note">Boven de lijn = ${esc(teamUs)} stond voor, onder = ${esc(teamThem)}. Stippellijnen = einde van een set.</div>
-    </div>`:''}
+    </div>`:`<div class="card span2 fade-up">
+      <div class="ctitle"><span class="ci">${svg('chartUp',15)}</span>Wedstrijdverloop</div>
+      <div class="chart-note" style="text-align:center;padding:14px 0">Niet beschikbaar voor dit potje — er is geen punt-voor-punt data opgeslagen (oudere app-versie). Nieuwe potjes tonen wél het verloop.</div>
+    </div>`}
     <div class="card fade-up">
       <div class="ctitle"><span class="ci">${svg('scales',15)}</span>Punten gewonnen</div>
       <div class="pwbar" style="height:34px"><div class="us" style="flex:${usPts||0.001}">${esc(teamUs)} ${usPts}</div><div class="them" style="flex:${themPts||0.001}">${themPts} ${esc(teamThem)}</div></div>
