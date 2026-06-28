@@ -49,8 +49,9 @@ const seenSaveIds = {}; // pin -> Set(saveId)  voorkomt dubbele archivering bij 
 
 // --- BETA swing-log (privé diagnose) ---
 const BETA_KEY = process.env.BETA_KEY || 'rp-swing-9f3a2c';
-// Admin-overzicht (privé). Zet ADMIN_KEY als env-var in productie.
-const ADMIN_KEY = process.env.ADMIN_KEY || 'rp-admin-7b2e91c4';
+// Admin-overzicht (privé). Geen default: admin werkt alleen als ADMIN_KEY als
+// env-var is gezet — anders volledig uit (geen gokbare sleutel in de repo).
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
 const BETA_LOG_FILE = path.join(DATA_DIR, 'beta-swing.jsonl');
 const betaLogs = {}; // pin -> [batch, ...]  (in geheugen, file als backup)
 
@@ -536,7 +537,8 @@ const server = http.createServer((req, res) => {
         res.end(data);
       });
     }
-    if (url.searchParams.get('key') !== ADMIN_KEY) { return sendJSON(res, 403, { error: 'forbidden' }); }
+    // Admin alleen actief als ADMIN_KEY is gezet (geen lege-key-bypass).
+    if (!ADMIN_KEY || url.searchParams.get('key') !== ADMIN_KEY) { return sendJSON(res, 403, { error: 'forbidden' }); }
 
     // GET /admin/overview -> totalen + per PIN
     if (parts[1] === 'overview' && req.method === 'GET') {
