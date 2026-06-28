@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RallyPoint · Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0d10;--card:#181d24;--border:#232a33;--text:#f1f4f2;--muted:#8b95a3;--ball:#4ade80;--them:#ff6b54;--blue:#4ea3ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(74,222,128,.07),transparent 60%);background-attachment:fixed;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:26px clamp(14px,3vw,28px) 80px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:24px}
+.keybar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+input{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 14px;color:var(--text);font-size:14px;min-width:240px}
+input:focus{outline:none;border-color:var(--ball)}
+button{background:var(--ball);color:#06210f;border:none;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+.stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 20px;flex:1;min-width:140px}
+.stat .l{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+th,td{text-align:left;padding:13px 16px;font-size:14px;border-bottom:1px solid var(--border)}
+th{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer;transition:background .12s}
+tr.clickable:hover{background:rgba(255,255,255,.04)}
+.pin{font-weight:700;color:var(--ball);font-variant-numeric:tabular-nums}
+.owner{color:var(--text)}.noowner{color:var(--muted);font-style:italic}
+.num{font-variant-numeric:tabular-nums;color:var(--muted)}
+.back{display:inline-block;margin-bottom:16px;color:var(--muted);font-size:14px;cursor:pointer}
+.back:hover{color:var(--ball)}
+.msg{color:var(--muted);padding:30px 0}.err{color:var(--them)}
+.mrow{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 16px;margin-bottom:10px;cursor:pointer;transition:border-color .12s,background .12s}
+.mrow:hover{border-color:var(--ball);background:rgba(255,255,255,.03)}
+.mrow .ms{font-size:18px;font-weight:800;letter-spacing:-.01em;min-width:64px}
+.mrow .mmeta{flex:1;min-width:0}
+.mrow .mt{font-size:14px;font-weight:600}
+.mrow .md{font-size:12.5px;color:var(--muted)}
+.mrow .arrow{color:var(--ball);font-size:13px;font-weight:600;flex-shrink:0}
+.tag{font-size:11px;font-weight:700;color:var(--blue);background:rgba(78,163,255,.12);padding:2px 8px;border-radius:6px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin</h1>
+  <div class="sub">Alle gespeelde potjes. Klik een PIN, dan een potje om de stats-pagina te checken. Privé — niet delen.</div>
+  <div class="keybar" id="keybar">
+    <input id="key" type="password" placeholder="Admin-sleutel" autocomplete="off">
+    <button id="go">Laden</button>
+  </div>
+  <div id="content"><div class="msg">Voer de admin-sleutel in.</div></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+let KEY=localStorage.getItem('rp_admin_key')||'';
+if(KEY)$('#key').value=KEY;
+const SPORTS=['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+function fdate(ts){try{return new Date(ts).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '?';}}
+function num(n){return new Intl.NumberFormat('nl-NL').format(Math.round(n||0));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+async function loadOverview(){
+  KEY=$('#key').value.trim(); if(!KEY)return;
+  localStorage.setItem('rp_admin_key',KEY);
+  $('#content').innerHTML='<div class="msg">Laden…</div>';
+  try{
+    const r=await fetch(`/admin/overview?key=${encodeURIComponent(KEY)}`);
+    if(r.status===403){$('#content').innerHTML='<div class="msg err">Verkeerde sleutel.</div>';return;}
+    const d=await r.json();
+    if(!d.rows.length){$('#content').innerHTML='<div class="msg">Nog geen potjes.</div>';return;}
+    $('#content').innerHTML=`
+      <div class="stat-row">
+        <div class="stat"><div class="l">Potjes</div><div class="v">${num(d.totalMatches)}</div></div>
+        <div class="stat"><div class="l">AI-sessies</div><div class="v">${num(d.totalSessions)}</div></div>
+        <div class="stat"><div class="l">Spelers (PIN)</div><div class="v">${num(d.pins)}</div></div>
+      </div>
+      <table><thead><tr><th>PIN</th><th>Eigenaar</th><th>Potjes</th><th>AI-sessies</th><th>Laatst</th></tr></thead>
+      <tbody>${d.rows.map(x=>`<tr class="clickable" data-pin="${x.pin}">
+        <td class="pin">${esc(x.pin)}</td>
+        <td class="${x.owner?'owner':'noowner'}">${x.owner?esc(x.owner):'geen account'}</td>
+        <td class="num">${num(x.matches)}</td><td class="num">${num(x.sessions)}</td>
+        <td class="num">${x.lastPlayed?fdate(x.lastPlayed):'—'}</td></tr>`).join('')}</tbody></table>`;
+  }catch(e){$('#content').innerHTML='<div class="msg err">Fout: '+esc(e.message)+'</div>';}
+}
+
+async function loadPin(pin){
+  $('#content').innerHTML='<div class="msg">Laden…</div>';
+  try{
+    const r=await fetch(`/admin/history/${pin}?key=${encodeURIComponent(KEY)}`);
+    const d=await r.json();
+    const head=`<div class="back" id="back">← Terug</div>
+      <h1 style="font-size:21px;margin-bottom:2px">PIN ${esc(pin)} ${d.owner?'· '+esc(d.owner):''}</h1>
+      <div class="sub">${d.matches.length} potje(s) · ${d.sessions.length} AI-sessie(s) · klik om de stats-pagina te openen</div>`;
+    const coach=ms=>`/beta/coach/${pin}?beta=${encodeURIComponent(d.beta)}&ms=${ms}`;
+    const matchRows=d.matches.map(m=>{
+      const us=(m.sets&&m.sets[0])||0,them=(m.sets&&m.sets[1])||0;
+      const score=(us||them||(m.totalPoints||0))?`${us}–${them}`:'AI';
+      const badge=m.manuallySaved?'<span class="tag">saved</span>':(m.over?'<span class="tag" style="color:var(--ball);background:rgba(74,222,128,.12)">finished</span>':'');
+      return `<div class="mrow" data-ms="${m.savedAt}"><div class="ms">${score}</div>
+        <div class="mmeta"><div class="mt">${SPORTS[m.sport]||'?'}${badge}</div>
+        <div class="md">${fdate(m.savedAt)} · ${num(m.totalPoints||0)} punten · ${Math.round(m.durationMin||0)} min</div></div>
+        <div class="arrow">stats →</div></div>`;
+    }).join('');
+    // losse AI-sessies (niet als match)
+    const sessRows=d.sessions.map(s=>{
+      const ts=s.savedTs||s.t0||0;
+      return `<div class="mrow" data-ms="${ts}"><div class="ms" style="color:var(--blue)">AI</div>
+        <div class="mmeta"><div class="mt">${SPORTS[s.sport]||'?'} <span class="tag">${num(s.totalSwings||0)} slagen</span></div>
+        <div class="md">${fdate(ts)} · ${Math.round(s.durationMin||0)} min</div></div>
+        <div class="arrow">stats →</div></div>`;
+    }).join('');
+    $('#content').innerHTML=head+(matchRows||'')+(d.sessions.length?`<div class="sub" style="margin:18px 0 8px">AI-sessies</div>`+sessRows:'');
+    $('#back').onclick=loadOverview;
+    document.querySelectorAll('.mrow[data-ms]').forEach(row=>row.onclick=()=>{location.href=coach(row.dataset.ms);});
+  }catch(e){$('#content').innerHTML='<div class="msg err">Fout: '+esc(e.message)+'</div>';}
+}
+
+$('#go').onclick=loadOverview;
+$('#key').addEventListener('keydown',e=>{if(e.key==='Enter')loadOverview();});
+document.addEventListener('click',e=>{const tr=e.target.closest('tr.clickable');if(tr)loadPin(tr.dataset.pin);});
+if(KEY)loadOverview();
+</script>
+</body>
+</html>
