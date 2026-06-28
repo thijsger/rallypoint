@@ -420,9 +420,15 @@ async function load(){
     LIVE = SW.length? buildSummary(AX,AY,AZ,GX,GY,GZ,SW,t0) : null;
     const hist=await (await fetch(`/beta/coach-data/${PIN}?beta=${encodeURIComponent(KEY)}`)).json();
     SESSIONS=(hist.sessions||[]).slice().sort((a,b)=>(b.savedTs||b.t0||0)-(a.savedTs||a.t0||0));
-    // Wedstrijd-history erbij (voor het matchverloop). Mislukt stil als geen toegang.
-    try{ const hr=await fetch(`/history/${PIN}`,{headers:{'Accept':'application/json'}});
-      if(hr.ok){ const hd=await hr.json(); MATCHES=Array.isArray(hd)?hd:[]; } }catch(_){}
+    // Wedstrijd-history erbij (voor het matchverloop). Met admin-sleutel (?akey)
+    // via het admin-endpoint, anders normaal (owner-gated). Mislukt stil.
+    const akey=new URLSearchParams(location.search).get('akey');
+    try{
+      if(akey){ const ar=await fetch(`/admin/history/${PIN}?key=${encodeURIComponent(akey)}`);
+        if(ar.ok){ const ad=await ar.json(); MATCHES=Array.isArray(ad.matches)?ad.matches:[]; } }
+      else { const hr=await fetch(`/history/${PIN}`,{headers:{'Accept':'application/json'}});
+        if(hr.ok){ const hd=await hr.json(); MATCHES=Array.isArray(hd)?hd:[]; } }
+    }catch(_){}
     // Demo-modus: ?demo=1 = met AI; ?demo=match = alleen wedstrijd-stats (geen AI).
     const demo=new URLSearchParams(location.search).get('demo');
     if(demo==='1'){ SESSIONS=[DEMO_SESSION,...SESSIONS]; MATCHES=[DEMO_MATCH,...MATCHES]; document.getElementById('expBadge').style.display=''; renderAll(SESSIONS,0); return; }

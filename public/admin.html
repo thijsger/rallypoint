@@ -94,7 +94,7 @@ async function loadPin(pin){
     const head=`<div class="back" id="back">← Terug</div>
       <h1 style="font-size:21px;margin-bottom:2px">PIN ${esc(pin)} ${d.owner?'· '+esc(d.owner):''}</h1>
       <div class="sub">${d.matches.length} potje(s) · ${d.sessions.length} AI-sessie(s) · klik om de stats-pagina te openen</div>`;
-    const coach=ms=>`/beta/coach/${pin}?beta=${encodeURIComponent(d.beta)}&ms=${ms}`;
+    const coach=ms=>`/beta/coach/${pin}?beta=${encodeURIComponent(d.beta)}&ms=${ms}&akey=${encodeURIComponent(KEY)}`;
     const matchRows=d.matches.map(m=>{
       const us=(m.sets&&m.sets[0])||0,them=(m.sets&&m.sets[1])||0;
       const score=(us||them||(m.totalPoints||0))?`${us}–${them}`:'AI';
