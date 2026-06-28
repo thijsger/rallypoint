@@ -307,8 +307,11 @@ canvas{display:block;width:100%}
 <script>
 const PIN = new URLSearchParams(location.search).get('pin') || location.pathname.split('/')[3] || '';
 const KEY = new URLSearchParams(location.search).get('beta') || '';
-// Taal voor de wedstrijd-stats (?lang=en voor Engelse screenshots/ads).
-const LANG = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'nl';
+// Taal voor de wedstrijd-stats. Volgt de gekozen sitetaal (localStorage), met
+// ?lang= override (voor screenshots/ads). NL = Nederlands, al het andere = Engels.
+const _qlang = new URLSearchParams(location.search).get('lang');
+const _slang = _qlang || (window.localStorage && localStorage.getItem('rallypointLang')) || 'nl';
+const LANG = _slang === 'nl' ? 'nl' : 'en';
 function L(nl,en){ return LANG === 'en' ? en : nl; }
 let MODEL=null, LIVE=null, SESSIONS=[], SESSIONS_VIEW=[], SELECTED=0, ACTIVE_TAB='overview', MATCHES=[];
 // Exact aangeklikte match uit history (?ms=<savedAt>).
