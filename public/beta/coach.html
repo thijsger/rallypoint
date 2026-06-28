@@ -423,8 +423,10 @@ async function load(){
     // Wedstrijd-history erbij (voor het matchverloop). Mislukt stil als geen toegang.
     try{ const hr=await fetch(`/history/${PIN}`,{headers:{'Accept':'application/json'}});
       if(hr.ok){ const hd=await hr.json(); MATCHES=Array.isArray(hd)?hd:[]; } }catch(_){}
-    // Demo-modus: ?demo=1 toont een verzonnen sessie + wedstrijd om te previewen.
-    if(new URLSearchParams(location.search).get('demo')==='1'){ SESSIONS=[DEMO_SESSION,...SESSIONS]; MATCHES=[DEMO_MATCH,...MATCHES]; document.getElementById('expBadge').style.display=''; renderAll(SESSIONS,0); return; }
+    // Demo-modus: ?demo=1 = met AI; ?demo=match = alleen wedstrijd-stats (geen AI).
+    const demo=new URLSearchParams(location.search).get('demo');
+    if(demo==='1'){ SESSIONS=[DEMO_SESSION,...SESSIONS]; MATCHES=[DEMO_MATCH,...MATCHES]; document.getElementById('expBadge').style.display=''; renderAll(SESSIONS,0); return; }
+    if(demo==='match'){ MATCHES=[DEMO_MATCH]; renderMatchOnly(); return; }
     const wantT0 = new URLSearchParams(location.search).get('t0');
     // ?ms=<match savedAt> (vanuit history): selecteer de sessie die qua tijd het
     // dichtst bij die wedstrijd ligt.
@@ -436,6 +438,7 @@ async function load(){
     if(LIVE && LIVE.totalSwings>=8 && !liveSaved && !wantT0 && !wantMs){ LIVE._live=true; renderAll([LIVE,...SESSIONS],0); }
     else if(SESSIONS.length){ renderAll(SESSIONS, preIdx); }
     else if(LIVE && LIVE.totalSwings>=8){ renderAll([LIVE],0); }
+    else if(MATCHES.length){ renderMatchOnly(wantMs); }   // geen AI-data → alleen de wedstrijd-stats
     else { document.getElementById('root').innerHTML=`<div class="card span2 empty"><div class="ei">${svg('racket',34)}</div>Nog geen wedstrijd. Speel een potje met de app actief.</div>`; document.getElementById('expBadge').style.display='none'; }
   }catch(e){ document.getElementById('err').textContent='Fout: '+e.message; }
 }
@@ -797,6 +800,19 @@ function matchExtras(m){
   const fh=[0,0],sh=[0,0];
   seq.forEach((p,i)=>{(i<half?fh:sh)[p===0?0:1]++;});
   return {runU,runT,maxLead,minLead,fh,sh,len:seq.length};
+}
+
+/* Stats-pagina zonder AI: alleen de wedstrijd-stats (voor potjes zonder
+   slagdata — bv. omdat AI uit staat in de release). */
+function renderMatchOnly(wantMs){
+  document.getElementById('expBadge').style.display='none';
+  var _del=document.getElementById('delBtn'); if(_del)_del.style.display='none';
+  let m = wantMs ? MATCHES.find(x=>String(x.savedAt)===String(wantMs)) : null;
+  if(!m) m = MATCHES.slice().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
+  if(!m){ document.getElementById('root').innerHTML=`<div class="card span2 empty"><div class="ei">${svg('racket',34)}</div>Geen wedstrijd gevonden.</div>`; return; }
+  document.getElementById('meta').textContent=`${formatDate(m.savedAt)} · wedstrijd-stats`;
+  document.getElementById('root').innerHTML = tabMatch({savedTs:m.savedAt});
+  requestAnimationFrame(()=>{ drawMatchFlow('mFlow',m); drawWhoBetter('mWho',m); });
 }
 
 /* ---------- match tab (wedstrijdverloop) ---------- */
