@@ -58,6 +58,7 @@ const $=s=>document.querySelector(s);
 let KEY=localStorage.getItem('rp_admin_key')||'';
 if(KEY)$('#key').value=KEY;
 const SPORTS=['Padel','Tennis','Pickleball','Tafeltennis','Badminton','Squash'];
+const SPORTCOL=['#4ade80','#4ea3ff','#ffb84d','#ff6b54','#a78bfa','#e8c84d'];
 function fdate(ts){try{return new Date(ts).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '?';}}
 function num(n){return new Intl.NumberFormat('nl-NL').format(Math.round(n||0));}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -70,19 +71,60 @@ async function loadOverview(){
     const r=await fetch(`/admin/overview?key=${encodeURIComponent(KEY)}`);
     if(r.status===403){$('#content').innerHTML='<div class="msg err">Verkeerde sleutel.</div>';return;}
     const d=await r.json();
-    if(!d.rows.length){$('#content').innerHTML='<div class="msg">Nog geen potjes.</div>';return;}
+    const winRate = d.decided>0 ? Math.round(d.wins/d.decided*100)+'%' : '—';
+    const tile=(l,v,a)=>`<div class="stat"><div class="l">${l}</div><div class="v"${a?` style="color:var(--ball)"`:''}>${v}</div></div>`;
+    // sport-verdeling
+    const sportTotal=Object.values(d.bySport||{}).reduce((a,b)=>a+b,0)||1;
+    const sportBars=Object.entries(d.bySport||{}).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{
+      const col=SPORTCOL[id]||'#8b95a3';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:13.5px">
+        <span style="width:90px;color:var(--muted)">${SPORTS[id]||'?'}</span>
+        <span style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(100*n/sportTotal)}%;background:${col}"></span></span>
+        <span class="num" style="width:54px;text-align:right">${num(n)}</span></div>`;
+    }).join('');
+    // week-trend
+    const maxW=Math.max(1,...(d.weekly||[]));
+    const weekBars=(d.weekly||[]).map(n=>`<span title="${n}" style="flex:1;display:flex;align-items:flex-end"><span style="width:100%;height:${Math.round(100*n/maxW)}%;min-height:${n?3:0}px;background:var(--ball);border-radius:3px 3px 0 0;opacity:${n?.9:.15}"></span></span>`).join('');
     $('#content').innerHTML=`
       <div class="stat-row">
-        <div class="stat"><div class="l">Potjes</div><div class="v">${num(d.totalMatches)}</div></div>
-        <div class="stat"><div class="l">AI-sessies</div><div class="v">${num(d.totalSessions)}</div></div>
-        <div class="stat"><div class="l">Spelers (PIN)</div><div class="v">${num(d.pins)}</div></div>
+        ${tile('Potjes',num(d.totalMatches))}
+        ${tile('AI-sessies',num(d.totalSessions))}
+        ${tile('Slagen geteld',num(d.totalSwings))}
+        ${tile('Live nu',num(d.liveNow),d.liveNow>0)}
       </div>
-      <table><thead><tr><th>PIN</th><th>Eigenaar</th><th>Potjes</th><th>AI-sessies</th><th>Laatst</th></tr></thead>
+      <div class="stat-row">
+        ${tile('Spelers',num(d.users))}
+        ${tile('Gekoppelde PINs',num(d.coupledPins))}
+        ${tile('Publiek',num(d.publicUsers))}
+        ${tile('Pro-licenties',num(d.activeLicenses))}
+      </div>
+      <div class="stat-row">
+        ${tile('Winratio',winRate)}
+        ${tile('Punten totaal',num(d.totalPoints))}
+        ${tile('Speeltijd',Math.floor(d.totalPlayMin/60)+'u '+(d.totalPlayMin%60)+'m')}
+        ${tile('Laatste 7d',num(d.last7)+' · 30d '+num(d.last30))}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+        <div class="stat" style="flex:none">
+          <div class="l" style="margin-bottom:12px">Per sport</div>${sportBars||'<div class="num">—</div>'}
+        </div>
+        <div class="stat" style="flex:none">
+          <div class="l" style="margin-bottom:12px">Potjes per week (12 wk)</div>
+          <div style="display:flex;gap:3px;height:70px;align-items:flex-end">${weekBars}</div>
+        </div>
+      </div>
+      <div class="sub" style="margin-bottom:8px">Per speler — klik voor de potjes</div>
+      <table><thead><tr><th>PIN</th><th>Eigenaar</th><th>Potjes</th><th>Sessies</th><th>Slagen</th><th>Speeltijd</th><th>Win%</th><th>Sport</th><th>Laatst</th></tr></thead>
       <tbody>${d.rows.map(x=>`<tr class="clickable" data-pin="${x.pin}">
         <td class="pin">${esc(x.pin)}</td>
         <td class="${x.owner?'owner':'noowner'}">${x.owner?esc(x.owner):'geen account'}</td>
         <td class="num">${num(x.matches)}</td><td class="num">${num(x.sessions)}</td>
+        <td class="num">${num(x.swings)}</td>
+        <td class="num">${x.playMin?Math.round(x.playMin)+'m':'—'}</td>
+        <td class="num">${x.decided>0?Math.round(x.wins/x.decided*100)+'%':'—'}</td>
+        <td class="num">${x.favSport!=null?(SPORTS[x.favSport]||'?'):'—'}</td>
         <td class="num">${x.lastPlayed?fdate(x.lastPlayed):'—'}</td></tr>`).join('')}</tbody></table>`;
+    if(!d.rows.length){$('#content').innerHTML+='<div class="msg">Nog geen potjes.</div>';}
   }catch(e){$('#content').innerHTML='<div class="msg err">Fout: '+esc(e.message)+'</div>';}
 }
 

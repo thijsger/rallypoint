@@ -360,8 +360,16 @@ function deleteUser(userId) {
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 }
 
+// --- Admin: globale tellingen + gebruikers/pins voor het admin-overzicht ---
+function adminData() {
+  const users = db.prepare('SELECT id, email, display_name, is_public, lang, created_at FROM users ORDER BY created_at').all();
+  const pins = db.prepare('SELECT pin, user_id, paired_at FROM account_pins').all();
+  const licenses = db.prepare('SELECT user_id, status FROM licenses').all();
+  return { users, pins, licenses };
+}
+
 module.exports = {
-  randomHex,
+  randomHex, adminData,
   getUserById, getUserByEmail, createUser,
   markEmailVerified, getUserByVerifyToken,
   setResetToken, getUserByResetToken, updatePassword,

@@ -540,23 +540,57 @@ const server = http.createServer((req, res) => {
     // Admin alleen actief als ADMIN_KEY is gezet (geen lege-key-bypass).
     if (!ADMIN_KEY || url.searchParams.get('key') !== ADMIN_KEY) { return sendJSON(res, 403, { error: 'forbidden' }); }
 
-    // GET /admin/overview -> totalen + per PIN
+    // GET /admin/overview -> uitgebreide globale stats + per PIN
     if (parts[1] === 'overview' && req.method === 'GET') {
+      let acc = {}; try { acc = db.adminData(); } catch (e) { acc = { users: [], pins: [], licenses: [] }; }
+      const ownerByPin = {};
+      for (const p of (acc.pins || [])) {
+        const u = (acc.users || []).find(x => x.id === p.user_id);
+        ownerByPin[p.pin] = u ? (u.display_name || (u.email ? u.email.split('@')[0] : null)) : null;
+      }
+      const DAY = 86400000, now = Date.now();
+      const g = { matches:0, sessions:0, swings:0, playMin:0, points:0, decided:0, wins:0,
+                  last7:0, last30:0, bySport:{}, weekly:new Array(12).fill(0) };
+      const weekStart = now - 11 * 7 * DAY;
       const rows = [];
-      let grandMatches = 0, grandSessions = 0;
       const allPins = new Set([...Object.keys(history), ...Object.keys(betaCoach)]);
       for (const pin of allPins) {
         const matches = Array.isArray(history[pin]) ? history[pin] : [];
         const sessions = Array.isArray(betaCoach[pin]) ? betaCoach[pin] : [];
         if (!matches.length && !sessions.length) continue;
-        let owner = null;
-        try { const o = db.getPinOwner(pin); if (o) { const u = db.getUserById(o.user_id); if (u) owner = u.display_name || (u.email ? u.email.split('@')[0] : null); } } catch (e) {}
-        const last = matches.reduce((m, x) => Math.max(m, x.savedAt || 0), 0);
-        grandMatches += matches.length; grandSessions += sessions.length;
-        rows.push({ pin, owner, matches: matches.length, sessions: sessions.length, lastPlayed: last });
+        let last = 0, pMin = 0, pSw = 0, pWins = 0, pDecided = 0; const pSport = {};
+        for (const m of matches) {
+          g.matches++; last = Math.max(last, m.savedAt || 0);
+          const dur = Number(m.durationMin) || 0; g.playMin += dur; pMin += dur;
+          g.points += Number(m.totalPoints) || 0;
+          const sp = typeof m.sport === 'number' ? m.sport : 0;
+          g.bySport[sp] = (g.bySport[sp] || 0) + 1; pSport[sp] = (pSport[sp] || 0) + 1;
+          if (m.winner === 0 || m.winner === 1) { g.decided++; pDecided++; if (m.winner === 0) { g.wins++; pWins++; } }
+          if (m.savedAt >= now - 7*DAY) g.last7++;
+          if (m.savedAt >= now - 30*DAY) g.last30++;
+          if (m.savedAt >= weekStart) { const wi = Math.floor((m.savedAt - weekStart) / (7*DAY)); if (wi>=0 && wi<12) g.weekly[wi]++; }
+        }
+        for (const s of sessions) {
+          g.sessions++; const sw = Number(s.totalSwings) || 0; g.swings += sw; pSw += sw;
+          last = Math.max(last, s.savedTs || s.t0 || 0);
+        }
+        let fav = null, favN = -1; for (const k of Object.keys(pSport)) if (pSport[k] > favN) { favN = pSport[k]; fav = Number(k); }
+        rows.push({ pin, owner: ownerByPin[pin] || null, matches: matches.length, sessions: sessions.length,
+          swings: pSw, playMin: Math.round(pMin), wins: pWins, decided: pDecided, favSport: fav, lastPlayed: last });
       }
       rows.sort((a, b) => b.lastPlayed - a.lastPlayed);
-      return sendJSON(res, 200, { pins: rows.length, totalMatches: grandMatches, totalSessions: grandSessions, rows });
+      // live nu (niet-afgelopen matches met recente update)
+      let liveNow = 0; const RECENT = 60*60*1000;
+      for (const pin of Object.keys(matches)) { const m = matches[pin]; if (m && !(m.state && m.state.over) && (now - m.updated) < RECENT) liveNow++; }
+      const publicUsers = (acc.users || []).filter(u => u.is_public).length;
+      const activeLic = (acc.licenses || []).filter(l => l.status === 'active' || l.status === 'trial').length;
+      return sendJSON(res, 200, {
+        users: (acc.users || []).length, publicUsers, coupledPins: (acc.pins || []).length, activeLicenses: activeLic,
+        pins: rows.length, totalMatches: g.matches, totalSessions: g.sessions, totalSwings: g.swings,
+        totalPlayMin: Math.round(g.playMin), totalPoints: g.points,
+        decided: g.decided, wins: g.wins,
+        last7: g.last7, last30: g.last30, liveNow, bySport: g.bySport, weekly: g.weekly, rows
+      });
     }
 
     // GET /admin/history/:pin -> wedstrijden van die PIN (om door te klikken)
