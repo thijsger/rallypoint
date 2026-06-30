@@ -68,7 +68,7 @@ async function loadOverview(){
   localStorage.setItem('rp_admin_key',KEY);
   $('#content').innerHTML='<div class="msg">Laden…</div>';
   try{
-    const r=await fetch(`/admin/overview?key=${encodeURIComponent(KEY)}`);
+    const r=await fetch(`/admin/overview?key=${encodeURIComponent(KEY)}&_=${Date.now()}`,{cache:'no-store'});
     if(r.status===403){$('#content').innerHTML='<div class="msg err">Verkeerde sleutel.</div>';return;}
     const d=await r.json();
     const winRate = d.decided>0 ? Math.round(d.wins/d.decided*100)+'%' : '—';
@@ -131,7 +131,7 @@ async function loadOverview(){
 async function loadPin(pin){
   $('#content').innerHTML='<div class="msg">Laden…</div>';
   try{
-    const r=await fetch(`/admin/history/${pin}?key=${encodeURIComponent(KEY)}`);
+    const r=await fetch(`/admin/history/${pin}?key=${encodeURIComponent(KEY)}&_=${Date.now()}`,{cache:'no-store'});
     const d=await r.json();
     const head=`<div class="back" id="back">← Terug</div>
       <h1 style="font-size:21px;margin-bottom:2px">PIN ${esc(pin)} ${d.owner?'· '+esc(d.owner):''}</h1>
